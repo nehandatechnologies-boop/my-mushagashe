@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Registration - Mushagashe Vocational Training Centre</title>
+    <link rel="stylesheet" href="../assets/css/styles.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-header">
+            <div class="logo">
+                <h1>Mushagashe Vocational Training Centre</h1>
+                <p>Student Information Management System</p>
+            </div>
+            <a href="index.html" class="back-link">← Back to Home</a>
+        </div>
+
+        <div class="login-content">
+            <div class="login-form-wrapper register-form-wrapper">
+                <div class="login-form-header">
+                    <h2>Create Student Account</h2>
+                    <p>Fill in your details to register as a new student</p>
+                </div>
+
+                <form id="studentRegisterForm" class="login-form">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="full_name">Full Name *</label>
+                            <input 
+                                type="text" 
+                                id="full_name" 
+                                name="full_name" 
+                                placeholder="Enter your full name" 
+                                required
+                            >
+                        </div>
+                        <div class="form-group">
+                            <label for="student_number">Student Number *</label>
+                            <input 
+                                type="text" 
+                                id="student_number" 
+                                name="student_number" 
+                                placeholder="e.g., STU2024001" 
+                                required
+                            >
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="email">Email Address *</label>
+                            <input 
+                                type="email" 
+                                id="email" 
+                                name="email" 
+                                placeholder="Enter your email" 
+                                required
+                            >
+                        </div>
+                        <div class="form-group">
+                            <label for="phone">Phone Number</label>
+                            <input 
+                                type="tel" 
+                                id="phone" 
+                                name="phone" 
+                                placeholder="e.g., +263771234567"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="gender">Gender</label>
+                            <select id="gender" name="gender">
+                                <option value="">Select Gender</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="national_id">National ID</label>
+                            <input 
+                                type="text" 
+                                id="national_id" 
+                                name="national_id" 
+                                placeholder="Enter national ID number"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="date_of_birth">Date of Birth</label>
+                            <input 
+                                type="date" 
+                                id="date_of_birth" 
+                                name="date_of_birth"
+                            >
+                        </div>
+                        <div class="form-group">
+                            <label for="intake_year">Intake Year *</label>
+                            <select id="intake_year" name="intake_year" required>
+                                <option value="">Select Year</option>
+                                <option value="2024">2024</option>
+                                <option value="2025">2025</option>
+                                <option value="2026">2026</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="address">Address</label>
+                        <textarea 
+                            id="address" 
+                            name="address" 
+                            placeholder="Enter your residential address"
+                            rows="3"
+                        ></textarea>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="guardian_name">Guardian Name</label>
+                            <input 
+                                type="text" 
+                                id="guardian_name" 
+                                name="guardian_name" 
+                                placeholder="Guardian's full name"
+                            >
+                        </div>
+                        <div class="form-group">
+                            <label for="guardian_phone">Guardian Phone</label>
+                            <input 
+                                type="tel" 
+                                id="guardian_phone" 
+                                name="guardian_phone" 
+                                placeholder="Guardian's phone number"
+                            >
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="password">Password *</label>
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            placeholder="Create a password (min 6 characters)" 
+                            required
+                            minlength="6"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="confirm_password">Confirm Password *</label>
+                        <input 
+                            type="password" 
+                            id="confirm_password" 
+                            name="confirm_password" 
+                            placeholder="Confirm your password" 
+                            required
+                            minlength="6"
+                        >
+                    </div>
+
+                    <button type="submit" class="btn btn-primary btn-full">
+                        <span class="btn-text">Create Account</span>
+                        <span class="btn-loader" style="display: none;">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="12" cy="12" r="10" stroke-dasharray="60" stroke-dashoffset="20"></circle>
+                            </svg>
+                        </span>
+                    </button>
+                </form>
+
+                <div id="error-message" class="error-message" style="display: none;"></div>
+                <div id="success-message" class="success-message" style="display: none;"></div>
+                
+                <div class="login-help">
+                    <p>Already have an account? <a href="student-login.html" class="help-link">Login here</a></p>
+                </div>
+            </div>
+        </div>
+
+        <footer class="login-footer">
+            <p>Mushagashe Vocational Training Centre</p>
+            <p>&copy; <span id="current-year"></span> All Rights Reserved</p>
+        </footer>
+    </div>
+
+    <script src="../assets/js/student-register.js"></script>
+    <script>
+        // Automatic copyright year update
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+    </script>
+</body>
+</html>
