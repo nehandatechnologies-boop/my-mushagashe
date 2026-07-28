@@ -498,7 +498,7 @@ document.getElementById('addStudentBtn').addEventListener('click', () => {
     });
 });
 
-async function editStudent(id) {
+window.editStudent = async function(id) {
     try {
         const student = await apiRequest(`/students/${id}`);
         
@@ -549,15 +549,17 @@ async function editStudent(id) {
                 hideModal();
                 loadStudents();
             } catch (error) {
-                showToast('Failed to update student', 'error');
+                console.error('Update student error:', error);
+                showToast('Failed to update student: ' + (error.message || 'Unknown error'), 'error');
             }
         });
     } catch (error) {
-        showToast('Failed to load student data', 'error');
+        console.error('Load student error:', error);
+        showToast('Failed to load student data: ' + (error.message || 'Unknown error'), 'error');
     }
-}
+};
 
-async function deleteStudent(id) {
+window.deleteStudent = async function(id) {
     if (!confirm('Are you sure you want to delete this student?')) return;
     
     try {
@@ -565,9 +567,10 @@ async function deleteStudent(id) {
         showToast('Student deleted successfully');
         loadStudents();
     } catch (error) {
-        showToast('Failed to delete student', 'error');
+        console.error('Delete student error:', error);
+        showToast('Failed to delete student: ' + (error.message || 'Unknown error'), 'error');
     }
-}
+};
 
 // Course CRUD operations
 document.getElementById('addCourseBtn').addEventListener('click', () => {
@@ -620,7 +623,7 @@ document.getElementById('addCourseBtn').addEventListener('click', () => {
     });
 });
 
-async function editCourse(id) {
+window.editCourse = async function(id) {
     try {
         const course = await apiRequest(`/courses/${id}`);
         
@@ -668,15 +671,17 @@ async function editCourse(id) {
                 hideModal();
                 loadCourses();
             } catch (error) {
-                showToast('Failed to update course', 'error');
+                console.error('Update course error:', error);
+                showToast('Failed to update course: ' + (error.message || 'Unknown error'), 'error');
             }
         });
     } catch (error) {
-        showToast('Failed to load course data', 'error');
+        console.error('Load course error:', error);
+        showToast('Failed to load course data: ' + (error.message || 'Unknown error'), 'error');
     }
-}
+};
 
-async function deleteCourse(id) {
+window.deleteCourse = async function(id) {
     if (!confirm('Are you sure you want to delete this course?')) return;
     
     try {
@@ -684,9 +689,10 @@ async function deleteCourse(id) {
         showToast('Course deleted successfully');
         loadCourses();
     } catch (error) {
-        showToast('Failed to delete course', 'error');
+        console.error('Delete course error:', error);
+        showToast('Failed to delete course: ' + (error.message || 'Unknown error'), 'error');
     }
-}
+};
 
 // Load lecturers
 async function loadLecturers() {
