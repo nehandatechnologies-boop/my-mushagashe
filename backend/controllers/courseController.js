@@ -59,14 +59,10 @@ const getCourseById = (req, res) => {
       return res.status(404).json({ error: 'Course not found' });
     }
 
-    // Get student count
-    const studentCount = Course.getStudentCount(id);
-    const courseWithCount = { ...course, student_count: studentCount };
-
-    res.json(courseWithCount);
+    res.json(course);
   } catch (error) {
     console.error('Get course error:', error);
-    res.status(500).json({ error: 'Failed to fetch course' });
+    res.status(500).json({ error: 'Failed to fetch course: ' + error.message });
   }
 };
 
