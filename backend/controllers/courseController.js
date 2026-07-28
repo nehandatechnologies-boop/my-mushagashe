@@ -120,12 +120,19 @@ const deleteCourse = (req, res) => {
       });
     }
 
-    Course.delete(id);
+    const result = Course.delete(id);
+    
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Course not found or already deleted' });
+    }
 
     res.json({ message: 'Course deleted successfully' });
   } catch (error) {
     console.error('Delete course error:', error);
-    res.status(500).json({ error: 'Failed to delete course' });
+    if (error.message.includes('FOREIGN KEY')) {
+      return res.status(400).json({ error: 'Cannot delete course with related records (students, fees, results)' });
+    }
+    res.status(500).json({ error: 'Failed to delete course: ' + error.message });
   }
 };
 
