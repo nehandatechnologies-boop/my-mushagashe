@@ -9,7 +9,8 @@ if (isNgrok) {
   // For ngrok, use relative path since backend serves frontend
   API_BASE = '/api';
 } else if (isRender) {
-  API_BASE = 'https://mushagashe-backend.onrender.com/api';
+  // For Render, use relative path since backend serves frontend
+  API_BASE = '/api';
 } else if (isFly) {
   // For fly.io, use relative path since backend serves frontend
   API_BASE = '/api';

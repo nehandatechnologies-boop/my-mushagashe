@@ -8,7 +8,8 @@ if (isNgrok) {
   // For ngrok, use relative path since backend serves frontend
   API_BASE = '/api';
 } else if (isRender) {
-  API_BASE = 'https://mushagashe-backend.onrender.com/api';
+  // For Render, use relative path since backend serves frontend
+  API_BASE = '/api';
 } else if (isLocalhost) {
   API_BASE = 'http://localhost:5000/api';
 } else {
