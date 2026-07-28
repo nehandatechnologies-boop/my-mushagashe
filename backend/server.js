@@ -57,25 +57,29 @@ if (process.env.NODE_ENV !== 'test') {
 // Serve static files (uploads)
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-// Serve frontend static files
-app.use(express.static(path.join(__dirname, 'frontend')));
+// Serve frontend static files - handle both local and deployment paths
+const frontendPath = process.env.NODE_ENV === 'production' 
+  ? path.join(__dirname, '../frontend') 
+  : path.join(__dirname, '../frontend');
+
+app.use(express.static(frontendPath));
 
 // Serve frontend pages
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend/index.html'));
+  res.sendFile(path.join(frontendPath, 'index.html'));
 });
 
 // Serve other frontend pages
 app.get('/student-login.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend/pages/student-login.html'));
+  res.sendFile(path.join(frontendPath, 'pages/student-login.html'));
 });
 
 app.get('/admin-login.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend/pages/admin-login.html'));
+  res.sendFile(path.join(frontendPath, 'pages/admin-login.html'));
 });
 
 app.get('/student-register.html', (req, res) => {
-  res.sendFile(path.join(__dirname, 'frontend/pages/student-register.html'));
+  res.sendFile(path.join(frontendPath, 'pages/student-register.html'));
 });
 
 // API Routes
