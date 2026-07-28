@@ -107,7 +107,27 @@ const deleteCourse = (req, res) => {
       return res.status(404).json({ error: 'Course not found' });
     }
 
-    // Try to delete - will fail if there are foreign key constraints
+    // Check for related records before attempting deletion
+    const db = require('../database/init');
+    
+    // Check for students
+    const studentCount = db.prepare('SELECT COUNT(*) as count FROM users WHERE course_id = ? AND role = "student"').get(id);
+    if (studentCount.count > 0) {
+      return res.status(400).json({ 
+        error: 'Cannot delete course with enrolled students',
+        student_count: studentCount.count
+      });
+    }
+    
+    // Check for results
+    const resultCount = db.prepare('SELECT COUNT(*) as count FROM results WHERE course_id = ?').get(id);
+    if (resultCount.count > 0) {
+      return res.status(400).json({ 
+        error: 'Cannot delete course with associated results',
+        result_count: resultCount.count
+      });
+    }
+
     const result = Course.delete(id);
     
     if (result.changes === 0) {
@@ -117,13 +137,6 @@ const deleteCourse = (req, res) => {
     res.json({ message: 'Course deleted successfully' });
   } catch (error) {
     console.error('Delete course error:', error);
-    // Handle foreign key constraint errors
-    if (error.message.includes('FOREIGN KEY') || error.message.includes('constraint')) {
-      return res.status(400).json({ 
-        error: 'Cannot delete course with enrolled students or related records',
-        suggestion: 'Remove all students from this course before deleting it'
-      });
-    }
     res.status(500).json({ error: 'Failed to delete course: ' + error.message });
   }
 };
