@@ -425,7 +425,9 @@ document.getElementById('importExcelBtn').addEventListener('click', () => {
             
             if (data.errors && data.errors.length > 0) {
                 console.warn('Import errors:', data.errors);
-                showToast(`${data.errors.length} rows had errors - check console`, 'error');
+                // Show first few errors in toast
+                const errorSample = data.errors.slice(0, 3).map(e => e.error || e.message).join('; ');
+                showToast(`${data.errors.length} rows had errors. Sample: ${errorSample}`, 'error');
             }
 
             hideModal();
