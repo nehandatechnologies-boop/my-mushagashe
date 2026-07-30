@@ -136,14 +136,10 @@ function initializeDatabase() {
   // Create default admin if not exists
   createDefaultAdmin();
   
-  // Create sample courses if none exist
-  createSampleCourses();
-  
-  // Create sample lecturer if not exists
-  createSampleLecturer();
-  
-  // Create sample student if not exists
-  createSampleStudent();
+  // Sample data creation disabled - database starts empty
+  // createSampleCourses();
+  // createSampleLecturer();
+  // createSampleStudent();
 }
 
 function createDefaultAdmin() {
