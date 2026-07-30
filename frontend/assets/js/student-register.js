@@ -21,6 +21,9 @@ if (isNgrok) {
   API_BASE = '/api';
 }
 
+console.log('Environment detected:', { isNgrok, isRender, isFly, isLocalhost });
+console.log('API_BASE set to:', API_BASE);
+
 // API Request helper
 async function apiRequest(endpoint, options = {}) {
     const url = `${API_BASE}${endpoint}`;
