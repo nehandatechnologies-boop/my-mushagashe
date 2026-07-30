@@ -271,6 +271,7 @@ async function loadFees() {
                 <td>$${fee.balance.toFixed(2)}</td>
                 <td><span class="status-badge status-${fee.status}">${fee.status}</span></td>
                 <td>
+                    <button class="action-btn edit" onclick="editFee(${fee.id})">Edit</button>
                     <button class="action-btn edit" onclick="recordPayment(${fee.id})">Pay</button>
                     <button class="action-btn delete" onclick="deleteFee(${fee.id})">Delete</button>
                 </td>
@@ -872,6 +873,8 @@ async function editLecturer(id) {
     }
 }
 
+window.editLecturer = editLecturer;
+
 async function deleteLecturer(id) {
     if (!confirm('Are you sure you want to delete this lecturer?')) return;
     
@@ -883,6 +886,8 @@ async function deleteLecturer(id) {
         showToast('Failed to delete lecturer', 'error');
     }
 }
+
+window.deleteLecturer = deleteLecturer;
 
 // Fee CRUD operations
 document.getElementById('addFeeBtn').addEventListener('click', async () => {
@@ -994,6 +999,83 @@ async function recordPayment(id) {
     });
 }
 
+async function editFee(id) {
+    try {
+        const fee = await apiRequest(`/fees/${id}`);
+        const students = await apiRequest('/students');
+        
+        showModal(`
+            <div class="modal-header">
+                <h3>Edit Fee</h3>
+                <button class="modal-close" onclick="hideModal()">&times;</button>
+            </div>
+            <form id="editFeeForm" class="modal-form">
+                <div class="form-group">
+                    <label>Student</label>
+                    <select name="user_id">
+                        <option value="">Select Student</option>
+                        ${students.map(s => `<option value="${s.id}" ${fee.user_id === s.id ? 'selected' : ''}>${s.full_name} (${s.student_number})</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Fee Category</label>
+                    <select name="fee_category">
+                        <option value="Registration" ${fee.fee_category === 'Registration' ? 'selected' : ''}>Registration</option>
+                        <option value="Tuition" ${fee.fee_category === 'Tuition' ? 'selected' : ''}>Tuition</option>
+                        <option value="Examination" ${fee.fee_category === 'Examination' ? 'selected' : ''}>Examination</option>
+                        <option value="Accommodation" ${fee.fee_category === 'Accommodation' ? 'selected' : ''}>Accommodation</option>
+                        <option value="Library" ${fee.fee_category === 'Library' ? 'selected' : ''}>Library</option>
+                        <option value="Other" ${fee.fee_category === 'Other' ? 'selected' : ''}>Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Amount</label>
+                    <input type="number" name="amount" value="${fee.amount}" min="0" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Amount Paid</label>
+                    <input type="number" name="amount_paid" value="${fee.amount_paid || 0}" min="0" step="0.01">
+                </div>
+                <div class="form-group">
+                    <label>Due Date</label>
+                    <input type="date" name="due_date" value="${fee.due_date ? fee.due_date.split('T')[0] : ''}">
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select name="status">
+                        <option value="unpaid" ${fee.status === 'unpaid' ? 'selected' : ''}>Unpaid</option>
+                        <option value="partial" ${fee.status === 'partial' ? 'selected' : ''}>Partial</option>
+                        <option value="paid" ${fee.status === 'paid' ? 'selected' : ''}>Paid</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Update Fee</button>
+            </form>
+        `);
+        
+        document.getElementById('editFeeForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const updateData = Object.fromEntries(formData);
+            
+            try {
+                await apiRequest(`/fees/${id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(updateData)
+                });
+                showToast('Fee updated successfully');
+                hideModal();
+                loadFees();
+            } catch (error) {
+                showToast('Failed to update fee', 'error');
+            }
+        });
+    } catch (error) {
+        showToast('Failed to load fee data', 'error');
+    }
+}
+
+window.editFee = editFee;
+
 async function deleteFee(id) {
     if (!confirm('Are you sure you want to delete this fee?')) return;
     
@@ -1005,6 +1087,8 @@ async function deleteFee(id) {
         showToast('Failed to delete fee', 'error');
     }
 }
+
+window.deleteFee = deleteFee;
 
 // Result CRUD operations
 document.getElementById('addResultBtn').addEventListener('click', async () => {
@@ -1129,6 +1213,8 @@ async function editResult(id) {
     }
 }
 
+window.editResult = editResult;
+
 async function deleteResult(id) {
     if (!confirm('Are you sure you want to delete this result?')) return;
     
@@ -1140,6 +1226,8 @@ async function deleteResult(id) {
         showToast('Failed to delete result', 'error');
     }
 }
+
+window.deleteResult = deleteResult;
 
 // Announcement CRUD operations
 document.getElementById('addAnnouncementBtn').addEventListener('click', () => {
@@ -1242,6 +1330,8 @@ async function editAnnouncement(id) {
     }
 }
 
+window.editAnnouncement = editAnnouncement;
+
 async function deleteAnnouncement(id) {
     if (!confirm('Are you sure you want to delete this announcement?')) return;
     
@@ -1253,6 +1343,8 @@ async function deleteAnnouncement(id) {
         showToast('Failed to delete announcement', 'error');
     }
 }
+
+window.deleteAnnouncement = deleteAnnouncement;
 
 // Helper function to load courses dropdown
 async function loadCourseDropdown(selectedId = null) {
