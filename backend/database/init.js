@@ -18,6 +18,9 @@ console.log('Connected to SQLite database at:', dbPath);
 
 // Initialize database tables
 function initializeDatabase() {
+  // Drop old students table if it exists (migration)
+  db.exec(`DROP TABLE IF EXISTS students`);
+  
   // Users table with expanded fields
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
