@@ -110,18 +110,18 @@ const deleteCourse = (req, res) => {
     // Check for related records before attempting deletion
     const db = require('../database/init');
     
-    // Check for students
-    const studentCount = db.prepare('SELECT COUNT(*) as count FROM users WHERE course_id = ? AND role = "student"').get(id);
-    if (studentCount.count > 0) {
+    // Check for students - only count students with valid course_id assignment
+    const studentCount = db.prepare('SELECT COUNT(*) as count FROM users WHERE course_id = ? AND role = "student" AND course_id IS NOT NULL').get(id);
+    if (studentCount && studentCount.count > 0) {
       return res.status(400).json({ 
         error: 'Cannot delete course with enrolled students',
         student_count: studentCount.count
       });
     }
     
-    // Check for results
-    const resultCount = db.prepare('SELECT COUNT(*) as count FROM results WHERE course_id = ?').get(id);
-    if (resultCount.count > 0) {
+    // Check for results with valid course_id
+    const resultCount = db.prepare('SELECT COUNT(*) as count FROM results WHERE course_id = ? AND course_id IS NOT NULL').get(id);
+    if (resultCount && resultCount.count > 0) {
       return res.status(400).json({ 
         error: 'Cannot delete course with associated results',
         result_count: resultCount.count
