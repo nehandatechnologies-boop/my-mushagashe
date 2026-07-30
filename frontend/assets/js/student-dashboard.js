@@ -329,7 +329,7 @@ async function loadAnnouncements() {
 // Load profile
 async function loadProfile() {
     try {
-        const profile = await apiRequest('/profile');
+        const profile = await apiRequest('/auth/profile');
         
         document.getElementById('profileFullName').value = profile.full_name;
         document.getElementById('profileStudentNumber').value = profile.student_number;
@@ -353,7 +353,7 @@ document.getElementById('profileForm').addEventListener('submit', async (e) => {
     };
 
     try {
-        await apiRequest('/profile', {
+        await apiRequest('/auth/profile', {
             method: 'PUT',
             body: JSON.stringify(updateData)
         });
