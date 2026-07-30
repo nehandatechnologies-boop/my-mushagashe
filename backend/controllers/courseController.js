@@ -107,7 +107,41 @@ const deleteCourse = (req, res) => {
       return res.status(404).json({ error: 'Course not found' });
     }
 
-    // Attempt deletion - database will enforce foreign key constraints
+    // Check for related records before attempting deletion
+    const db = require('../database/init');
+    
+    // Check for students
+    const studentCount = db.prepare('SELECT COUNT(*) as count FROM users WHERE course_id = ? AND role = "student"').get(id);
+    if (studentCount.count > 0) {
+      return res.status(400).json({ 
+        error: 'Cannot delete course with enrolled students',
+        student_count: studentCount.count
+      });
+    }
+    
+    // Check for results
+    const resultCount = db.prepare('SELECT COUNT(*) as count FROM results WHERE course_id = ?').get(id);
+    if (resultCount.count > 0) {
+      return res.status(400).json({ 
+        error: 'Cannot delete course with associated results',
+        result_count: resultCount.count
+      });
+    }
+    
+    // Check for fees (if fees table has course_id reference)
+    try {
+      const feeCount = db.prepare('SELECT COUNT(*) as count FROM fees WHERE course_id = ?').get(id);
+      if (feeCount.count > 0) {
+        return res.status(400).json({ 
+          error: 'Cannot delete course with associated fees',
+          fee_count: feeCount.count
+        });
+      }
+    } catch (e) {
+      // fees table might not have course_id column, ignore
+    }
+
+    // No related records, safe to delete
     const result = Course.delete(id);
     
     if (result.changes === 0) {
@@ -117,13 +151,6 @@ const deleteCourse = (req, res) => {
     res.json({ message: 'Course deleted successfully' });
   } catch (error) {
     console.error('Delete course error:', error);
-    // Handle foreign key constraint violations
-    if (error.message.includes('FOREIGN KEY') || error.message.includes('constraint')) {
-      return res.status(400).json({ 
-        error: 'Cannot delete course - it has related records (students, results, or fees)',
-        suggestion: 'Remove all related records before deleting this course'
-      });
-    }
     res.status(500).json({ error: 'Failed to delete course: ' + error.message });
   }
 };
