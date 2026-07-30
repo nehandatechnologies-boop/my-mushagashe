@@ -107,46 +107,31 @@ const deleteCourse = (req, res) => {
       return res.status(404).json({ error: 'Course not found' });
     }
 
-    // Check for related records before attempting deletion
+    // Cascade delete: remove all related records first
     const db = require('../database/init');
     
-    // Check for students (including those with any role)
-    const studentCount = db.prepare('SELECT COUNT(*) as count FROM users WHERE course_id = ?').get(id);
-    if (studentCount && studentCount.count > 0) {
-      const details = db.prepare('SELECT id, full_name, role FROM users WHERE course_id = ? LIMIT 5').all(id);
-      return res.status(400).json({ 
-        error: 'Cannot delete course with associated users',
-        user_count: studentCount.count,
-        users: details
-      });
-    }
+    // Remove users assigned to this course (set course_id to NULL instead of deleting users)
+    const updateUsers = db.prepare('UPDATE users SET course_id = NULL WHERE course_id = ?').run(id);
+    console.log(`Unassigned ${updateUsers.changes} users from course`);
     
-    // Check for results
-    const resultCount = db.prepare('SELECT COUNT(*) as count FROM results WHERE course_id = ?').get(id);
-    if (resultCount && resultCount.count > 0) {
-      return res.status(400).json({ 
-        error: 'Cannot delete course with associated results',
-        result_count: resultCount.count
-      });
-    }
+    // Remove results for this course
+    const deleteResults = db.prepare('DELETE FROM results WHERE course_id = ?').run(id);
+    console.log(`Deleted ${deleteResults.changes} results for course`);
 
-    // No related records, safe to delete
+    // Now safe to delete the course
     const result = Course.delete(id);
     
     if (result.changes === 0) {
       return res.status(404).json({ error: 'Course not found or already deleted' });
     }
 
-    res.json({ message: 'Course deleted successfully' });
+    res.json({ 
+      message: 'Course deleted successfully',
+      users_unassigned: updateUsers.changes,
+      results_deleted: deleteResults.changes
+    });
   } catch (error) {
     console.error('Delete course error:', error);
-    // Handle foreign key constraint violations
-    if (error.message.includes('FOREIGN KEY') || error.message.includes('constraint')) {
-      return res.status(400).json({ 
-        error: 'Cannot delete course - it has related records',
-        suggestion: 'Remove all users, results, and fees associated with this course before deleting'
-      });
-    }
     res.status(500).json({ error: 'Failed to delete course: ' + error.message });
   }
 };
