@@ -4,6 +4,7 @@ const cors = require('cors');
 const morgan = require('morgan');
 const path = require('path');
 const fs = require('fs');
+const multer = require('multer');
 
 // Import middleware
 const { 
@@ -36,6 +37,12 @@ const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
+
+// Configure multer for file uploads (in-memory for database restore)
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
+});
 
 // Security middleware
 app.use(securityHeaders);
@@ -90,6 +97,12 @@ app.use('/api/fees', feeRoutes);
 app.use('/api/results', resultRoutes);
 app.use('/api/announcements', announcementRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+
+// Database restore route with file upload
+app.post('/api/auth/restore/database', upload.single('database'), (req, res, next) => {
+  req.files = { database: req.file };
+  next();
+}, authRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

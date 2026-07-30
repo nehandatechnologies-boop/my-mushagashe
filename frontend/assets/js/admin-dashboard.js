@@ -1360,6 +1360,106 @@ document.querySelectorAll('.view-all').forEach(link => {
     });
 });
 
+// Backup database handler
+document.getElementById('backupDbBtn').addEventListener('click', async () => {
+    try {
+        const response = await fetch(`${API_BASE}/auth/backup/database`, {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error('Failed to backup database');
+        }
+        
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `mushagashe-db-backup-${new Date().toISOString().split('T')[0]}.db`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        
+        showToast('Database backed up successfully');
+    } catch (error) {
+        console.error('Backup error:', error);
+        showToast('Failed to backup database', 'error');
+    }
+});
+
+// Restore database handler
+document.getElementById('restoreDbBtn').addEventListener('click', () => {
+    showRestoreModal();
+});
+
+// Show restore modal
+function showRestoreModal() {
+    const modalHtml = `
+        <div class="modal-backdrop" onclick="closeModal()">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <h2>Restore Database</h2>
+                    <button class="modal-close" onclick="closeModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p style="margin-bottom: 15px; color: var(--danger);">
+                        ⚠️ Warning: This will replace all current data with the backup. This action cannot be undone.
+                    </p>
+                    <form id="restoreForm">
+                        <div class="form-group">
+                            <label for="dbFile">Select Database File (.db)</label>
+                            <input type="file" id="dbFile" name="database" accept=".db" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Restore Database</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('modalContainer').innerHTML = modalHtml;
+    document.getElementById('modalContainer').style.display = 'flex';
+    
+    document.getElementById('restoreForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const fileInput = document.getElementById('dbFile');
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            showToast('Please select a database file', 'error');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('database', file);
+        
+        try {
+            const response = await fetch(`${API_BASE}/auth/restore/database`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                },
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to restore database');
+            }
+            
+            showToast('Database restored successfully. Please refresh the page.');
+            closeModal();
+        } catch (error) {
+            console.error('Restore error:', error);
+            showToast(error.message || 'Failed to restore database', 'error');
+        }
+    });
+}
+
 // Change password handler
 document.getElementById('changePasswordBtn').addEventListener('click', () => {
     showChangePasswordModal();

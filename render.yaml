@@ -21,9 +21,3 @@ services:
         value: admin123
       - key: FRONTEND_URL
         value: "*"
-      - key: DB_PATH
-        value: /opt/render/project/backend/database/mushagashe.db
-    disk:
-      name: data
-      mountPath: /opt/render/project/backend/database
-      sizeGB: 1
