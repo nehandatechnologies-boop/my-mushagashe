@@ -1268,6 +1268,71 @@ async function loadCourseDropdown(selectedId = null) {
     }
 }
 
+// Show change password modal
+function showChangePasswordModal() {
+    const modalHtml = `
+        <div class="modal-backdrop" onclick="closeModal()">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <div class="modal-header">
+                    <h2>Change Password</h2>
+                    <button class="modal-close" onclick="closeModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="changePasswordForm">
+                        <div class="form-group">
+                            <label for="current_password">Current Password *</label>
+                            <input type="password" id="current_password" name="current_password" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="new_password">New Password *</label>
+                            <input type="password" id="new_password" name="new_password" required minlength="6">
+                        </div>
+                        <div class="form-group">
+                            <label for="confirm_password">Confirm New Password *</label>
+                            <input type="password" id="confirm_password" name="confirm_password" required minlength="6">
+                        </div>
+                        <button type="submit" class="btn btn-primary">Change Password</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.getElementById('modalContainer').innerHTML = modalHtml;
+    document.getElementById('modalContainer').style.display = 'flex';
+    
+    document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const currentPassword = document.getElementById('current_password').value;
+        const newPassword = document.getElementById('new_password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
+        
+        if (newPassword !== confirmPassword) {
+            showToast('Passwords do not match', 'error');
+            return;
+        }
+        
+        try {
+            await apiRequest('/auth/change-password', {
+                method: 'PUT',
+                body: JSON.stringify({
+                    current_password: currentPassword,
+                    new_password: newPassword
+                })
+            });
+            showToast('Password changed successfully');
+            closeModal();
+        } catch (error) {
+            showToast(error.message || 'Failed to change password', 'error');
+        }
+    });
+}
+
+// Close modal
+function closeModal() {
+    document.getElementById('modalContainer').style.display = 'none';
+}
+
 // Search and filter event listeners
 document.getElementById('studentSearch').addEventListener('input', loadStudents);
 document.getElementById('studentFilter').addEventListener('change', loadStudents);
@@ -1293,6 +1358,11 @@ document.querySelectorAll('.view-all').forEach(link => {
         const page = link.dataset.page;
         navigateTo(page);
     });
+});
+
+// Change password handler
+document.getElementById('changePasswordBtn').addEventListener('click', () => {
+    showChangePasswordModal();
 });
 
 // Logout handler
