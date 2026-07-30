@@ -22,6 +22,9 @@ function initializeDatabase() {
   db.exec(`DROP TABLE IF EXISTS students`);
   db.exec(`DROP VIEW IF EXISTS students_view`);
   db.exec(`DROP VIEW IF EXISTS students_with_courses`);
+  db.exec(`DROP TRIGGER IF EXISTS students_trigger`);
+  db.exec(`DROP TRIGGER IF EXISTS student_trigger`);
+  db.exec(`DROP INDEX IF EXISTS students_index`);
   
   // Users table with expanded fields
   db.exec(`
