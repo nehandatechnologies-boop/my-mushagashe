@@ -32,14 +32,26 @@ const rateLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// Stricter rate limiting for authentication routes
+// Stricter rate limiting for authentication routes (per-IP and per-identifier)
 const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // limit each IP to 5 login attempts per windowMs
+  max: 5, // limit each IP + identifier to 5 login attempts per windowMs
   message: {
-    error: 'Too many login attempts, please try again later.'
+    error: 'Too many login attempts for this account, please try again later.'
   },
   skipSuccessfulRequests: true,
+  keyGenerator: (req) => {
+    // Create a unique key based on IP AND the login identifier (email or student_number)
+    // This ensures that:
+    // 1. Different users on different IPs don't affect each other
+    // 2. Different users on the same IP don't affect each other
+    // 3. Same user on different IPs is tracked separately
+    const ip = req.ip || req.connection.remoteAddress;
+    const identifier = req.body?.email || req.body?.student_number || 'unknown';
+    return `${ip}-${identifier}`;
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 
 // CORS configuration
