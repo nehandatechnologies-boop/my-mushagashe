@@ -64,7 +64,7 @@ class Course {
   }
 
   static getStudentCount(courseId) {
-    const sql = 'SELECT COUNT(*) as count FROM users WHERE course_id = ? AND role = "student"';
+    const sql = 'SELECT COUNT(*) as count FROM users WHERE course_id = ? AND role = "student" AND course_id IS NOT NULL';
     const stmt = db.prepare(sql);
     const result = stmt.get(courseId);
     return result ? result.count : 0;
@@ -73,7 +73,7 @@ class Course {
   static getAllWithStudentCount() {
     const sql = `
       SELECT c.*, 
-             (SELECT COUNT(*) FROM users WHERE course_id = c.id AND role = 'student') as student_count
+             (SELECT COUNT(*) FROM users WHERE course_id = c.id AND role = 'student' AND course_id IS NOT NULL) as student_count
       FROM courses c
       ORDER BY c.course_name
     `;
