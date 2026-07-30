@@ -12,42 +12,51 @@ const registerStudent = (req, res) => {
       intake_year
     } = req.body;
 
+    // Trim whitespace from inputs
+    const trimmedStudentNumber = student_number?.trim();
+    const trimmedEmail = email?.trim();
+    const trimmedPassword = password?.trim();
+
     // Validation
-    if (!full_name || !student_number || !password) {
+    if (!full_name || !trimmedStudentNumber || !trimmedPassword) {
       return res.status(400).json({ error: 'Full name, student number, and password are required' });
     }
 
-    if (password.length < 6) {
+    if (trimmedPassword.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
     // Check if student number or email already exists
-    const existingStudent = User.findByStudentNumber(student_number);
+    const existingStudent = User.findByStudentNumber(trimmedStudentNumber);
     if (existingStudent) {
       return res.status(400).json({ error: 'Student number already exists' });
     }
 
-    if (email) {
-      const existingEmail = User.findByEmail(email);
+    if (trimmedEmail) {
+      const existingEmail = User.findByEmail(trimmedEmail);
       if (existingEmail) {
         return res.status(400).json({ error: 'Email already exists' });
       }
     }
 
     // Hash password
-    const hashedPassword = bcrypt.hashSync(password, 10);
+    const hashedPassword = bcrypt.hashSync(trimmedPassword, 10);
 
     const studentData = {
-      full_name, email, student_number, password: hashedPassword, role: 'student',
+      full_name, email: trimmedEmail, student_number: trimmedStudentNumber, 
+      password: hashedPassword, role: 'student',
       phone, gender, national_id, date_of_birth, address, guardian_name,
       guardian_phone, intake_year, status: 'active'
     };
 
     const result = User.create(studentData);
 
+    console.log('Student registered successfully:', { id: result.lastInsertRowid, student_number: trimmedStudentNumber });
+
     res.status(201).json({
       message: 'Student registered successfully',
-      id: result.lastInsertRowid
+      id: result.lastInsertRowid,
+      student_number: trimmedStudentNumber
     });
   } catch (error) {
     console.error('Register student error:', error);
@@ -377,6 +386,28 @@ const getAllLecturers = (req, res) => {
   }
 };
 
+// Get lecturer by ID (admin only)
+const getLecturerById = (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const lecturer = User.findById(id);
+    if (!lecturer) {
+      return res.status(404).json({ error: 'Lecturer not found' });
+    }
+
+    if (lecturer.role !== 'lecturer') {
+      return res.status(400).json({ error: 'User is not a lecturer' });
+    }
+
+    const { password, ...lecturerWithoutPassword } = lecturer;
+    res.json(lecturerWithoutPassword);
+  } catch (error) {
+    console.error('Get lecturer error:', error);
+    res.status(500).json({ error: 'Failed to fetch lecturer' });
+  }
+};
+
 // Update lecturer (admin only)
 const updateLecturer = (req, res) => {
   try {
@@ -539,6 +570,7 @@ module.exports = {
   getStudentStatistics,
   createLecturer,
   getAllLecturers,
+  getLecturerById,
   updateLecturer,
   deleteLecturer,
   importStudentsFromExcel

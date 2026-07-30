@@ -40,6 +40,7 @@ router.get('/', authenticate, studentController.getAllStudents);
 // Lecturer management routes (admin only) - must come before :id routes
 router.post('/lecturers', authenticate, adminOnly, studentController.createLecturer);
 router.get('/lecturers', authenticate, adminOnly, studentController.getAllLecturers);
+router.get('/lecturers/:id', authenticate, adminOnly, studentController.getLecturerById);
 router.put('/lecturers/:id', authenticate, adminOnly, studentController.updateLecturer);
 router.delete('/lecturers/:id', authenticate, adminOnly, studentController.deleteLecturer);
 

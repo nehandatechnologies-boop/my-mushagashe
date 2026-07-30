@@ -103,17 +103,26 @@ const studentLogin = (req, res) => {
   try {
     const { student_number, password } = req.body;
 
+    // Trim whitespace from inputs
+    const trimmedStudentNumber = student_number?.trim();
+    const trimmedPassword = password?.trim();
+
     // Validation
-    if (!student_number || !password) {
+    if (!trimmedStudentNumber || !trimmedPassword) {
       return res.status(400).json({ error: 'Student number and password are required' });
     }
 
+    console.log('Student login attempt:', { student_number: trimmedStudentNumber });
+
     // Find student by student number
-    const user = User.findByStudentNumber(student_number);
+    const user = User.findByStudentNumber(trimmedStudentNumber);
     
     if (!user) {
+      console.log('Student not found:', trimmedStudentNumber);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+
+    console.log('Student found:', { id: user.id, role: user.role, status: user.status });
 
     if (user.role !== 'student') {
       return res.status(403).json({ error: 'Student access required' });
@@ -124,9 +133,10 @@ const studentLogin = (req, res) => {
     }
 
     // Verify password
-    const isPasswordValid = bcrypt.compareSync(password, user.password);
+    const isPasswordValid = bcrypt.compareSync(trimmedPassword, user.password);
     
     if (!isPasswordValid) {
+      console.log('Password mismatch for student:', trimmedStudentNumber);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
@@ -135,6 +145,8 @@ const studentLogin = (req, res) => {
 
     // Return user data without password
     const { password: _, ...userWithoutPassword } = user;
+
+    console.log('Student login successful:', { id: user.id, student_number: trimmedStudentNumber });
 
     res.json({
       token,
