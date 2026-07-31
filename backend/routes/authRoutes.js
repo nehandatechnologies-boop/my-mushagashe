@@ -1,11 +1,18 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
+const multer = require('multer');
 const authController = require('../controllers/authController');
 const { authenticate, adminOnly } = require('../middleware/auth');
 const { authRateLimiter } = require('../middleware/security');
 const fs = require('fs');
 const path = require('path');
+
+// Configure multer for database restore (in-memory)
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
+});
 
 // Validation middleware
 const validateLogin = [
@@ -51,7 +58,7 @@ router.get('/backup/database', authenticate, adminOnly, (req, res) => {
 });
 
 // Restore database (admin only)
-router.post('/restore/database', authenticate, adminOnly, (req, res) => {
+router.post('/restore/database', authenticate, adminOnly, upload.single('database'), (req, res) => {
   try {
     const dbPath = process.env.DB_PATH || path.join(__dirname, '../database/mushagashe.db');
     const dbDir = path.dirname(dbPath);
