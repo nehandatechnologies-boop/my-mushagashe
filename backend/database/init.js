@@ -157,16 +157,15 @@ function createDefaultAdmin() {
   }
 }
 
+/*
+// Sample data functions - DISABLED to prevent data recreation
 function createSampleCourses() {
   const sampleCourses = [
-    { code: 'CIV001', name: 'Civil Engineering', department: 'Engineering', duration: 3 },
-    { code: 'ELE001', name: 'Electrical Engineering', department: 'Engineering', duration: 3 },
-    { code: 'MEC001', name: 'Mechanical Engineering', department: 'Engineering', duration: 3 },
-    { code: 'BUS001', name: 'Business Management', department: 'Business', duration: 2 },
-    { code: 'ACC001', name: 'Accounting', department: 'Business', duration: 2 },
-    { code: 'NUR001', name: 'Nursing', department: 'Health', duration: 3 },
-    { code: 'HOS001', name: 'Hospitality Management', department: 'Service', duration: 2 },
-    { code: 'AGR001', name: 'Agriculture', department: 'Agriculture', duration: 2 }
+    { code: 'AGRI101', name: 'Agricultural Science', department: 'Agriculture', duration: 3 },
+    { code: 'HORT102', name: 'Horticulture', department: 'Agriculture', duration: 2 },
+    { code: 'ANIM103', name: 'Animal Husbandry', department: 'Agriculture', duration: 2 },
+    { code: 'BUS104', name: 'Business Management', department: 'Business', duration: 3 },
+    { code: 'ACC105', name: 'Accounting', department: 'Business', duration: 2 }
   ];
 
   const row = db.prepare('SELECT COUNT(*) as count FROM courses').get();
@@ -216,6 +215,7 @@ function createSampleStudent() {
     console.log('Sample student account already exists');
   }
 }
+*/
 
 // Initialize database
 initializeDatabase();
