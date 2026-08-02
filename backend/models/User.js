@@ -169,18 +169,32 @@ class User {
       intake_year, status, course_id, profile_picture
     } = userData;
 
+    const updateData = {
+      full_name, email, student_number, phone, gender, national_id,
+      date_of_birth, address, guardian_name, guardian_phone,
+      intake_year, status, course_id, profile_picture
+    };
+
+    // Remove undefined values and convert empty strings to null
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined || updateData[key] === '') {
+        delete updateData[key];
+      }
+    });
+
+    console.log('Updating user with ID:', id, 'Data:', updateData);
+
     const { data, error } = await supabase
       .from('users')
-      .update({
-        full_name, email, student_number, phone, gender, national_id,
-        date_of_birth, address, guardian_name, guardian_phone,
-        intake_year, status, course_id, profile_picture
-      })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase update error:', error);
+      throw error;
+    }
     return data;
   }
 

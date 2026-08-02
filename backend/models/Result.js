@@ -7,12 +7,21 @@ class Result {
       exam_mark, final_mark, grade, credits, lecturer, remarks
     } = resultData;
 
+    const insertData = {
+      user_id, course_id, semester, academic_year, assessment_mark,
+      exam_mark, final_mark, grade, credits, lecturer, remarks
+    };
+
+    // Remove undefined values and convert empty strings to null
+    Object.keys(insertData).forEach(key => {
+      if (insertData[key] === undefined || insertData[key] === '') {
+        delete insertData[key];
+      }
+    });
+
     const { data, error } = await supabase
       .from('results')
-      .insert({
-        user_id, course_id, semester, academic_year, assessment_mark,
-        exam_mark, final_mark, grade, credits, lecturer, remarks
-      })
+      .insert(insertData)
       .select()
       .single();
 
@@ -161,12 +170,21 @@ class Result {
       final_mark, grade, credits, lecturer, remarks
     } = resultData;
 
+    const updateData = {
+      course_id, semester, academic_year, assessment_mark, exam_mark,
+      final_mark, grade, credits, lecturer, remarks
+    };
+
+    // Remove undefined values and convert empty strings to null
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined || updateData[key] === '') {
+        delete updateData[key];
+      }
+    });
+
     const { data, error } = await supabase
       .from('results')
-      .update({
-        course_id, semester, academic_year, assessment_mark, exam_mark,
-        final_mark, grade, credits, lecturer, remarks
-      })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();

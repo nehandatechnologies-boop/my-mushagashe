@@ -7,15 +7,24 @@ class Fee {
       payment_reference, payment_method, receipt_number, payment_date, due_date, status
     } = feeData;
 
+    const insertData = {
+      user_id, fee_category, amount,
+      amount_paid: amount_paid || 0,
+      balance: balance || amount,
+      payment_reference, payment_method, receipt_number, payment_date, due_date,
+      status: status || 'unpaid'
+    };
+
+    // Remove undefined values and convert empty strings to null
+    Object.keys(insertData).forEach(key => {
+      if (insertData[key] === undefined || insertData[key] === '') {
+        delete insertData[key];
+      }
+    });
+
     const { data, error } = await supabase
       .from('fees')
-      .insert({
-        user_id, fee_category, amount,
-        amount_paid: amount_paid || 0,
-        balance: balance || amount,
-        payment_reference, payment_method, receipt_number, payment_date, due_date,
-        status: status || 'unpaid'
-      })
+      .insert(insertData)
       .select()
       .single();
 
@@ -165,12 +174,21 @@ class Fee {
       receipt_number, payment_date, due_date, status
     } = feeData;
 
+    const updateData = {
+      amount, amount_paid, balance, payment_reference, payment_method,
+      receipt_number, payment_date, due_date, status
+    };
+
+    // Remove undefined values and convert empty strings to null
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined || updateData[key] === '') {
+        delete updateData[key];
+      }
+    });
+
     const { data, error } = await supabase
       .from('fees')
-      .update({
-        amount, amount_paid, balance, payment_reference, payment_method,
-        receipt_number, payment_date, due_date, status
-      })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();
