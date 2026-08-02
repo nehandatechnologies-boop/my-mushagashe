@@ -3,6 +3,7 @@ services:
   - type: web
     name: mushagashe-backend
     runtime: node
+    nodeVersion: 22
     plan: free
     buildCommand: cd backend && npm install
     startCommand: cd backend && npm start
