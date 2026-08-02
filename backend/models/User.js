@@ -5,20 +5,36 @@ class User {
     const {
       full_name, email, student_number, password, role, phone, gender,
       national_id, date_of_birth, address, guardian_name, guardian_phone,
-      intake_year, course_id
+      intake_year, course_id, status
     } = userData;
+
+    console.log('User.create called with:', { full_name, email, student_number, role, course_id, status });
+
+    const insertData = {
+      full_name, email, student_number, password, role, phone, gender,
+      national_id, date_of_birth, address, guardian_name, guardian_phone,
+      intake_year, course_id, status
+    };
+
+    // Remove undefined values and convert empty strings to null
+    Object.keys(insertData).forEach(key => {
+      if (insertData[key] === undefined || insertData[key] === '') {
+        delete insertData[key];
+      }
+    });
+
+    console.log('Inserting data:', insertData);
 
     const { data, error } = await supabase
       .from('users')
-      .insert({
-        full_name, email, student_number, password, role, phone, gender,
-        national_id, date_of_birth, address, guardian_name, guardian_phone,
-        intake_year, course_id
-      })
+      .insert(insertData)
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('Supabase insert error:', error);
+      throw error;
+    }
     return data;
   }
 
