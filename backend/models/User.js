@@ -68,13 +68,7 @@ class User {
   static async findByStudentNumber(studentNumber) {
     const { data, error } = await supabase
       .from('users')
-      .select(`
-        *,
-        courses:course_id (
-          course_name,
-          course_code
-        )
-      `)
+      .select('*')
       .eq('student_number', studentNumber)
       .single();
 
@@ -83,11 +77,18 @@ class User {
       throw error;
     }
 
-    // Flatten the nested course data
-    if (data && data.courses) {
-      data.course_name = data.courses.course_name;
-      data.course_code = data.courses.course_code;
-      delete data.courses;
+    // If user has a course, fetch course details
+    if (data && data.course_id) {
+      const { data: courseData, error: courseError } = await supabase
+        .from('courses')
+        .select('course_name, course_code')
+        .eq('id', data.course_id)
+        .single();
+
+      if (!courseError && courseData) {
+        data.course_name = courseData.course_name;
+        data.course_code = courseData.course_code;
+      }
     }
 
     return data;
