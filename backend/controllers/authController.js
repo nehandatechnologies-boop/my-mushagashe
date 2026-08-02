@@ -3,7 +3,7 @@ const User = require('../models/User');
 const { generateToken } = require('../middleware/auth');
 
 // Admin login
-const adminLogin = (req, res) => {
+const adminLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -13,7 +13,7 @@ const adminLogin = (req, res) => {
     }
 
     // Find admin by email
-    const user = User.findByEmail(email);
+    const user = await User.findByEmail(email);
     
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -51,7 +51,7 @@ const adminLogin = (req, res) => {
 };
 
 // Lecturer login
-const lecturerLogin = (req, res) => {
+const lecturerLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
 
@@ -61,7 +61,7 @@ const lecturerLogin = (req, res) => {
     }
 
     // Find lecturer by email
-    const user = User.findByEmail(email);
+    const user = await User.findByEmail(email);
     
     if (!user) {
       return res.status(401).json({ error: 'Invalid credentials' });
@@ -99,7 +99,7 @@ const lecturerLogin = (req, res) => {
 };
 
 // Student login
-const studentLogin = (req, res) => {
+const studentLogin = async (req, res) => {
   try {
     const { student_number, password } = req.body;
 
@@ -115,7 +115,7 @@ const studentLogin = (req, res) => {
     console.log('Student login attempt:', { student_number: trimmedStudentNumber });
 
     // Find student by student number
-    const user = User.findByStudentNumber(trimmedStudentNumber);
+    const user = await User.findByStudentNumber(trimmedStudentNumber);
     
     if (!user) {
       console.log('Student not found:', trimmedStudentNumber);
@@ -159,9 +159,9 @@ const studentLogin = (req, res) => {
 };
 
 // Get current user profile
-const getProfile = (req, res) => {
+const getProfile = async (req, res) => {
   try {
-    const user = User.findById(req.user.id);
+    const user = await User.findById(req.user.id);
     
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -177,7 +177,7 @@ const getProfile = (req, res) => {
 };
 
 // Update profile
-const updateProfile = (req, res) => {
+const updateProfile = async (req, res) => {
   try {
     const userId = req.user.id;
     const {
@@ -197,9 +197,9 @@ const updateProfile = (req, res) => {
       }
     });
 
-    User.update(userId, updateData);
+    await User.update(userId, updateData);
 
-    const updatedUser = User.findById(userId);
+    const updatedUser = await User.findById(userId);
     const { password: _, ...userWithoutPassword } = updatedUser;
 
     res.json(userWithoutPassword);
@@ -210,7 +210,7 @@ const updateProfile = (req, res) => {
 };
 
 // Change password
-const changePassword = (req, res) => {
+const changePassword = async (req, res) => {
   try {
     const userId = req.user.id;
     const { current_password, new_password } = req.body;
@@ -224,7 +224,7 @@ const changePassword = (req, res) => {
     }
 
     // Get current user
-    const user = User.findById(userId);
+    const user = await User.findById(userId);
     
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
@@ -241,7 +241,7 @@ const changePassword = (req, res) => {
     const hashedPassword = bcrypt.hashSync(new_password, 10);
 
     // Update password
-    User.updatePassword(userId, hashedPassword);
+    await User.updatePassword(userId, hashedPassword);
 
     res.json({ message: 'Password changed successfully' });
   } catch (error) {

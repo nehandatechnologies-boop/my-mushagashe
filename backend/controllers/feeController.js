@@ -1,7 +1,7 @@
 const Fee = require('../models/Fee');
 
 // Create new fee
-const createFee = (req, res) => {
+const createFee = async (req, res) => {
   try {
     const {
       user_id, fee_category, amount, amount_paid, balance,
@@ -18,11 +18,11 @@ const createFee = (req, res) => {
       payment_reference, payment_method, receipt_number, payment_date, due_date, status
     };
 
-    const result = Fee.create(feeData);
+    const result = await Fee.create(feeData);
 
     res.status(201).json({
       message: 'Fee created successfully',
-      id: result.lastInsertRowid
+      id: result.id
     });
   } catch (error) {
     console.error('Create fee error:', error);
@@ -31,7 +31,7 @@ const createFee = (req, res) => {
 };
 
 // Get all fees with filters
-const getAllFees = (req, res) => {
+const getAllFees = async (req, res) => {
   try {
     const {
       user_id, fee_category, status, search, limit = 50, offset = 0
@@ -51,7 +51,7 @@ const getAllFees = (req, res) => {
       filters.user_id = req.user.id;
     }
 
-    const fees = Fee.findAll(filters);
+    const fees = await Fee.findAll(filters);
 
     res.json(fees);
   } catch (error) {
@@ -61,10 +61,10 @@ const getAllFees = (req, res) => {
 };
 
 // Get fee by ID
-const getFeeById = (req, res) => {
+const getFeeById = async (req, res) => {
   try {
     const { id } = req.params;
-    const fee = Fee.findById(id);
+    const fee = await Fee.findById(id);
 
     if (!fee) {
       return res.status(404).json({ error: 'Fee not found' });
@@ -83,7 +83,7 @@ const getFeeById = (req, res) => {
 };
 
 // Update fee
-const updateFee = (req, res) => {
+const updateFee = async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -103,9 +103,9 @@ const updateFee = (req, res) => {
       }
     });
 
-    Fee.update(id, updateData);
+    await Fee.update(id, updateData);
 
-    const updatedFee = Fee.findById(id);
+    const updatedFee = await Fee.findById(id);
 
     res.json(updatedFee);
   } catch (error) {
@@ -115,7 +115,7 @@ const updateFee = (req, res) => {
 };
 
 // Record payment
-const recordPayment = (req, res) => {
+const recordPayment = async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -137,12 +137,12 @@ const recordPayment = (req, res) => {
 
     // Generate receipt number if not provided
     if (!receipt_number) {
-      paymentData.receipt_number = Fee.generateReceiptNumber();
+      paymentData.receipt_number = await Fee.generateReceiptNumber();
     }
 
-    Fee.recordPayment(id, paymentData);
+    await Fee.recordPayment(id, paymentData);
 
-    const updatedFee = Fee.findById(id);
+    const updatedFee = await Fee.findById(id);
 
     res.json(updatedFee);
   } catch (error) {
@@ -152,16 +152,16 @@ const recordPayment = (req, res) => {
 };
 
 // Delete fee
-const deleteFee = (req, res) => {
+const deleteFee = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const fee = Fee.findById(id);
+    const fee = await Fee.findById(id);
     if (!fee) {
       return res.status(404).json({ error: 'Fee not found' });
     }
 
-    Fee.delete(id);
+    await Fee.delete(id);
 
     res.json({ message: 'Fee deleted successfully' });
   } catch (error) {
@@ -171,9 +171,9 @@ const deleteFee = (req, res) => {
 };
 
 // Get fee statistics
-const getFeeStatistics = (req, res) => {
+const getFeeStatistics = async (req, res) => {
   try {
-    const stats = Fee.getStatistics();
+    const stats = await Fee.getStatistics();
     res.json(stats);
   } catch (error) {
     console.error('Get fee statistics error:', error);
@@ -182,10 +182,10 @@ const getFeeStatistics = (req, res) => {
 };
 
 // Get outstanding balance for user
-const getOutstandingBalance = (req, res) => {
+const getOutstandingBalance = async (req, res) => {
   try {
     const userId = req.user.id;
-    const outstanding = Fee.getOutstandingByUser(userId);
+    const outstanding = await Fee.getOutstandingByUser(userId);
     res.json({ outstanding_balance: outstanding });
   } catch (error) {
     console.error('Get outstanding balance error:', error);
@@ -194,9 +194,9 @@ const getOutstandingBalance = (req, res) => {
 };
 
 // Generate receipt number
-const generateReceiptNumber = (req, res) => {
+const generateReceiptNumber = async (req, res) => {
   try {
-    const receiptNumber = Fee.generateReceiptNumber();
+    const receiptNumber = await Fee.generateReceiptNumber();
     res.json({ receipt_number });
   } catch (error) {
     console.error('Generate receipt number error:', error);

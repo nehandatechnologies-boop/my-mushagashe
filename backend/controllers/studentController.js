@@ -4,7 +4,7 @@ const Fee = require('../models/Fee');
 const XLSX = require('xlsx');
 
 // Public student registration
-const registerStudent = (req, res) => {
+const registerStudent = async (req, res) => {
   try {
     const {
       full_name, email, student_number, password, phone, gender,
@@ -27,13 +27,13 @@ const registerStudent = (req, res) => {
     }
 
     // Check if student number or email already exists
-    const existingStudent = User.findByStudentNumber(trimmedStudentNumber);
+    const existingStudent = await User.findByStudentNumber(trimmedStudentNumber);
     if (existingStudent) {
       return res.status(400).json({ error: 'Student number already exists' });
     }
 
     if (trimmedEmail) {
-      const existingEmail = User.findByEmail(trimmedEmail);
+      const existingEmail = await User.findByEmail(trimmedEmail);
       if (existingEmail) {
         return res.status(400).json({ error: 'Email already exists' });
       }
@@ -49,13 +49,13 @@ const registerStudent = (req, res) => {
       guardian_phone, intake_year, status: 'active'
     };
 
-    const result = User.create(studentData);
+    const result = await User.create(studentData);
 
-    console.log('Student registered successfully:', { id: result.lastInsertRowid, student_number: trimmedStudentNumber });
+    console.log('Student registered successfully:', { id: result.id, student_number: trimmedStudentNumber });
 
     res.status(201).json({
       message: 'Student registered successfully',
-      id: result.lastInsertRowid,
+      id: result.id,
       student_number: trimmedStudentNumber
     });
   } catch (error) {
@@ -68,7 +68,7 @@ const registerStudent = (req, res) => {
 };
 
 // Create new student
-const createStudent = (req, res) => {
+const createStudent = async (req, res) => {
   try {
     const {
       full_name, email, student_number, password, phone, gender,
@@ -94,11 +94,11 @@ const createStudent = (req, res) => {
       guardian_phone, intake_year, course_id
     };
 
-    const result = User.create(studentData);
+    const result = await User.create(studentData);
 
     res.status(201).json({
       message: 'Student created successfully',
-      id: result.lastInsertRowid
+      id: result.id
     });
   } catch (error) {
     console.error('Create student error:', error);
@@ -110,7 +110,7 @@ const createStudent = (req, res) => {
 };
 
 // Get all students with filters
-const getAllStudents = (req, res) => {
+const getAllStudents = async (req, res) => {
   try {
     const {
       role, status, course_id, search, limit = 50, offset = 0
@@ -130,7 +130,7 @@ const getAllStudents = (req, res) => {
       filters.course_id = req.user.course_id;
     }
 
-    const students = User.findAll(filters);
+    const students = await User.findAll(filters);
 
     res.json(students);
   } catch (error) {
@@ -140,10 +140,10 @@ const getAllStudents = (req, res) => {
 };
 
 // Get student by ID
-const getStudentById = (req, res) => {
+const getStudentById = async (req, res) => {
   try {
     const { id } = req.params;
-    const student = User.findById(id);
+    const student = await User.findById(id);
 
     if (!student) {
       return res.status(404).json({ error: 'Student not found' });
@@ -168,7 +168,7 @@ const getStudentById = (req, res) => {
 };
 
 // Update student
-const updateStudent = (req, res) => {
+const updateStudent = async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -178,7 +178,7 @@ const updateStudent = (req, res) => {
     } = req.body;
 
     // Get existing student to check course
-    const existingStudent = User.findById(id);
+    const existingStudent = await User.findById(id);
     if (!existingStudent) {
       return res.status(404).json({ error: 'Student not found' });
     }
@@ -201,9 +201,9 @@ const updateStudent = (req, res) => {
       }
     });
 
-    User.update(id, updateData);
+    await User.update(id, updateData);
 
-    const updatedStudent = User.findById(id);
+    const updatedStudent = await User.findById(id);
     const { password: _, ...studentWithoutPassword } = updatedStudent;
 
     res.json(studentWithoutPassword);
@@ -217,11 +217,11 @@ const updateStudent = (req, res) => {
 };
 
 // Delete student
-const deleteStudent = (req, res) => {
+const deleteStudent = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const student = User.findById(id);
+    const student = await User.findById(id);
     if (!student) {
       return res.status(404).json({ error: 'Student not found' });
     }
@@ -230,7 +230,7 @@ const deleteStudent = (req, res) => {
       return res.status(400).json({ error: 'User is not a student' });
     }
 
-    User.delete(id);
+    await User.delete(id);
 
     res.json({ message: 'Student deleted successfully' });
   } catch (error) {
@@ -240,11 +240,11 @@ const deleteStudent = (req, res) => {
 };
 
 // Suspend student
-const suspendStudent = (req, res) => {
+const suspendStudent = async (req, res) => {
   try {
     const { id } = req.params;
 
-    User.update(id, { status: 'suspended' });
+    await User.update(id, { status: 'suspended' });
 
     res.json({ message: 'Student suspended successfully' });
   } catch (error) {
@@ -254,11 +254,11 @@ const suspendStudent = (req, res) => {
 };
 
 // Activate student
-const activateStudent = (req, res) => {
+const activateStudent = async (req, res) => {
   try {
     const { id } = req.params;
 
-    User.update(id, { status: 'active' });
+    await User.update(id, { status: 'active' });
 
     res.json({ message: 'Student activated successfully' });
   } catch (error) {
@@ -268,7 +268,7 @@ const activateStudent = (req, res) => {
 };
 
 // Reset student password
-const resetPassword = (req, res) => {
+const resetPassword = async (req, res) => {
   try {
     const { id } = req.params;
     const { new_password } = req.body;
@@ -279,7 +279,7 @@ const resetPassword = (req, res) => {
 
     const hashedPassword = bcrypt.hashSync(new_password, 10);
 
-    User.updatePassword(id, hashedPassword);
+    await User.updatePassword(id, hashedPassword);
 
     res.json({ message: 'Password reset successfully' });
   } catch (error) {
@@ -289,7 +289,7 @@ const resetPassword = (req, res) => {
 };
 
 // Assign course to student
-const assignCourse = (req, res) => {
+const assignCourse = async (req, res) => {
   try {
     const { id } = req.params;
     const { course_id } = req.body;
@@ -298,7 +298,7 @@ const assignCourse = (req, res) => {
       return res.status(400).json({ error: 'Course ID is required' });
     }
 
-    User.update(id, { course_id });
+    await User.update(id, { course_id });
 
     res.json({ message: 'Course assigned successfully' });
   } catch (error) {
@@ -308,9 +308,9 @@ const assignCourse = (req, res) => {
 };
 
 // Get student statistics
-const getStudentStatistics = (req, res) => {
+const getStudentStatistics = async (req, res) => {
   try {
-    const stats = User.getStatistics();
+    const stats = await User.getStatistics();
     res.json(stats);
   } catch (error) {
     console.error('Get student statistics error:', error);
@@ -319,7 +319,7 @@ const getStudentStatistics = (req, res) => {
 };
 
 // Create lecturer (admin only)
-const createLecturer = (req, res) => {
+const createLecturer = async (req, res) => {
   try {
     const {
       full_name, email, password, phone, gender, course_id
@@ -335,7 +335,7 @@ const createLecturer = (req, res) => {
     }
 
     // Check if email already exists
-    const existingEmail = User.findByEmail(email);
+    const existingEmail = await User.findByEmail(email);
     if (existingEmail) {
       return res.status(400).json({ error: 'Email already exists' });
     }
@@ -348,11 +348,11 @@ const createLecturer = (req, res) => {
       phone, gender, course_id, status: 'active'
     };
 
-    const result = User.create(lecturerData);
+    const result = await User.create(lecturerData);
 
     res.status(201).json({
       message: 'Lecturer created successfully',
-      id: result.lastInsertRowid
+      id: result.id
     });
   } catch (error) {
     console.error('Create lecturer error:', error);
@@ -364,14 +364,14 @@ const createLecturer = (req, res) => {
 };
 
 // Get all lecturers (admin only)
-const getAllLecturers = (req, res) => {
+const getAllLecturers = async (req, res) => {
   try {
     const filters = {
       role: 'lecturer',
       limit: 100
     };
 
-    const lecturers = User.findAll(filters);
+    const lecturers = await User.findAll(filters);
 
     // Remove passwords from response
     const lecturersWithoutPasswords = lecturers.map(lecturer => {
@@ -409,7 +409,7 @@ const getLecturerById = (req, res) => {
 };
 
 // Update lecturer (admin only)
-const updateLecturer = (req, res) => {
+const updateLecturer = async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -417,7 +417,7 @@ const updateLecturer = (req, res) => {
     } = req.body;
 
     // Get existing lecturer
-    const existingLecturer = User.findById(id);
+    const existingLecturer = await User.findById(id);
     if (!existingLecturer) {
       return res.status(404).json({ error: 'Lecturer not found' });
     }
@@ -437,9 +437,9 @@ const updateLecturer = (req, res) => {
       }
     });
 
-    User.update(id, updateData);
+    await User.update(id, updateData);
 
-    const updatedLecturer = User.findById(id);
+    const updatedLecturer = await User.findById(id);
     const { password, ...lecturerWithoutPassword } = updatedLecturer;
 
     res.json(lecturerWithoutPassword);
@@ -453,11 +453,11 @@ const updateLecturer = (req, res) => {
 };
 
 // Delete lecturer (admin only)
-const deleteLecturer = (req, res) => {
+const deleteLecturer = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const lecturer = User.findById(id);
+    const lecturer = await User.findById(id);
     if (!lecturer) {
       return res.status(404).json({ error: 'Lecturer not found' });
     }
@@ -466,7 +466,7 @@ const deleteLecturer = (req, res) => {
       return res.status(400).json({ error: 'User is not a lecturer' });
     }
 
-    User.delete(id);
+    await User.delete(id);
 
     res.json({ message: 'Lecturer deleted successfully' });
   } catch (error) {

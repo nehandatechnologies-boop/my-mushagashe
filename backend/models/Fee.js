@@ -1,133 +1,196 @@
-const db = require('../database/init');
+const supabase = require('../config/supabase');
 
 class Fee {
-  static create(feeData) {
+  static async create(feeData) {
     const {
       user_id, fee_category, amount, amount_paid, balance,
       payment_reference, payment_method, receipt_number, payment_date, due_date, status
     } = feeData;
 
-    const sql = `
-      INSERT INTO fees (
-        user_id, fee_category, amount, amount_paid, balance,
-        payment_reference, payment_method, receipt_number, payment_date, due_date, status
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+    const { data, error } = await supabase
+      .from('fees')
+      .insert({
+        user_id, fee_category, amount,
+        amount_paid: amount_paid || 0,
+        balance: balance || amount,
+        payment_reference, payment_method, receipt_number, payment_date, due_date,
+        status: status || 'unpaid'
+      })
+      .select()
+      .single();
 
-    const params = [
-      user_id, fee_category, amount, amount_paid || 0, balance || amount,
-      payment_reference, payment_method, receipt_number, payment_date, due_date, status || 'unpaid'
-    ];
-
-    const stmt = db.prepare(sql);
-    return stmt.run(...params);
+    if (error) throw error;
+    return data;
   }
 
-  static findById(id) {
-    const sql = `
-      SELECT f.*, u.full_name, u.student_number, u.email 
-      FROM fees f 
-      JOIN users u ON f.user_id = u.id 
-      WHERE f.id = ?
-    `;
-    const stmt = db.prepare(sql);
-    return stmt.get(id);
+  static async findById(id) {
+    const { data, error } = await supabase
+      .from('fees')
+      .select(`
+        *,
+        users:user_id (
+          full_name,
+          student_number,
+          email
+        )
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null; // Not found
+      throw error;
+    }
+
+    // Flatten the nested user data
+    if (data && data.users) {
+      data.full_name = data.users.full_name;
+      data.student_number = data.users.student_number;
+      data.email = data.users.email;
+      delete data.users;
+    }
+
+    return data;
   }
 
-  static findByUserId(userId) {
-    const sql = `
-      SELECT f.*, c.course_name 
-      FROM fees f 
-      JOIN users u ON f.user_id = u.id 
-      LEFT JOIN courses c ON u.course_id = c.id 
-      WHERE f.user_id = ? 
-      ORDER BY f.created_at DESC
-    `;
-    const stmt = db.prepare(sql);
-    return stmt.all(userId);
+  static async findByUserId(userId) {
+    const { data, error } = await supabase
+      .from('fees')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Fetch user data
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id, full_name, student_number, email, course_id')
+      .eq('id', userId)
+      .single();
+
+    if (!userError && userData && userData.course_id) {
+      // Fetch course data
+      const { data: courseData, error: courseError } = await supabase
+        .from('courses')
+        .select('course_name')
+        .eq('id', userData.course_id)
+        .single();
+
+      if (!courseError && courseData) {
+        // Add course name to each fee
+        return data.map(fee => ({
+          ...fee,
+          course_name: courseData.course_name
+        }));
+      }
+    }
+
+    return data;
   }
 
-  static findAll(filters = {}) {
-    let sql = `
-      SELECT f.*, u.full_name, u.student_number, u.email, c.course_name 
-      FROM fees f 
-      JOIN users u ON f.user_id = u.id 
-      LEFT JOIN courses c ON u.course_id = c.id 
-      WHERE 1=1
-    `;
-    const params = [];
+  static async findAll(filters = {}) {
+    let query = supabase
+      .from('fees')
+      .select('*');
 
     if (filters.user_id) {
-      sql += ' AND f.user_id = ?';
-      params.push(filters.user_id);
+      query = query.eq('user_id', filters.user_id);
     }
 
     if (filters.fee_category) {
-      sql += ' AND f.fee_category = ?';
-      params.push(filters.fee_category);
+      query = query.eq('fee_category', filters.fee_category);
     }
 
     if (filters.status) {
-      sql += ' AND f.status = ?';
-      params.push(filters.status);
+      query = query.eq('status', filters.status);
     }
 
-    if (filters.search) {
-      sql += ' AND (u.full_name LIKE ? OR u.student_number LIKE ?)';
-      const searchTerm = `%${filters.search}%`;
-      params.push(searchTerm, searchTerm);
-    }
-
-    sql += ' ORDER BY f.created_at DESC';
+    query = query.order('created_at', { ascending: false });
 
     if (filters.limit) {
-      sql += ' LIMIT ?';
-      params.push(filters.limit);
+      query = query.limit(filters.limit);
     }
 
     if (filters.offset) {
-      sql += ' OFFSET ?';
-      params.push(filters.offset);
+      query = query.range(filters.offset, filters.offset + (filters.limit || 10) - 1);
     }
 
-    const stmt = db.prepare(sql);
-    return stmt.all(...params);
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    // Fetch user data for each fee
+    const userIds = [...new Set(data.map(f => f.user_id))];
+    const usersData = userIds.length > 0 ? await supabase
+      .from('users')
+      .select('id, full_name, student_number, email, course_id')
+      .in('id', userIds) : [];
+
+    const usersMap = {};
+    usersData.forEach(user => {
+      usersMap[user.id] = user;
+    });
+
+    // Fetch course data for users who have courses
+    const courseIds = [...new Set(usersData.filter(u => u.course_id).map(u => u.course_id))];
+    const coursesData = courseIds.length > 0 ? await supabase
+      .from('courses')
+      .select('id, course_name')
+      .in('id', courseIds) : [];
+
+    const coursesMap = {};
+    coursesData.forEach(course => {
+      coursesMap[course.id] = course.course_name;
+    });
+
+    // Merge data
+    return data.map(fee => {
+      const user = usersMap[fee.user_id];
+      if (user) {
+        fee.full_name = user.full_name;
+        fee.student_number = user.student_number;
+        fee.email = user.email;
+        if (user.course_id && coursesMap[user.course_id]) {
+          fee.course_name = coursesMap[user.course_id];
+        }
+      }
+      return fee;
+    });
   }
 
-  static update(id, feeData) {
+  static async update(id, feeData) {
     const {
       amount, amount_paid, balance, payment_reference, payment_method,
       receipt_number, payment_date, due_date, status
     } = feeData;
 
-    const sql = `
-      UPDATE fees SET
-        amount = ?, amount_paid = ?, balance = ?, payment_reference = ?,
-        payment_method = ?, receipt_number = ?, payment_date = ?, due_date = ?, status = ?
-      WHERE id = ?
-    `;
+    const { data, error } = await supabase
+      .from('fees')
+      .update({
+        amount, amount_paid, balance, payment_reference, payment_method,
+        receipt_number, payment_date, due_date, status
+      })
+      .eq('id', id)
+      .select()
+      .single();
 
-    const params = [
-      amount, amount_paid, balance, payment_reference, payment_method,
-      receipt_number, payment_date, due_date, status, id
-    ];
-
-    const stmt = db.prepare(sql);
-    return stmt.run(...params);
+    if (error) throw error;
+    return data;
   }
 
-  static recordPayment(id, paymentData) {
+  static async recordPayment(id, paymentData) {
     const { amount_paid, payment_reference, payment_method, receipt_number, payment_date } = paymentData;
 
     // First get current fee details
-    const fee = this.findById(id);
+    const fee = await this.findById(id);
     if (!fee) throw new Error('Fee not found');
 
     const newAmountPaid = (fee.amount_paid || 0) + amount_paid;
     const newBalance = fee.amount - newAmountPaid;
     const newStatus = newBalance <= 0 ? 'paid' : 'partial';
 
-    return this.update(id, {
+    return await this.update(id, {
       amount: fee.amount,
       amount_paid: newAmountPaid,
       balance: newBalance,
@@ -139,55 +202,67 @@ class Fee {
     });
   }
 
-  static delete(id) {
-    const stmt = db.prepare('DELETE FROM fees WHERE id = ?');
-    return stmt.run(id);
+  static async delete(id) {
+    const { error } = await supabase
+      .from('fees')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    return true;
   }
 
-  static getStatistics() {
-    const sql = `
-      SELECT 
-        COUNT(*) as total_fees,
-        SUM(CASE WHEN status = 'unpaid' THEN 1 ELSE 0 END) as unpaid_count,
-        SUM(CASE WHEN status = 'partial' THEN 1 ELSE 0 END) as partial_count,
-        SUM(CASE WHEN status = 'paid' THEN 1 ELSE 0 END) as paid_count,
-        SUM(amount) as total_amount,
-        SUM(amount_paid) as total_collected,
-        SUM(balance) as total_outstanding
-      FROM fees
-    `;
-    const stmt = db.prepare(sql);
-    return stmt.get();
+  static async getStatistics() {
+    const { data, error } = await supabase
+      .from('fees')
+      .select('amount, amount_paid, balance, status');
+
+    if (error) throw error;
+
+    const stats = {
+      total_fees: data.length,
+      unpaid_count: data.filter(f => f.status === 'unpaid').length,
+      partial_count: data.filter(f => f.status === 'partial').length,
+      paid_count: data.filter(f => f.status === 'paid').length,
+      total_amount: data.reduce((sum, f) => sum + (f.amount || 0), 0),
+      total_collected: data.reduce((sum, f) => sum + (f.amount_paid || 0), 0),
+      total_outstanding: data.reduce((sum, f) => sum + (f.balance || 0), 0)
+    };
+
+    return stats;
   }
 
-  static getOutstandingByUser(userId) {
-    const sql = `
-      SELECT COALESCE(SUM(balance), 0) as total_outstanding
-      FROM fees 
-      WHERE user_id = ? AND status != 'paid'
-    `;
-    const stmt = db.prepare(sql);
-    const result = stmt.get(userId);
-    return result ? result.total_outstanding : 0;
+  static async getOutstandingByUser(userId) {
+    const { data, error } = await supabase
+      .from('fees')
+      .select('balance')
+      .eq('user_id', userId)
+      .neq('status', 'paid');
+
+    if (error) throw error;
+
+    const totalOutstanding = data.reduce((sum, f) => sum + (f.balance || 0), 0);
+    return totalOutstanding;
   }
 
-  static generateReceiptNumber() {
+  static async generateReceiptNumber() {
     const date = new Date();
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
-    
+
     // Get count of receipts today
-    const sql = `
-      SELECT COUNT(*) as count 
-      FROM fees 
-      WHERE payment_date >= date('now', 'start of day')
-    `;
-    const stmt = db.prepare(sql);
-    const result = stmt.get();
-    const count = (result ? result.count : 0) + 1;
-    
-    return `RCPT${year}${month}${day}${String(count).padStart(4, '0')}`;
+    const startOfDay = new Date(date.setHours(0, 0, 0, 0)).toISOString();
+    const { count, error } = await supabase
+      .from('fees')
+      .select('*', { count: 'exact', head: true })
+      .gte('payment_date', startOfDay);
+
+    if (error) throw error;
+
+    const receiptCount = (count || 0) + 1;
+
+    return `RCPT${year}${month}${day}${String(receiptCount).padStart(4, '0')}`;
   }
 }
 

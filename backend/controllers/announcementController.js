@@ -1,7 +1,7 @@
 const Announcement = require('../models/Announcement');
 
 // Create new announcement
-const createAnnouncement = (req, res) => {
+const createAnnouncement = async (req, res) => {
   try {
     const { title, message, priority } = req.body;
 
@@ -22,11 +22,11 @@ const createAnnouncement = (req, res) => {
       created_by: req.user.id
     };
 
-    const result = Announcement.create(announcementData);
+    const result = await Announcement.create(announcementData);
 
     res.status(201).json({
       message: 'Announcement created successfully',
-      id: result.lastInsertRowid
+      id: result.id
     });
   } catch (error) {
     console.error('Create announcement error:', error);
@@ -35,7 +35,7 @@ const createAnnouncement = (req, res) => {
 };
 
 // Get all announcements with filters
-const getAllAnnouncements = (req, res) => {
+const getAllAnnouncements = async (req, res) => {
   try {
     const { priority, search, limit = 50, offset = 0 } = req.query;
 
@@ -46,7 +46,7 @@ const getAllAnnouncements = (req, res) => {
       offset: parseInt(offset)
     };
 
-    const announcements = Announcement.findAll(filters);
+    const announcements = await Announcement.findAll(filters);
 
     res.json(announcements);
   } catch (error) {
@@ -56,10 +56,10 @@ const getAllAnnouncements = (req, res) => {
 };
 
 // Get latest announcements
-const getLatestAnnouncements = (req, res) => {
+const getLatestAnnouncements = async (req, res) => {
   try {
     const { limit = 5 } = req.query;
-    const announcements = Announcement.getLatest(parseInt(limit));
+    const announcements = await Announcement.getLatest(parseInt(limit));
     res.json(announcements);
   } catch (error) {
     console.error('Get latest announcements error:', error);
@@ -68,9 +68,9 @@ const getLatestAnnouncements = (req, res) => {
 };
 
 // Get urgent announcements
-const getUrgentAnnouncements = (req, res) => {
+const getUrgentAnnouncements = async (req, res) => {
   try {
-    const announcements = Announcement.getUrgent();
+    const announcements = await Announcement.getUrgent();
     res.json(announcements);
   } catch (error) {
     console.error('Get urgent announcements error:', error);
@@ -79,10 +79,10 @@ const getUrgentAnnouncements = (req, res) => {
 };
 
 // Get announcement by ID
-const getAnnouncementById = (req, res) => {
+const getAnnouncementById = async (req, res) => {
   try {
     const { id } = req.params;
-    const announcement = Announcement.findById(id);
+    const announcement = await Announcement.findById(id);
 
     if (!announcement) {
       return res.status(404).json({ error: 'Announcement not found' });
@@ -96,7 +96,7 @@ const getAnnouncementById = (req, res) => {
 };
 
 // Update announcement
-const updateAnnouncement = (req, res) => {
+const updateAnnouncement = async (req, res) => {
   try {
     const { id } = req.params;
     const { title, message, priority } = req.body;
@@ -115,9 +115,9 @@ const updateAnnouncement = (req, res) => {
       }
     });
 
-    Announcement.update(id, updateData);
+    await Announcement.update(id, updateData);
 
-    const updatedAnnouncement = Announcement.findById(id);
+    const updatedAnnouncement = await Announcement.findById(id);
 
     res.json(updatedAnnouncement);
   } catch (error) {
@@ -127,16 +127,16 @@ const updateAnnouncement = (req, res) => {
 };
 
 // Delete announcement
-const deleteAnnouncement = (req, res) => {
+const deleteAnnouncement = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const announcement = Announcement.findById(id);
+    const announcement = await Announcement.findById(id);
     if (!announcement) {
       return res.status(404).json({ error: 'Announcement not found' });
     }
 
-    Announcement.delete(id);
+    await Announcement.delete(id);
 
     res.json({ message: 'Announcement deleted successfully' });
   } catch (error) {
@@ -146,9 +146,9 @@ const deleteAnnouncement = (req, res) => {
 };
 
 // Get announcement statistics
-const getAnnouncementStatistics = (req, res) => {
+const getAnnouncementStatistics = async (req, res) => {
   try {
-    const stats = Announcement.getStatistics();
+    const stats = await Announcement.getStatistics();
     res.json(stats);
   } catch (error) {
     console.error('Get announcement statistics error:', error);

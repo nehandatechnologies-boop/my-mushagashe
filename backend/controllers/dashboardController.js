@@ -5,14 +5,14 @@ const Result = require('../models/Result');
 const Announcement = require('../models/Announcement');
 
 // Get comprehensive dashboard statistics
-const getDashboardStatistics = (req, res) => {
+const getDashboardStatistics = async (req, res) => {
   try {
     // Get statistics from all models
-    const userStats = User.getStatistics();
-    const feeStats = Fee.getStatistics();
-    const resultStats = Result.getStatistics();
-    const announcementStats = Announcement.getStatistics();
-    const courses = Course.getAllWithStudentCount();
+    const userStats = await User.getStatistics();
+    const feeStats = await Fee.getStatistics();
+    const resultStats = await Result.getStatistics();
+    const announcementStats = await Announcement.getStatistics();
+    const courses = await Course.getAllWithStudentCount();
 
     const totalCourses = courses.length;
     const totalStudents = userStats ? userStats.total || 0 : 0;
@@ -68,17 +68,17 @@ const getDashboardStatistics = (req, res) => {
 };
 
 // Get student-specific dashboard data
-const getStudentDashboard = (req, res) => {
+const getStudentDashboard = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    const user = User.findById(userId);
-    const fees = Fee.findByUserId(userId);
-    const results = Result.findByUserId(userId);
-    const announcements = Announcement.getLatest(5);
+    const user = await User.findById(userId);
+    const fees = await Fee.findByUserId(userId);
+    const results = await Result.findByUserId(userId);
+    const announcements = await Announcement.getLatest(5);
 
-    const outstandingBalance = Fee.getOutstandingByUser(userId);
-    const gpaData = Result.getStudentGPA(userId);
+    const outstandingBalance = await Fee.getOutstandingByUser(userId);
+    const gpaData = await Result.getStudentGPA(userId);
 
     const dashboardData = {
       user: {
@@ -111,7 +111,7 @@ const getStudentDashboard = (req, res) => {
 };
 
 // Get chart data for analytics
-const getChartData = (req, res) => {
+const getChartData = async (req, res) => {
   try {
     const { type } = req.query;
 
@@ -120,7 +120,7 @@ const getChartData = (req, res) => {
     switch (type) {
       case 'enrollment':
         // Student enrollment by course
-        const courses = Course.getAllWithStudentCount();
+        const courses = await Course.getAllWithStudentCount();
         chartData = {
           labels: courses.map(c => c.course_name),
           data: courses.map(c => c.student_count),
@@ -130,7 +130,7 @@ const getChartData = (req, res) => {
 
       case 'fees':
         // Fee collection by category
-        const allFees = Fee.findAll({});
+        const allFees = await Fee.findAll({});
         const feeCategories = {};
         allFees.forEach(fee => {
           if (!feeCategories[fee.fee_category]) {
@@ -149,7 +149,7 @@ const getChartData = (req, res) => {
 
       case 'gender':
         // Gender distribution
-        const userStats = User.getStatistics();
+        const userStats = await User.getStatistics();
         chartData = {
           labels: ['Male', 'Female'],
           data: [userStats.male_count || 0, userStats.female_count || 0],
@@ -159,7 +159,7 @@ const getChartData = (req, res) => {
 
       case 'results':
         // Results distribution by grade
-        const resultStats = Result.getStatistics();
+        const resultStats = await Result.getStatistics();
         chartData = {
           labels: ['A', 'B', 'C', 'D', 'E', 'F'],
           data: [

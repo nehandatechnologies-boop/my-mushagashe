@@ -1,125 +1,180 @@
-const db = require('../database/init');
+const supabase = require('../config/supabase');
 
 class Announcement {
-  static create(announcementData) {
+  static async create(announcementData) {
     const { title, message, priority, created_by } = announcementData;
 
-    const sql = `
-      INSERT INTO announcements (title, message, priority, created_by)
-      VALUES (?, ?, ?, ?)
-    `;
+    const { data, error } = await supabase
+      .from('announcements')
+      .insert({ title, message, priority: priority || 'normal', created_by })
+      .select()
+      .single();
 
-    const stmt = db.prepare(sql);
-    return stmt.run(title, message, priority || 'normal', created_by);
+    if (error) throw error;
+    return data;
   }
 
-  static findById(id) {
-    const sql = `
-      SELECT a.*, u.full_name as creator_name 
-      FROM announcements a 
-      LEFT JOIN users u ON a.created_by = u.id 
-      WHERE a.id = ?
-    `;
-    const stmt = db.prepare(sql);
-    return stmt.get(id);
+  static async findById(id) {
+    const { data, error } = await supabase
+      .from('announcements')
+      .select(`
+        *,
+        users:created_by (
+          full_name
+        )
+      `)
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null; // Not found
+      throw error;
+    }
+
+    // Flatten the nested user data
+    if (data && data.users) {
+      data.creator_name = data.users.full_name;
+      delete data.users;
+    }
+
+    return data;
   }
 
-  static findAll(filters = {}) {
-    let sql = `
-      SELECT a.*, u.full_name as creator_name 
-      FROM announcements a 
-      LEFT JOIN users u ON a.created_by = u.id 
-      WHERE 1=1
-    `;
-    const params = [];
+  static async findAll(filters = {}) {
+    let query = supabase
+      .from('announcements')
+      .select(`
+        *,
+        users:created_by (
+          full_name
+        )
+      `);
 
     if (filters.priority) {
-      sql += ' AND a.priority = ?';
-      params.push(filters.priority);
+      query = query.eq('priority', filters.priority);
     }
 
     if (filters.created_by) {
-      sql += ' AND a.created_by = ?';
-      params.push(filters.created_by);
+      query = query.eq('created_by', filters.created_by);
     }
 
     if (filters.search) {
-      sql += ' AND (a.title LIKE ? OR a.message LIKE ?)';
-      const searchTerm = `%${filters.search}%`;
-      params.push(searchTerm, searchTerm);
+      query = query.or(`title.ilike.%${filters.search}%,message.ilike.%${filters.search}%`);
     }
 
-    sql += ' ORDER BY a.created_at DESC';
+    query = query.order('created_at', { ascending: false });
 
     if (filters.limit) {
-      sql += ' LIMIT ?';
-      params.push(filters.limit);
+      query = query.limit(filters.limit);
     }
 
     if (filters.offset) {
-      sql += ' OFFSET ?';
-      params.push(filters.offset);
+      query = query.range(filters.offset, filters.offset + (filters.limit || 10) - 1);
     }
 
-    const stmt = db.prepare(sql);
-    return stmt.all(...params);
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    // Flatten the nested user data
+    return data.map(announcement => {
+      if (announcement.users) {
+        announcement.creator_name = announcement.users.full_name;
+        delete announcement.users;
+      }
+      return announcement;
+    });
   }
 
-  static getLatest(limit = 5) {
-    const sql = `
-      SELECT a.*, u.full_name as creator_name 
-      FROM announcements a 
-      LEFT JOIN users u ON a.created_by = u.id 
-      ORDER BY a.created_at DESC 
-      LIMIT ?
-    `;
-    const stmt = db.prepare(sql);
-    return stmt.all(limit);
+  static async getLatest(limit = 5) {
+    const { data, error } = await supabase
+      .from('announcements')
+      .select(`
+        *,
+        users:created_by (
+          full_name
+        )
+      `)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (error) throw error;
+
+    // Flatten the nested user data
+    return data.map(announcement => {
+      if (announcement.users) {
+        announcement.creator_name = announcement.users.full_name;
+        delete announcement.users;
+      }
+      return announcement;
+    });
   }
 
-  static getUrgent() {
-    const sql = `
-      SELECT a.*, u.full_name as creator_name 
-      FROM announcements a 
-      LEFT JOIN users u ON a.created_by = u.id 
-      WHERE a.priority IN ('urgent', 'important')
-      ORDER BY a.created_at DESC 
-      LIMIT 10
-    `;
-    const stmt = db.prepare(sql);
-    return stmt.all();
+  static async getUrgent() {
+    const { data, error } = await supabase
+      .from('announcements')
+      .select(`
+        *,
+        users:created_by (
+          full_name
+        )
+      `)
+      .in('priority', ['urgent', 'important'])
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (error) throw error;
+
+    // Flatten the nested user data
+    return data.map(announcement => {
+      if (announcement.users) {
+        announcement.creator_name = announcement.users.full_name;
+        delete announcement.users;
+      }
+      return announcement;
+    });
   }
 
-  static update(id, announcementData) {
+  static async update(id, announcementData) {
     const { title, message, priority } = announcementData;
 
-    const sql = `
-      UPDATE announcements SET
-        title = ?, message = ?, priority = ?
-      WHERE id = ?
-    `;
+    const { data, error } = await supabase
+      .from('announcements')
+      .update({ title, message, priority })
+      .eq('id', id)
+      .select()
+      .single();
 
-    const stmt = db.prepare(sql);
-    return stmt.run(title, message, priority, id);
+    if (error) throw error;
+    return data;
   }
 
-  static delete(id) {
-    const stmt = db.prepare('DELETE FROM announcements WHERE id = ?');
-    return stmt.run(id);
+  static async delete(id) {
+    const { error } = await supabase
+      .from('announcements')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    return true;
   }
 
-  static getStatistics() {
-    const sql = `
-      SELECT 
-        COUNT(*) as total,
-        SUM(CASE WHEN priority = 'urgent' THEN 1 ELSE 0 END) as urgent_count,
-        SUM(CASE WHEN priority = 'important' THEN 1 ELSE 0 END) as important_count,
-        SUM(CASE WHEN priority = 'normal' THEN 1 ELSE 0 END) as normal_count,
-        SUM(CASE WHEN priority = 'low' THEN 1 ELSE 0 END) as low_count
-      FROM announcements
-    `;
-    const stmt = db.prepare(sql);
-    return stmt.get();
+  static async getStatistics() {
+    const { data, error } = await supabase
+      .from('announcements')
+      .select('priority');
+
+    if (error) throw error;
+
+    const stats = {
+      total: data.length,
+      urgent_count: data.filter(a => a.priority === 'urgent').length,
+      important_count: data.filter(a => a.priority === 'important').length,
+      normal_count: data.filter(a => a.priority === 'normal').length,
+      low_count: data.filter(a => a.priority === 'low').length
+    };
+
+    return stats;
   }
 }
 

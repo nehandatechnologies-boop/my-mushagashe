@@ -1,152 +1,214 @@
-const db = require('../database/init');
+const supabase = require('../config/supabase');
 
 class User {
-  static create(userData) {
+  static async create(userData) {
     const {
       full_name, email, student_number, password, role, phone, gender,
       national_id, date_of_birth, address, guardian_name, guardian_phone,
       intake_year, course_id
     } = userData;
 
-    const sql = `
-      INSERT INTO users (
+    const { data, error } = await supabase
+      .from('users')
+      .insert({
         full_name, email, student_number, password, role, phone, gender,
         national_id, date_of_birth, address, guardian_name, guardian_phone,
         intake_year, course_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `;
+      })
+      .select()
+      .single();
 
-    const params = [
-      full_name, email, student_number, password, role, phone, gender,
-      national_id, date_of_birth, address, guardian_name, guardian_phone,
-      intake_year, course_id
-    ];
-
-    const stmt = db.prepare(sql);
-    const result = stmt.run(params);
-    return result;
+    if (error) throw error;
+    return data;
   }
 
-  static findById(id) {
-    const sql = `
-      SELECT u.*, c.course_name, c.course_code 
-      FROM users u 
-      LEFT JOIN courses c ON u.course_id = c.id 
-      WHERE u.id = ?
-    `;
-    const stmt = db.prepare(sql);
-    return stmt.get(id);
+  static async findById(id) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null; // Not found
+      throw error;
+    }
+
+    // If user has a course, fetch course details
+    if (data && data.course_id) {
+      const { data: courseData, error: courseError } = await supabase
+        .from('courses')
+        .select('course_name, course_code')
+        .eq('id', data.course_id)
+        .single();
+
+      if (!courseError && courseData) {
+        data.course_name = courseData.course_name;
+        data.course_code = courseData.course_code;
+      }
+    }
+
+    return data;
   }
 
-  static findByEmail(email) {
-    const stmt = db.prepare('SELECT * FROM users WHERE email = ?');
-    return stmt.get(email);
+  static async findByEmail(email) {
+    const { data, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null; // Not found
+      throw error;
+    }
+    return data;
   }
 
-  static findByStudentNumber(studentNumber) {
-    const sql = `
-      SELECT u.*, c.course_name, c.course_code 
-      FROM users u 
-      LEFT JOIN courses c ON u.course_id = c.id 
-      WHERE u.student_number = ?
-    `;
-    const stmt = db.prepare(sql);
-    return stmt.get(studentNumber);
+  static async findByStudentNumber(studentNumber) {
+    const { data, error } = await supabase
+      .from('users')
+      .select(`
+        *,
+        courses:course_id (
+          course_name,
+          course_code
+        )
+      `)
+      .eq('student_number', studentNumber)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null; // Not found
+      throw error;
+    }
+
+    // Flatten the nested course data
+    if (data && data.courses) {
+      data.course_name = data.courses.course_name;
+      data.course_code = data.courses.course_code;
+      delete data.courses;
+    }
+
+    return data;
   }
 
-  static findAll(filters = {}) {
-    let sql = `
-      SELECT u.*, c.course_name, c.course_code 
-      FROM users u 
-      LEFT JOIN courses c ON u.course_id = c.id 
-      WHERE 1=1
-    `;
-    const params = [];
+  static async findAll(filters = {}) {
+    let query = supabase
+      .from('users')
+      .select(`
+        *,
+        courses:course_id (
+          course_name,
+          course_code
+        )
+      `);
 
     if (filters.role) {
-      sql += ' AND u.role = ?';
-      params.push(filters.role);
+      query = query.eq('role', filters.role);
     }
 
     if (filters.status) {
-      sql += ' AND u.status = ?';
-      params.push(filters.status);
+      query = query.eq('status', filters.status);
     }
 
     if (filters.course_id) {
-      sql += ' AND u.course_id = ?';
-      params.push(filters.course_id);
+      query = query.eq('course_id', filters.course_id);
     }
 
     if (filters.search) {
-      sql += ' AND (u.full_name LIKE ? OR u.student_number LIKE ? OR u.email LIKE ?)';
-      const searchTerm = `%${filters.search}%`;
-      params.push(searchTerm, searchTerm, searchTerm);
+      query = query.or(`full_name.ilike.%${filters.search}%,student_number.ilike.%${filters.search}%,email.ilike.%${filters.search}%`);
     }
 
-    sql += ' ORDER BY u.created_at DESC';
+    query = query.order('created_at', { ascending: false });
 
     if (filters.limit) {
-      sql += ' LIMIT ?';
-      params.push(filters.limit);
+      query = query.limit(filters.limit);
     }
 
     if (filters.offset) {
-      sql += ' OFFSET ?';
-      params.push(filters.offset);
+      query = query.range(filters.offset, filters.offset + (filters.limit || 10) - 1);
     }
 
-    const stmt = db.prepare(sql);
-    return stmt.all(...params);
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    // Flatten the nested course data
+    return data.map(user => {
+      if (user.courses) {
+        user.course_name = user.courses.course_name;
+        user.course_code = user.courses.course_code;
+        delete user.courses;
+      }
+      return user;
+    });
   }
 
-  static update(id, userData) {
+  static async update(id, userData) {
     const {
       full_name, email, student_number, phone, gender, national_id,
       date_of_birth, address, guardian_name, guardian_phone,
       intake_year, status, course_id, profile_picture
     } = userData;
 
-    const sql = `
-      UPDATE users SET
-        full_name = ?, email = ?, student_number = ?, phone = ?, gender = ?,
-        national_id = ?, date_of_birth = ?, address = ?, guardian_name = ?,
-        guardian_phone = ?, intake_year = ?, status = ?, course_id = ?, profile_picture = ?
-      WHERE id = ?
-    `;
+    const { data, error } = await supabase
+      .from('users')
+      .update({
+        full_name, email, student_number, phone, gender, national_id,
+        date_of_birth, address, guardian_name, guardian_phone,
+        intake_year, status, course_id, profile_picture
+      })
+      .eq('id', id)
+      .select()
+      .single();
 
-    const params = [
-      full_name, email, student_number, phone, gender, national_id,
-      date_of_birth, address, guardian_name, guardian_phone,
-      intake_year, status, course_id, profile_picture, id
-    ];
-
-    const stmt = db.prepare(sql);
-    return stmt.run(params);
+    if (error) throw error;
+    return data;
   }
 
-  static updatePassword(id, hashedPassword) {
-    const stmt = db.prepare('UPDATE users SET password = ? WHERE id = ?');
-    return stmt.run(hashedPassword, id);
+  static async updatePassword(id, hashedPassword) {
+    const { data, error } = await supabase
+      .from('users')
+      .update({ password: hashedPassword })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (error) throw error;
+    return data;
   }
 
-  static delete(id) {
-    const stmt = db.prepare('DELETE FROM users WHERE id = ?');
-    return stmt.run(id);
+  static async delete(id) {
+    const { error } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    return true;
   }
 
-  static getStatistics() {
-    const sql = `
-      SELECT 
-        COUNT(*) as total,
-        SUM(CASE WHEN gender = 'male' THEN 1 ELSE 0 END) as male_count,
-        SUM(CASE WHEN gender = 'female' THEN 1 ELSE 0 END) as female_count,
-        SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_count,
-        SUM(CASE WHEN status = 'suspended' THEN 1 ELSE 0 END) as suspended_count
-      FROM users WHERE role = 'student'
-    `;
-    const stmt = db.prepare(sql);
-    return stmt.get();
+  static async getStatistics() {
+    const { data, error } = await supabase
+      .from('users')
+      .select(`
+        gender,
+        status
+      `)
+      .eq('role', 'student');
+
+    if (error) throw error;
+
+    const stats = {
+      total: data.length,
+      male_count: data.filter(u => u.gender === 'male').length,
+      female_count: data.filter(u => u.gender === 'female').length,
+      active_count: data.filter(u => u.status === 'active').length,
+      suspended_count: data.filter(u => u.status === 'suspended').length
+    };
+
+    return stats;
   }
 }
 

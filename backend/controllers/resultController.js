@@ -3,7 +3,7 @@ const PDFDocument = require('pdfkit');
 const User = require('../models/User');
 
 // Create new result
-const createResult = (req, res) => {
+const createResult = async (req, res) => {
   try {
     const {
       user_id, course_id, semester, academic_year, assessment_mark,
@@ -32,11 +32,11 @@ const createResult = (req, res) => {
       credits, lecturer, remarks
     };
 
-    const result = Result.create(resultData);
+    const result = await Result.create(resultData);
 
     res.status(201).json({
       message: 'Result created successfully',
-      id: result.lastInsertRowid
+      id: result.id
     });
   } catch (error) {
     console.error('Create result error:', error);
@@ -45,7 +45,7 @@ const createResult = (req, res) => {
 };
 
 // Get all results with filters
-const getAllResults = (req, res) => {
+const getAllResults = async (req, res) => {
   try {
     const {
       user_id, course_id, semester, academic_year, grade, search, limit = 50, offset = 0
@@ -72,7 +72,7 @@ const getAllResults = (req, res) => {
       filters.course_id = req.user.course_id;
     }
 
-    const results = Result.findAll(filters);
+    const results = await Result.findAll(filters);
 
     res.json(results);
   } catch (error) {
@@ -82,10 +82,10 @@ const getAllResults = (req, res) => {
 };
 
 // Get result by ID
-const getResultById = (req, res) => {
+const getResultById = async (req, res) => {
   try {
     const { id } = req.params;
-    const result = Result.findById(id);
+    const result = await Result.findById(id);
 
     if (!result) {
       return res.status(404).json({ error: 'Result not found' });
@@ -109,7 +109,7 @@ const getResultById = (req, res) => {
 };
 
 // Update result
-const updateResult = (req, res) => {
+const updateResult = async (req, res) => {
   try {
     const { id } = req.params;
     const {
@@ -118,7 +118,7 @@ const updateResult = (req, res) => {
     } = req.body;
 
     // Get existing result to check course
-    const existingResult = Result.findById(id);
+    const existingResult = await Result.findById(id);
     if (!existingResult) {
       return res.status(404).json({ error: 'Result not found' });
     }
@@ -150,9 +150,9 @@ const updateResult = (req, res) => {
       }
     });
 
-    Result.update(id, updateData);
+    await Result.update(id, updateData);
 
-    const updatedResult = Result.findById(id);
+    const updatedResult = await Result.findById(id);
 
     res.json(updatedResult);
   } catch (error) {
@@ -162,11 +162,11 @@ const updateResult = (req, res) => {
 };
 
 // Delete result
-const deleteResult = (req, res) => {
+const deleteResult = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const result = Result.findById(id);
+    const result = await Result.findById(id);
     if (!result) {
       return res.status(404).json({ error: 'Result not found' });
     }
@@ -176,7 +176,7 @@ const deleteResult = (req, res) => {
       return res.status(403).json({ error: 'Access denied: You can only delete results for your assigned course' });
     }
 
-    Result.delete(id);
+    await Result.delete(id);
 
     res.json({ message: 'Result deleted successfully' });
   } catch (error) {
@@ -186,9 +186,9 @@ const deleteResult = (req, res) => {
 };
 
 // Get result statistics
-const getResultStatistics = (req, res) => {
+const getResultStatistics = async (req, res) => {
   try {
-    const stats = Result.getStatistics();
+    const stats = await Result.getStatistics();
     res.json(stats);
   } catch (error) {
     console.error('Get result statistics error:', error);
@@ -197,10 +197,10 @@ const getResultStatistics = (req, res) => {
 };
 
 // Get student GPA
-const getStudentGPA = (req, res) => {
+const getStudentGPA = async (req, res) => {
   try {
     const userId = req.user.id;
-    const gpaData = Result.getStudentGPA(userId);
+    const gpaData = await Result.getStudentGPA(userId);
     res.json(gpaData);
   } catch (error) {
     console.error('Get student GPA error:', error);
@@ -209,7 +209,7 @@ const getStudentGPA = (req, res) => {
 };
 
 // Import multiple results (bulk upload)
-const importResults = (req, res) => {
+const importResults = async (req, res) => {
   try {
     const { results } = req.body;
 
@@ -235,13 +235,13 @@ const importResults = (req, res) => {
         const calculatedFinalMark = final_mark || ((assessment_mark || 0) + (exam_mark || 0)) / 2;
         const calculatedGrade = grade || Result.calculateGrade(calculatedFinalMark);
 
-        const result = Result.create({
+        const result = await Result.create({
           user_id, course_id, semester, academic_year, assessment_mark,
           exam_mark, final_mark: calculatedFinalMark, grade: calculatedGrade,
           credits, lecturer, remarks
         });
 
-        createdResults.push({ id: result.lastInsertRowid, ...resultData });
+        createdResults.push({ id: result.id, ...resultData });
       } catch (error) {
         errors.push({ data: resultData, error: error.message });
       }
@@ -259,13 +259,13 @@ const importResults = (req, res) => {
 };
 
 // Download results as PDF
-const downloadResultsPDF = (req, res) => {
+const downloadResultsPDF = async (req, res) => {
   try {
     const { semester, academic_year } = req.query;
     const userId = req.user.id;
 
     // Get student information
-    const student = User.findById(userId);
+    const student = await User.findById(userId);
     if (!student) {
       return res.status(404).json({ error: 'Student not found' });
     }
@@ -277,7 +277,7 @@ const downloadResultsPDF = (req, res) => {
       academic_year
     };
 
-    const results = Result.findAll(filters);
+    const results = await Result.findAll(filters);
 
     if (!results || results.length === 0) {
       return res.status(404).json({ error: 'No results found for the specified term' });
