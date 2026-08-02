@@ -3,6 +3,7 @@ services:
   - type: web
     name: mushagashe-backend
     runtime: node
+    nodeVersion: 22
     plan: free
     buildCommand: cd backend && npm install
     startCommand: cd backend && npm start
@@ -24,4 +25,4 @@ services:
       - key: SUPABASE_URL
         value: https://krenyvbcwtbwcsrpiryf.supabase.co
       - key: SUPABASE_ANON_KEY
-        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtyZW55dmJjd3Rid2NzcmlweXJmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjI1OTQ1NzQsImV4cCI6MjAzODE3MDU3NH0.sb_publishable_U9faHkvZnNMUFHdfeW8sPA_80joTNX5
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtyZW55dmJjd3Rid2NzcnBpcnlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2NDYxMDgsImV4cCI6MjEwMTIyMjEwOH0.ePaoY-bRwmRFo2Rd2eA_XY_EllShPtC178eyUXnUl-I
