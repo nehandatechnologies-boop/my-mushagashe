@@ -75,12 +75,20 @@ app.get('/student-login.html', (req, res) => {
   res.sendFile(path.join(frontendPath, 'pages/student-login.html'));
 });
 
+app.get('/lecturer-login.html', (req, res) => {
+  res.sendFile(path.join(frontendPath, 'pages/lecturer-login.html'));
+});
+
 app.get('/admin-login.html', (req, res) => {
   res.sendFile(path.join(frontendPath, 'pages/admin-login.html'));
 });
 
 app.get('/student-register.html', (req, res) => {
   res.sendFile(path.join(frontendPath, 'pages/student-register.html'));
+});
+
+app.get('/lecturer-dashboard.html', (req, res) => {
+  res.sendFile(path.join(frontendPath, 'pages/lecturer-dashboard.html'));
 });
 
 // API Routes
