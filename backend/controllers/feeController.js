@@ -132,7 +132,8 @@ const recordPayment = async (req, res) => {
       payment_reference,
       payment_method,
       receipt_number,
-      payment_date: payment_date || new Date().toISOString()
+      payment_date: payment_date || new Date().toISOString(),
+      recorded_by: req.user.id
     };
 
     // Generate receipt number if not provided

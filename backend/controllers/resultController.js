@@ -1,6 +1,7 @@
 const Result = require('../models/Result');
 const PDFDocument = require('pdfkit');
 const User = require('../models/User');
+const Fee = require('../models/Fee');
 
 // Create new result
 const createResult = async (req, res) => {
@@ -66,6 +67,16 @@ const getAllResults = async (req, res) => {
     // If student, only show their own results
     if (req.user.role === 'student') {
       filters.user_id = req.user.id;
+
+      // Check if student has outstanding fees
+      const hasOutstanding = await Fee.hasOutstandingFees(req.user.id);
+      if (hasOutstanding) {
+        const outstandingBalance = await Fee.getOutstandingBalance(req.user.id);
+        return res.status(403).json({ 
+          error: 'Outstanding fees must be paid before viewing results',
+          outstanding_balance: outstandingBalance
+        });
+      }
     }
 
     // If lecturer, only show results for their assigned course
@@ -95,6 +106,18 @@ const getResultById = async (req, res) => {
     // Check permission
     if (req.user.role === 'student' && result.user_id !== req.user.id) {
       return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // If student, check if they have outstanding fees
+    if (req.user.role === 'student') {
+      const hasOutstanding = await Fee.hasOutstandingFees(req.user.id);
+      if (hasOutstanding) {
+        const outstandingBalance = await Fee.getOutstandingBalance(req.user.id);
+        return res.status(403).json({ 
+          error: 'Outstanding fees must be paid before viewing results',
+          outstanding_balance: outstandingBalance
+        });
+      }
     }
 
     // Lecturer can only view results for their assigned course

@@ -1,4 +1,5 @@
 const supabase = require('../config/supabase');
+const PaymentHistory = require('./PaymentHistory');
 
 class Fee {
   static async create(feeData) {
@@ -228,7 +229,7 @@ class Fee {
   }
 
   static async recordPayment(id, paymentData) {
-    const { amount_paid, payment_reference, payment_method, receipt_number, payment_date } = paymentData;
+    const { amount_paid, payment_reference, payment_method, receipt_number, payment_date, recorded_by } = paymentData;
 
     // First get current fee details
     const fee = await this.findById(id);
@@ -238,7 +239,8 @@ class Fee {
     const newBalance = fee.amount - newAmountPaid;
     const newStatus = newBalance <= 0 ? 'paid' : 'partial';
 
-    return await this.update(id, {
+    // Update the fee record
+    const updatedFee = await this.update(id, {
       amount: fee.amount,
       amount_paid: newAmountPaid,
       balance: newBalance,
@@ -248,6 +250,21 @@ class Fee {
       payment_date,
       status: newStatus
     });
+
+    // Create payment history entry
+    await PaymentHistory.create({
+      fee_id: id,
+      user_id: fee.user_id,
+      amount_paid,
+      payment_reference,
+      payment_method,
+      receipt_number,
+      payment_date,
+      recorded_by,
+      notes: `Payment recorded for ${fee.fee_category}`
+    });
+
+    return updatedFee;
   }
 
   static async delete(id) {
@@ -311,6 +328,33 @@ class Fee {
     const receiptCount = (count || 0) + 1;
 
     return `RCPT${year}${month}${day}${String(receiptCount).padStart(4, '0')}`;
+  }
+
+  static async hasOutstandingFees(userId) {
+    const { data, error } = await supabase
+      .from('fees')
+      .select('balance, status')
+      .eq('user_id', userId)
+      .neq('status', 'paid');
+
+    if (error) throw error;
+
+    // Check if there are any fees with outstanding balance
+    const hasUnpaid = data.some(fee => fee.balance > 0);
+    return hasUnpaid;
+  }
+
+  static async getOutstandingBalance(userId) {
+    const { data, error } = await supabase
+      .from('fees')
+      .select('balance')
+      .eq('user_id', userId)
+      .neq('status', 'paid');
+
+    if (error) throw error;
+
+    const totalOutstanding = data.reduce((sum, f) => sum + (f.balance || 0), 0);
+    return totalOutstanding;
   }
 }
 
