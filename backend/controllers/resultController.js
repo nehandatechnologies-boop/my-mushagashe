@@ -154,11 +154,15 @@ const updateResult = async (req, res) => {
       final_mark, grade, credits, lecturer, remarks
     } = req.body;
 
+    console.log('Update result request:', { id, body: req.body, user: req.user });
+
     // Get existing result to check course
     const existingResult = await Result.findById(id);
     if (!existingResult) {
       return res.status(404).json({ error: 'Result not found' });
     }
+
+    console.log('Existing result:', existingResult);
 
     // Lecturer can only update results for their assigned course
     if (req.user.role === 'lecturer') {
@@ -168,21 +172,21 @@ const updateResult = async (req, res) => {
       if (existingResult.course_id !== req.user.course_id) {
         return res.status(403).json({ error: 'Access denied: You can only update results for your assigned course' });
       }
-      // Lecturers cannot change the course_id
-      delete req.body.course_id;
     }
 
-    // Recalculate if marks changed
+    // Recalculate final mark and grade if marks changed
     let calculatedFinalMark = final_mark;
     let calculatedGrade = grade;
 
     if (assessment_mark !== undefined || exam_mark !== undefined) {
-      calculatedFinalMark = final_mark || ((assessment_mark || 0) + (exam_mark || 0)) / 2;
+      const assessmentVal = assessment_mark !== undefined && assessment_mark !== '' ? parseFloat(assessment_mark) : 0;
+      const examVal = exam_mark !== undefined && exam_mark !== '' ? parseFloat(exam_mark) : 0;
+      calculatedFinalMark = final_mark || (assessmentVal + examVal) / 2;
       calculatedGrade = grade || Result.calculateGrade(calculatedFinalMark);
     }
 
     const updateData = {
-      course_id: req.body.course_id !== undefined ? parseInt(req.body.course_id) : existingResult.course_id,
+      course_id: course_id !== undefined ? parseInt(course_id) : existingResult.course_id,
       semester: semester !== undefined ? parseInt(semester) : existingResult.semester,
       academic_year: academic_year !== undefined ? parseInt(academic_year) : existingResult.academic_year,
       assessment_mark: assessment_mark !== undefined ? (assessment_mark === '' ? null : parseFloat(assessment_mark)) : existingResult.assessment_mark,
@@ -193,6 +197,8 @@ const updateResult = async (req, res) => {
       lecturer,
       remarks
     };
+
+    console.log('Update data:', updateData);
 
     // Remove undefined values
     Object.keys(updateData).forEach(key => {
@@ -208,7 +214,7 @@ const updateResult = async (req, res) => {
     res.json(updatedResult);
   } catch (error) {
     console.error('Update result error:', error);
-    res.status(500).json({ error: 'Failed to update result' });
+    res.status(500).json({ error: 'Failed to update result', details: error.message });
   }
 };
 
