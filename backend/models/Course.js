@@ -90,15 +90,14 @@ class Course {
   }
 
   static async getStudentCount(courseId) {
-    const { data, error } = await supabase
+    const { count, error } = await supabase
       .from('users')
       .select('id', { count: 'exact', head: true })
       .eq('course_id', courseId)
-      .eq('role', 'student')
-      .not('course_id', 'is', null);
+      .eq('role', 'student');
 
     if (error) throw error;
-    return data || 0;
+    return count || 0;
   }
 
   static async getAllWithStudentCount() {
