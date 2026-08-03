@@ -429,6 +429,35 @@ body {
     text-decoration: underline;
 }
 
+.login-alternatives {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--light-gray);
+    text-align: center;
+}
+
+.login-alternatives p {
+    color: var(--gray);
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+}
+
+.alt-login-link {
+    display: inline-block;
+    padding: 0.5rem 1.5rem;
+    background: var(--light-purple);
+    color: var(--primary-purple);
+    text-decoration: none;
+    border-radius: var(--radius-md);
+    font-weight: 500;
+    transition: var(--transition);
+}
+
+.alt-login-link:hover {
+    background: var(--secondary-purple);
+    color: var(--white);
+}
+
 .register-form-wrapper {
     max-width: 600px;
 }
