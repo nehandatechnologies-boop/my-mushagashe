@@ -212,7 +212,7 @@ async function loadCourses() {
     try {
         const search = document.getElementById('courseSearch').value;
         
-        let endpoint = '/courses';
+        let endpoint = '/courses/with-count';
         if (search) endpoint += `?search=${encodeURIComponent(search)}`;
         
         const courses = await apiRequest(endpoint);
