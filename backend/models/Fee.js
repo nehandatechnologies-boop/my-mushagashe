@@ -127,14 +127,33 @@ class Fee {
 
     const { data, error } = await query;
 
-    if (error) throw error;
+    if (error) {
+      console.error('Fee.findAll query error:', error);
+      throw error;
+    }
+
+    // If no fees, return empty array
+    if (!data || data.length === 0) {
+      return [];
+    }
 
     // Fetch user data for each fee
     const userIds = [...new Set(data.map(f => f.user_id))];
-    const usersData = userIds.length > 0 ? await supabase
-      .from('users')
-      .select('id, full_name, student_number, email, course_id')
-      .in('id', userIds) : [];
+    let usersData = [];
+    
+    if (userIds.length > 0) {
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('id, full_name, student_number, email, course_id')
+        .in('id', userIds);
+      
+      if (userError) {
+        console.error('Fee.findAll users query error:', userError);
+        // Continue with empty users data
+      } else {
+        usersData = userData || [];
+      }
+    }
 
     const usersMap = {};
     usersData.forEach(user => {
@@ -143,10 +162,21 @@ class Fee {
 
     // Fetch course data for users who have courses
     const courseIds = [...new Set(usersData.filter(u => u.course_id).map(u => u.course_id))];
-    const coursesData = courseIds.length > 0 ? await supabase
-      .from('courses')
-      .select('id, course_name')
-      .in('id', courseIds) : [];
+    let coursesData = [];
+    
+    if (courseIds.length > 0) {
+      const { data: courseData, error: courseError } = await supabase
+        .from('courses')
+        .select('id, course_name')
+        .in('id', courseIds);
+      
+      if (courseError) {
+        console.error('Fee.findAll courses query error:', courseError);
+        // Continue with empty courses data
+      } else {
+        coursesData = courseData || [];
+      }
+    }
 
     const coursesMap = {};
     coursesData.forEach(course => {
