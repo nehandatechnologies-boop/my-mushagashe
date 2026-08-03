@@ -74,6 +74,13 @@
                     </svg>
                     <span>Announcements</span>
                 </a>
+                <a href="#" class="nav-item" data-page="settings">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                    <span>Settings</span>
+                </a>
             </nav>
 
             <div class="sidebar-footer">
@@ -494,18 +501,49 @@
                         </div>
                     </div>
                 </div>
+
+                <!-- Settings Page -->
+                <div id="settings-page" class="page">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>System Settings</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="settings-section">
+                                <h4>PDF Result Template</h4>
+                                <p class="settings-description">Upload a custom PDF template for result reports. The template will be used as the letterhead for all generated result PDFs.</p>
+                                
+                                <div id="templateInfo" class="template-info">
+                                    <div class="loading-state">Checking template status...</div>
+                                </div>
+
+                                <div class="template-upload-section">
+                                    <form id="uploadTemplateForm">
+                                        <div class="form-group">
+                                            <label>Upload PDF Template</label>
+                                            <input type="file" name="template" accept=".pdf" required>
+                                            <small class="form-help">Maximum file size: 10MB. Only PDF files are allowed.</small>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary">Upload Template</button>
+                                    </form>
+                                </div>
+
+                                <div id="templateActions" class="template-actions" style="display: none;">
+                                    <button id="deleteTemplateBtn" class="btn btn-danger">Delete Template</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
 
-    <!-- Modal Container -->
     <div id="modalContainer" class="modal-container" style="display: none;"></div>
-
-    <!-- Toast Notification -->
     <div id="toast" class="toast" style="display: none;">
         <div class="toast-content">
             <span id="toastMessage"></span>
-            <button onclick="hideToast()" class="toast-close">&times;</button>
+            <button class="toast-close" onclick="hideToast()">&times;</button>
         </div>
     </div>
 

@@ -110,6 +110,9 @@ async function loadPageData(page) {
         case 'announcements':
             await loadAnnouncements();
             break;
+        case 'settings':
+            await loadTemplateInfo();
+            break;
     }
 }
 
@@ -1583,6 +1586,107 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
     window.location.href = 'index.html';
+});
+
+// Template management functions
+async function loadTemplateInfo() {
+    try {
+        const templateInfo = await apiRequest('/templates/info');
+        const templateInfoDiv = document.getElementById('templateInfo');
+        const templateActions = document.getElementById('templateActions');
+        
+        if (templateInfo.hasTemplate) {
+            templateInfoDiv.innerHTML = `
+                <div class="template-status success">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    <span>Template uploaded on ${new Date(templateInfo.uploadedAt).toLocaleDateString()} (${(templateInfo.size / 1024).toFixed(2)} KB)</span>
+                </div>
+            `;
+            templateActions.style.display = 'block';
+        } else {
+            templateInfoDiv.innerHTML = `
+                <div class="template-status warning">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    <span>No custom template uploaded. Using default template.</span>
+                </div>
+            `;
+            templateActions.style.display = 'none';
+        }
+    } catch (error) {
+        console.error('Failed to load template info:', error);
+        document.getElementById('templateInfo').innerHTML = `
+            <div class="template-status error">
+                <span>Failed to load template information</span>
+            </div>
+        `;
+    }
+}
+
+// Template upload handler
+document.getElementById('uploadTemplateForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const file = formData.get('template');
+    
+    if (!file) {
+        showToast('Please select a file', 'error');
+        return;
+    }
+    
+    if (file.size > 10 * 1024 * 1024) {
+        showToast('File size exceeds 10MB limit', 'error');
+        return;
+    }
+    
+    if (file.type !== 'application/pdf') {
+        showToast('Only PDF files are allowed', 'error');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/templates/upload`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`
+            },
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to upload template');
+        }
+        
+        showToast('Template uploaded successfully');
+        e.target.reset();
+        loadTemplateInfo();
+    } catch (error) {
+        console.error('Upload error:', error);
+        showToast(error.message || 'Failed to upload template', 'error');
+    }
+});
+
+// Template delete handler
+document.getElementById('deleteTemplateBtn').addEventListener('click', async () => {
+    if (!confirm('Are you sure you want to delete the custom template? The default template will be used instead.')) return;
+    
+    try {
+        await apiRequest('/templates/delete', { method: 'DELETE' });
+        showToast('Template deleted successfully');
+        loadTemplateInfo();
+    } catch (error) {
+        console.error('Delete error:', error);
+        showToast('Failed to delete template', 'error');
+    }
 });
 
 // Check authentication on load

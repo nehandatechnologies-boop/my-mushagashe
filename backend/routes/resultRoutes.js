@@ -30,6 +30,9 @@ router.get('/gpa', authenticate, resultController.getStudentGPA);
 // Download results as PDF (student only)
 router.get('/download/pdf', authenticate, resultController.downloadResultsPDF);
 
+// Download single result as PDF (authenticated)
+router.get('/:id/download/pdf', authenticate, resultController.downloadResultPDF);
+
 // Get result by ID (authenticated)
 router.get('/:id', authenticate, resultController.getResultById);
 

@@ -4,18 +4,17 @@ FROM node:18-alpine
 # Set working directory
 WORKDIR /app
 
-# Copy backend package files
-COPY backend/package*.json ./
+# Copy package files
+COPY package*.json ./
 
-# Install backend dependencies
-RUN npm install
+# Install dependencies
+RUN npm ci --only=production
 
 # Copy backend files
-COPY backend/ ./
+COPY . .
 
-# Copy frontend files (force cache bust)
-ARG CACHEBUST=1
-COPY frontend/ ./frontend
+# Copy frontend files
+COPY ../frontend ./../frontend
 
 # Create necessary directories
 RUN mkdir -p database uploads

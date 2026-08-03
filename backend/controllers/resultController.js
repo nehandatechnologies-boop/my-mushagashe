@@ -2,6 +2,8 @@ const Result = require('../models/Result');
 const PDFDocument = require('pdfkit');
 const User = require('../models/User');
 const Fee = require('../models/Fee');
+const { generateResultPDF } = require('../services/pdfService');
+const Course = require('../models/Course');
 
 // Create new result
 const createResult = async (req, res) => {
@@ -316,7 +318,58 @@ const importResults = async (req, res) => {
   }
 };
 
-// Download results as PDF
+// Generate secure PDF for a single result
+const downloadResultPDF = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get result with student and course info
+    const result = await Result.findById(id);
+    if (!result) {
+      return res.status(404).json({ error: 'Result not found' });
+    }
+
+    // Get student details
+    const student = await User.findById(result.user_id);
+    if (!student) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    // Get course details
+    const course = await Course.findById(result.course_id);
+    if (!course) {
+      return res.status(404).json({ error: 'Course not found' });
+    }
+
+    // Check fee status for students
+    if (req.user.role === 'student') {
+      const fee = await Fee.findByUserId(req.user.id);
+      if (fee && fee.status === 'unpaid') {
+        const outstandingBalance = fee.amount - (fee.amount_paid || 0);
+        return res.status(403).json({ 
+          error: 'Outstanding fees must be paid before downloading result report',
+          outstanding_balance: outstandingBalance
+        });
+      }
+    }
+
+    // Generate PDF
+    const pdfBuffer = await generateResultPDF(student, result, course);
+
+    // Set response headers
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="result_${student.student_number}_${result.semester}_${result.academic_year}.pdf"`);
+    res.setHeader('Content-Length', pdfBuffer.length);
+
+    // Send PDF
+    res.send(pdfBuffer);
+  } catch (error) {
+    console.error('Download result PDF error:', error);
+    res.status(500).json({ error: 'Failed to generate PDF', details: error.message });
+  }
+};
+
+// Download all results as PDF (bulk)
 const downloadResultsPDF = async (req, res) => {
   try {
     const { semester, academic_year } = req.query;
@@ -326,6 +379,16 @@ const downloadResultsPDF = async (req, res) => {
     const student = await User.findById(userId);
     if (!student) {
       return res.status(404).json({ error: 'Student not found' });
+    }
+
+    // Check fee status
+    const fee = await Fee.findByUserId(userId);
+    if (fee && fee.status === 'unpaid') {
+      const outstandingBalance = fee.amount - (fee.amount_paid || 0);
+      return res.status(403).json({ 
+        error: 'Outstanding fees must be paid before downloading results',
+        outstanding_balance: outstandingBalance
+      });
     }
 
     // Get results for the specified term/year
@@ -361,10 +424,9 @@ const downloadResultsPDF = async (req, res) => {
     doc.fontSize(12).font('Helvetica');
     doc.text(`Student Name: ${student.full_name}`);
     doc.text(`Student Number: ${student.student_number}`);
-    doc.text(`Course: ${student.course_name || 'Not Assigned'}`);
-    doc.text(`Term: ${semester}`);
-    doc.text(`Academic Year: ${academic_year}`);
-    doc.text(`Date Generated: ${new Date().toLocaleDateString()}`);
+    doc.text(`Course: ${student.course_name || 'N/A'}`);
+    doc.text(`Semester: ${semester || 'All'}`);
+    doc.text(`Academic Year: ${academic_year || 'All'}`);
     doc.moveDown();
 
     // Results Table
@@ -374,33 +436,34 @@ const downloadResultsPDF = async (req, res) => {
     // Table Header
     const tableTop = doc.y;
     const tableLeft = 50;
-    const colWidths = [150, 100, 60, 60, 60, 60];
-    const headers = ['Course', 'Assessment', 'Exam', 'Final', 'Grade', 'Credits'];
+    const colWidths = [80, 80, 80, 60, 60, 60];
+    const headers = ['Semester', 'Year', 'Assessment', 'Exam', 'Final', 'Grade'];
 
     doc.fontSize(10).font('Helvetica-Bold');
     headers.forEach((header, i) => {
       doc.text(header, tableLeft + colWidths.slice(0, i).reduce((a, b) => a + b, 0), tableTop);
     });
 
-    // Table Line
-    doc.moveTo(tableLeft, tableTop + 15).lineTo(tableLeft + colWidths.reduce((a, b) => a + b, 0), tableTop + 15).stroke();
+    doc.moveDown();
+    let rowY = doc.y;
 
-    // Table Rows
+    // Results Rows
     doc.fontSize(10).font('Helvetica');
-    results.forEach((result, index) => {
-      const rowY = tableTop + 25 + (index * 20);
+    results.forEach(result => {
       const rowData = [
-        result.course_name || 'N/A',
+        result.semester || 'N/A',
+        result.academic_year || 'N/A',
         result.assessment_mark || 'N/A',
         result.exam_mark || 'N/A',
         result.final_mark || 'N/A',
-        result.grade || 'N/A',
-        result.credits || 'N/A'
+        result.grade || 'N/A'
       ];
 
       rowData.forEach((data, i) => {
         doc.text(data, tableLeft + colWidths.slice(0, i).reduce((a, b) => a + b, 0), rowY);
       });
+
+      rowY += 20;
     });
 
     // Footer
@@ -424,5 +487,6 @@ module.exports = {
   getResultStatistics,
   getStudentGPA,
   importResults,
+  downloadResultPDF,
   downloadResultsPDF
 };
