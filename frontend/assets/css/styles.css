@@ -136,6 +136,10 @@ body {
     border-left: 4px solid var(--secondary-purple);
 }
 
+.portal-btn.lecturer {
+    border-left: 4px solid var(--info);
+}
+
 .portal-btn.admin {
     border-left: 4px solid var(--secondary-yellow);
 }
@@ -150,6 +154,11 @@ body {
     background: var(--light-purple);
     color: var(--primary-purple);
     flex-shrink: 0;
+}
+
+.portal-btn.lecturer .portal-icon {
+    background: #DBEAFE;
+    color: var(--info);
 }
 
 .portal-btn.admin .portal-icon {
