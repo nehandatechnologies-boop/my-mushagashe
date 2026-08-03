@@ -18,8 +18,13 @@ const createResult = async (req, res) => {
     }
 
     // Lecturer can only create results for their assigned course
-    if (req.user.role === 'lecturer' && parseInt(course_id) !== req.user.course_id) {
-      return res.status(403).json({ error: 'Access denied: You can only create results for your assigned course' });
+    if (req.user.role === 'lecturer') {
+      if (!req.user.course_id) {
+        return res.status(403).json({ error: 'Access denied: You must be assigned to a course to create results' });
+      }
+      if (parseInt(course_id) !== req.user.course_id) {
+        return res.status(403).json({ error: 'Access denied: You can only create results for your assigned course' });
+      }
     }
 
     // Calculate final mark if not provided
@@ -156,8 +161,13 @@ const updateResult = async (req, res) => {
     }
 
     // Lecturer can only update results for their assigned course
-    if (req.user.role === 'lecturer' && existingResult.course_id !== req.user.course_id) {
-      return res.status(403).json({ error: 'Access denied: You can only update results for your assigned course' });
+    if (req.user.role === 'lecturer') {
+      if (!req.user.course_id) {
+        return res.status(403).json({ error: 'Access denied: You must be assigned to a course to update results' });
+      }
+      if (existingResult.course_id !== req.user.course_id) {
+        return res.status(403).json({ error: 'Access denied: You can only update results for your assigned course' });
+      }
     }
 
     // Recalculate if marks changed
