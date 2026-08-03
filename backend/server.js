@@ -92,6 +92,10 @@ app.get('/lecturer-dashboard.html', (req, res) => {
   res.sendFile(path.join(frontendPath, 'pages/lecturer-dashboard.html'));
 });
 
+app.get('/admin-dashboard.html', (req, res) => {
+  res.sendFile(path.join(frontendPath, 'pages/admin-dashboard.html'));
+});
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/students', studentRoutes);

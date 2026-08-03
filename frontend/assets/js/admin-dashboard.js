@@ -1137,10 +1137,11 @@ document.getElementById('addResultBtn').addEventListener('click', async () => {
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Semester *</label>
+                    <label>Term *</label>
                     <select name="semester" required>
-                        <option value="1">Semester 1</option>
-                        <option value="2">Semester 2</option>
+                        <option value="1">Term 1</option>
+                        <option value="2">Term 2</option>
+                        <option value="3">Term 3</option>
                     </select>
                 </div>
                 <div class="form-group">
