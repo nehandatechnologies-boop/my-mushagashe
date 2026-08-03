@@ -168,6 +168,8 @@ const updateResult = async (req, res) => {
       if (existingResult.course_id !== req.user.course_id) {
         return res.status(403).json({ error: 'Access denied: You can only update results for your assigned course' });
       }
+      // Lecturers cannot change the course_id
+      delete req.body.course_id;
     }
 
     // Recalculate if marks changed
@@ -180,9 +182,16 @@ const updateResult = async (req, res) => {
     }
 
     const updateData = {
-      course_id, semester, academic_year, assessment_mark, exam_mark,
-      final_mark: calculatedFinalMark, grade: calculatedGrade,
-      credits, lecturer, remarks
+      course_id: req.body.course_id !== undefined ? parseInt(req.body.course_id) : existingResult.course_id,
+      semester: semester !== undefined ? parseInt(semester) : existingResult.semester,
+      academic_year: academic_year !== undefined ? parseInt(academic_year) : existingResult.academic_year,
+      assessment_mark: assessment_mark !== undefined ? (assessment_mark === '' ? null : parseFloat(assessment_mark)) : existingResult.assessment_mark,
+      exam_mark: exam_mark !== undefined ? (exam_mark === '' ? null : parseFloat(exam_mark)) : existingResult.exam_mark,
+      final_mark: calculatedFinalMark !== undefined ? parseFloat(calculatedFinalMark) : existingResult.final_mark,
+      grade: calculatedGrade || existingResult.grade,
+      credits: credits !== undefined ? (credits === '' ? null : parseInt(credits)) : existingResult.credits,
+      lecturer,
+      remarks
     };
 
     // Remove undefined values
