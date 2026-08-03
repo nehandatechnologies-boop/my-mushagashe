@@ -4,7 +4,6 @@ const cors = require('cors');
 const morgan = require('morgan');
 const path = require('path');
 const fs = require('fs');
-const multer = require('multer');
 
 // Import middleware
 const { 
@@ -25,24 +24,19 @@ const feeRoutes = require('./routes/feeRoutes');
 const resultRoutes = require('./routes/resultRoutes');
 const announcementRoutes = require('./routes/announcementRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
-
-// Initialize database
-require('./database/init');
+const paymentHistoryRoutes = require('./routes/paymentHistoryRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Trust proxy for Render deployment
+app.set('trust proxy', true);
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
-
-// Configure multer for file uploads (in-memory for database restore)
-const upload = multer({ 
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 50 * 1024 * 1024 } // 50MB limit
-});
 
 // Security middleware
 app.use(securityHeaders);
@@ -97,6 +91,7 @@ app.use('/api/fees', feeRoutes);
 app.use('/api/results', resultRoutes);
 app.use('/api/announcements', announcementRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/payment-history', paymentHistoryRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -120,7 +115,7 @@ app.listen(PORT, HOST, () => {
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔒 Security: Helmet, Rate Limiting, CORS enabled`);
   console.log(`📝 Logging: Morgan enabled`);
-  console.log(`💾 Database: SQLite initialized`);
+  console.log(`💾 Database: Supabase connected`);
 });
 
 // Graceful shutdown
