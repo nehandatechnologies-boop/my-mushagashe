@@ -21,5 +21,8 @@ CREATE INDEX IF NOT EXISTS idx_payment_history_payment_date ON payment_history(p
 -- Enable Row Level Security (RLS)
 ALTER TABLE payment_history ENABLE ROW LEVEL SECURITY;
 
--- Create policies for public access (since we handle auth in backend)
+-- Drop policy if it exists, then create it
+DROP POLICY IF EXISTS "Enable all access for payment_history" ON payment_history;
+
+-- Create policy for public access (since we handle auth in backend)
 CREATE POLICY "Enable all access for payment_history" ON payment_history FOR ALL USING (true) WITH CHECK (true);
