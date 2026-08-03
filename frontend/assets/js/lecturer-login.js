@@ -56,17 +56,13 @@ document.getElementById('lecturerLoginForm').addEventListener('submit', async (e
     btnLoader.style.display = 'inline-block';
 
     try {
-        const response = await apiRequest('/auth/login', {
+        const response = await apiRequest('/auth/lecturer/login', {
             method: 'POST',
             body: JSON.stringify({
                 email: loginData.email,
                 password: loginData.password
             })
         });
-
-        if (response.user.role !== 'lecturer') {
-            throw new Error('Access denied. This login is for lecturers only.');
-        }
 
         localStorage.setItem('token', response.token);
         localStorage.setItem('user', JSON.stringify(response.user));
