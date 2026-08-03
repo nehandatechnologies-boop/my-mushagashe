@@ -40,12 +40,41 @@ function hideError() {
     errorDiv.style.display = 'none';
 }
 
+// Load saved email if remember me was checked
+function loadSavedEmail() {
+    const savedEmail = localStorage.getItem('lecturer_email');
+    const rememberMe = localStorage.getItem('lecturer_remember_me');
+    
+    if (savedEmail && rememberMe === 'true') {
+        document.getElementById('email').value = savedEmail;
+        document.querySelector('input[name="remember"]').checked = true;
+    }
+}
+
+// Save email if remember me is checked
+function saveEmail(email, remember) {
+    if (remember) {
+        localStorage.setItem('lecturer_email', email);
+        localStorage.setItem('lecturer_remember_me', 'true');
+    } else {
+        localStorage.removeItem('lecturer_email');
+        localStorage.removeItem('lecturer_remember_me');
+    }
+}
+
+// Forgot password handler
+document.querySelector('.forgot-link').addEventListener('click', (e) => {
+    e.preventDefault();
+    alert('To reset your password, please contact the IT Support Desk:\n\nEmail: support@mushagashe.edu\nPhone: +263-77-123-4567\n\nOffice hours: Monday - Friday, 8:00 AM - 5:00 PM');
+});
+
 document.getElementById('lecturerLoginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     hideError();
 
     const formData = new FormData(e.target);
     const loginData = Object.fromEntries(formData);
+    const rememberMe = e.target.querySelector('input[name="remember"]').checked;
 
     const submitBtn = e.target.querySelector('button[type="submit"]');
     const btnText = submitBtn.querySelector('.btn-text');
@@ -64,6 +93,9 @@ document.getElementById('lecturerLoginForm').addEventListener('submit', async (e
             })
         });
 
+        // Save email if remember me is checked
+        saveEmail(loginData.email, rememberMe);
+
         localStorage.setItem('token', response.token);
         localStorage.setItem('user', JSON.stringify(response.user));
 
@@ -76,3 +108,6 @@ document.getElementById('lecturerLoginForm').addEventListener('submit', async (e
         btnLoader.style.display = 'none';
     }
 });
+
+// Load saved email on page load
+loadSavedEmail();
