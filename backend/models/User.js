@@ -18,8 +18,10 @@ class User {
 
     // Remove undefined values and convert empty strings to null
     Object.keys(insertData).forEach(key => {
-      if (insertData[key] === undefined || insertData[key] === '') {
+      if (insertData[key] === undefined) {
         delete insertData[key];
+      } else if (insertData[key] === '') {
+        insertData[key] = null;
       }
     });
 
@@ -177,8 +179,10 @@ class User {
 
     // Remove undefined values and convert empty strings to null
     Object.keys(updateData).forEach(key => {
-      if (updateData[key] === undefined || updateData[key] === '') {
+      if (updateData[key] === undefined) {
         delete updateData[key];
+      } else if (updateData[key] === '') {
+        updateData[key] = null;
       }
     });
 
