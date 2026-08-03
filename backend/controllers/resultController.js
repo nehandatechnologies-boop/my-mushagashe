@@ -29,9 +29,17 @@ const createResult = async (req, res) => {
     const calculatedGrade = grade || Result.calculateGrade(calculatedFinalMark);
 
     const resultData = {
-      user_id, course_id, semester, academic_year, assessment_mark,
-      exam_mark, final_mark: calculatedFinalMark, grade: calculatedGrade,
-      credits, lecturer, remarks
+      user_id: parseInt(user_id),
+      course_id: parseInt(course_id),
+      semester: parseInt(semester),
+      academic_year: parseInt(academic_year),
+      assessment_mark: assessment_mark ? parseFloat(assessment_mark) : null,
+      exam_mark: exam_mark ? parseFloat(exam_mark) : null,
+      final_mark: parseFloat(calculatedFinalMark),
+      grade: calculatedGrade,
+      credits: credits ? parseInt(credits) : null,
+      lecturer,
+      remarks
     };
 
     const result = await Result.create(resultData);
@@ -42,7 +50,7 @@ const createResult = async (req, res) => {
     });
   } catch (error) {
     console.error('Create result error:', error);
-    res.status(500).json({ error: 'Failed to create result' });
+    res.status(500).json({ error: 'Failed to create result', details: error.message });
   }
 };
 
