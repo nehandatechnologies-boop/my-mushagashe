@@ -1,0 +1,298 @@
+const API_BASE = 'https://my-mushagashe.onrender.com/api';
+
+async function apiRequest(endpoint, options = {}) {
+    const token = localStorage.getItem('token');
+    const headers = {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` })
+    };
+
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+        ...options,
+        headers: {
+            ...headers,
+            ...options.headers
+        }
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Request failed');
+    }
+
+    return response.json();
+}
+
+function showModal(content) {
+    const modal = document.getElementById('modal');
+    const modalBody = document.getElementById('modal-body');
+    modalBody.innerHTML = content;
+    modal.style.display = 'flex';
+}
+
+function hideModal() {
+    document.getElementById('modal').style.display = 'none';
+}
+
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+// Check authentication
+function checkAuth() {
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user'));
+    
+    if (!token || !user || user.role !== 'lecturer') {
+        window.location.href = 'lecturer-login.html';
+        return false;
+    }
+    
+    return user;
+}
+
+// Load lecturer info
+async function loadLecturerInfo() {
+    const user = checkAuth();
+    document.getElementById('lecturer-name').textContent = user.full_name;
+    return user;
+}
+
+// Navigation
+document.querySelectorAll('.nav-link').forEach(link => {
+    link.addEventListener('click', (e) => {
+        e.preventDefault();
+        const section = link.dataset.section;
+        
+        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        link.classList.add('active');
+        
+        document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
+        document.getElementById(`${section}-section`).classList.add('active');
+        
+        document.getElementById('page-title').textContent = 
+            section === 'students' ? 'My Students' : 'Results';
+        
+        if (section === 'students') loadStudents();
+        if (section === 'results') loadResults();
+    });
+});
+
+// Load students in lecturer's course
+async function loadStudents() {
+    try {
+        const students = await apiRequest('/students');
+        const tbody = document.getElementById('students-table-body');
+        
+        if (students.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center">No students found</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = students.map(student => `
+            <tr>
+                <td>${student.student_number}</td>
+                <td>${student.full_name}</td>
+                <td>${student.email || 'N/A'}</td>
+                <td><span class="badge badge-${student.status === 'active' ? 'success' : 'warning'}">${student.status}</span></td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading students:', error);
+        showToast('Failed to load students', 'error');
+    }
+}
+
+// Load results for lecturer's course
+async function loadResults() {
+    try {
+        const results = await apiRequest('/results');
+        const tbody = document.getElementById('results-table-body');
+        
+        if (results.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center">No results found</td></tr>';
+            return;
+        }
+        
+        tbody.innerHTML = results.map(result => `
+            <tr>
+                <td>${result.full_name || 'N/A'} (${result.student_number || 'N/A'})</td>
+                <td>${result.course_name || 'N/A'}</td>
+                <td>Semester ${result.semester}</td>
+                <td>${result.academic_year}</td>
+                <td>${result.assessment_mark || 'N/A'}</td>
+                <td>${result.exam_mark || 'N/A'}</td>
+                <td>${result.final_mark || 'N/A'}</td>
+                <td><span class="badge badge-${getGradeBadgeClass(result.grade)}">${result.grade || 'N/A'}</span></td>
+                <td>
+                    <button class="btn btn-sm btn-secondary" onclick="editResult(${result.id})">Edit</button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading results:', error);
+        showToast('Failed to load results', 'error');
+    }
+}
+
+function getGradeBadgeClass(grade) {
+    if (!grade) return 'secondary';
+    const gradeUpper = grade.toUpperCase();
+    if (gradeUpper === 'A' || gradeUpper === 'A+') return 'success';
+    if (gradeUpper === 'B' || gradeUpper === 'B+') return 'info';
+    if (gradeUpper === 'C' || gradeUpper === 'C+') return 'warning';
+    return 'danger';
+}
+
+// Add result
+document.getElementById('addResultBtn').addEventListener('click', async () => {
+    try {
+        const user = JSON.parse(localStorage.getItem('user'));
+        const students = await apiRequest('/students');
+        
+        showModal(`
+            <div class="modal-header">
+                <h3>Add New Result</h3>
+                <button class="modal-close" onclick="hideModal()">&times;</button>
+            </div>
+            <form id="addResultForm" class="modal-form">
+                <div class="form-group">
+                    <label>Student *</label>
+                    <select name="user_id" required>
+                        <option value="">Select Student</option>
+                        ${students.map(s => `<option value="${s.id}">${s.full_name} (${s.student_number})</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Semester *</label>
+                    <select name="semester" required>
+                        <option value="1">Semester 1</option>
+                        <option value="2">Semester 2</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Academic Year *</label>
+                    <input type="number" name="academic_year" required min="2000" max="2100" value="${new Date().getFullYear()}">
+                </div>
+                <div class="form-group">
+                    <label>Assessment Mark</label>
+                    <input type="number" name="assessment_mark" min="0" max="100">
+                </div>
+                <div class="form-group">
+                    <label>Exam Mark</label>
+                    <input type="number" name="exam_mark" min="0" max="100">
+                </div>
+                <div class="form-group">
+                    <label>Remarks</label>
+                    <input type="text" name="remarks">
+                </div>
+                <input type="hidden" name="course_id" value="${user.course_id || ''}">
+                <button type="submit" class="btn btn-primary">Add Result</button>
+            </form>
+        `);
+        
+        document.getElementById('addResultForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const resultData = Object.fromEntries(formData);
+            
+            try {
+                await apiRequest('/results', {
+                    method: 'POST',
+                    body: JSON.stringify(resultData)
+                });
+                showToast('Result added successfully');
+                hideModal();
+                loadResults();
+            } catch (error) {
+                showToast(error.message || 'Failed to add result', 'error');
+            }
+        });
+    } catch (error) {
+        showToast('Failed to load students', 'error');
+    }
+});
+
+// Edit result
+window.editResult = async (id) => {
+    try {
+        const user = JSON.parse(localStorage.getItem('user'));
+        const result = await apiRequest(`/results/${id}`);
+        const students = await apiRequest('/students');
+        
+        showModal(`
+            <div class="modal-header">
+                <h3>Edit Result</h3>
+                <button class="modal-close" onclick="hideModal()">&times;</button>
+            </div>
+            <form id="editResultForm" class="modal-form">
+                <div class="form-group">
+                    <label>Student</label>
+                    <select name="user_id" required>
+                        ${students.map(s => `<option value="${s.id}" ${result.user_id === s.id ? 'selected' : ''}>${s.full_name} (${s.student_number})</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Semester *</label>
+                    <select name="semester" required>
+                        <option value="1" ${result.semester === 1 ? 'selected' : ''}>Semester 1</option>
+                        <option value="2" ${result.semester === 2 ? 'selected' : ''}>Semester 2</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Academic Year *</label>
+                    <input type="number" name="academic_year" required min="2000" max="2100" value="${result.academic_year}">
+                </div>
+                <div class="form-group">
+                    <label>Assessment Mark</label>
+                    <input type="number" name="assessment_mark" min="0" max="100" value="${result.assessment_mark || ''}">
+                </div>
+                <div class="form-group">
+                    <label>Exam Mark</label>
+                    <input type="number" name="exam_mark" min="0" max="100" value="${result.exam_mark || ''}">
+                </div>
+                <div class="form-group">
+                    <label>Remarks</label>
+                    <input type="text" name="remarks" value="${result.remarks || ''}">
+                </div>
+                <input type="hidden" name="course_id" value="${user.course_id || result.course_id || ''}">
+                <button type="submit" class="btn btn-primary">Update Result</button>
+            </form>
+        `);
+        
+        document.getElementById('editResultForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const updateData = Object.fromEntries(formData);
+            
+            try {
+                await apiRequest(`/results/${id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(updateData)
+                });
+                showToast('Result updated successfully');
+                hideModal();
+                loadResults();
+            } catch (error) {
+                showToast(error.message || 'Failed to update result', 'error');
+            }
+        });
+    } catch (error) {
+        showToast(error.message || 'Failed to load result', 'error');
+    }
+};
+
+// Logout
+document.getElementById('logoutBtn').addEventListener('click', () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = 'index.html';
+});
+
+// Initialize
+loadLecturerInfo();
+loadStudents();

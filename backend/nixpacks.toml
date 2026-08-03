@@ -1,0 +1,10 @@
+[phases.build]
+cmds = ["npm install"]
+
+[phases.start]
+cmd = "npm start"
+
+[variables]
+NODE_ENV = "production"
+PORT = "5000"
+HOST = "0.0.0.0"
