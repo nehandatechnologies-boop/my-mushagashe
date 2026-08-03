@@ -151,6 +151,7 @@ function getGradeBadgeClass(grade) {
 // Add result
 document.getElementById('addResultBtn').addEventListener('click', async () => {
     try {
+        const user = JSON.parse(localStorage.getItem('user'));
         const students = await apiRequest('/students');
         
         showModal(`
@@ -189,6 +190,7 @@ document.getElementById('addResultBtn').addEventListener('click', async () => {
                     <label>Remarks</label>
                     <input type="text" name="remarks">
                 </div>
+                <input type="hidden" name="course_id" value="${user.course_id || ''}">
                 <button type="submit" class="btn btn-primary">Add Result</button>
             </form>
         `);
@@ -207,7 +209,7 @@ document.getElementById('addResultBtn').addEventListener('click', async () => {
                 hideModal();
                 loadResults();
             } catch (error) {
-                showToast('Failed to add result', 'error');
+                showToast(error.message || 'Failed to add result', 'error');
             }
         });
     } catch (error) {
@@ -218,6 +220,7 @@ document.getElementById('addResultBtn').addEventListener('click', async () => {
 // Edit result
 window.editResult = async (id) => {
     try {
+        const user = JSON.parse(localStorage.getItem('user'));
         const result = await apiRequest(`/results/${id}`);
         const students = await apiRequest('/students');
         
@@ -256,6 +259,7 @@ window.editResult = async (id) => {
                     <label>Remarks</label>
                     <input type="text" name="remarks" value="${result.remarks || ''}">
                 </div>
+                <input type="hidden" name="course_id" value="${user.course_id || result.course_id || ''}">
                 <button type="submit" class="btn btn-primary">Update Result</button>
             </form>
         `);
@@ -274,11 +278,11 @@ window.editResult = async (id) => {
                 hideModal();
                 loadResults();
             } catch (error) {
-                showToast('Failed to update result', 'error');
+                showToast(error.message || 'Failed to update result', 'error');
             }
         });
     } catch (error) {
-        showToast('Failed to load result', 'error');
+        showToast(error.message || 'Failed to load result', 'error');
     }
 };
 
