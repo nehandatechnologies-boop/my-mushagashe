@@ -11,7 +11,8 @@ const createResult = async (req, res) => {
     } = req.body;
 
     // Validation
-    if (!user_id || !course_id || !semester || !academic_year) {
+    if (!user_id || !course_id || !semester || !academic_year ||
+        user_id === '' || course_id === '' || semester === '' || academic_year === '') {
       return res.status(400).json({ error: 'User ID, course ID, semester, and academic year are required' });
     }
 
@@ -227,7 +228,8 @@ const importResults = async (req, res) => {
           exam_mark, final_mark, grade, credits, lecturer, remarks
         } = resultData;
 
-        if (!user_id || !course_id || !semester || !academic_year) {
+        if (!user_id || !course_id || !semester || !academic_year ||
+            user_id === '' || course_id === '' || semester === '' || academic_year === '') {
           errors.push({ data: resultData, error: 'Missing required fields' });
           continue;
         }

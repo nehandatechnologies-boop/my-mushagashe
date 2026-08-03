@@ -387,11 +387,11 @@ const getAllLecturers = async (req, res) => {
 };
 
 // Get lecturer by ID (admin only)
-const getLecturerById = (req, res) => {
+const getLecturerById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const lecturer = User.findById(id);
+    const lecturer = await User.findById(id);
     if (!lecturer) {
       return res.status(404).json({ error: 'Lecturer not found' });
     }
@@ -476,7 +476,7 @@ const deleteLecturer = async (req, res) => {
 };
 
 // Import students from Excel (admin only)
-const importStudentsFromExcel = (req, res) => {
+const importStudentsFromExcel = async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
@@ -523,7 +523,7 @@ const importStudentsFromExcel = (req, res) => {
         }
 
         // Check if student number already exists
-        const existingStudent = User.findByStudentNumber(studentData.student_number);
+        const existingStudent = await User.findByStudentNumber(studentData.student_number);
         if (existingStudent) {
           errors.push({ row, error: 'Student number already exists' });
           continue;
@@ -534,9 +534,9 @@ const importStudentsFromExcel = (req, res) => {
         studentData.password = hashedPassword;
 
         // Create student
-        const result = User.create(studentData);
+        const result = await User.create(studentData);
         importedStudents.push({
-          id: result.lastInsertRowid,
+          id: result.id,
           student_number: studentData.student_number,
           full_name: studentData.full_name
         });
