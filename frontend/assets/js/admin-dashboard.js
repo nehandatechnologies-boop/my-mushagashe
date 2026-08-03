@@ -1003,97 +1003,101 @@ async function editFee(id) {
     try {
         const fee = await apiRequest(`/fees/${id}`);
         const students = await apiRequest('/students');
+        const paymentHistory = await apiRequest(`/payment-history/fee/${id}`);
+        
+        const historyHtml = paymentHistory.length > 0 
+            ? `<div class="payment-history">
+                <h4>Payment History</h4>
+                <table class="payment-history-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Amount</th>
+                            <th>Method</th>
+                            <th>Reference</th>
+                            <th>Receipt</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${paymentHistory.map(p => `
+                            <tr>
+                                <td>${new Date(p.payment_date).toLocaleDateString()}</td>
+                                <td>$${p.amount_paid.toFixed(2)}</td>
+                                <td>${p.payment_method || 'N/A'}</td>
+                                <td>${p.payment_reference || 'N/A'}</td>
+                                <td>${p.receipt_number || 'N/A'}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>`
+            : '<p>No payment history</p>';
         
         showModal(`
             <div class="modal-header">
-                <h3>Edit Fee</h3>
+                <h3>Edit Fee - ${fee.full_name}</h3>
                 <button class="modal-close" onclick="hideModal()">&times;</button>
             </div>
-            <form id="editFeeForm" class="modal-form">
-                <div class="form-group">
-                    <label>Student</label>
-                    <select name="user_id">
-                        <option value="">Select Student</option>
-                        ${students.map(s => `<option value="${s.id}" ${fee.user_id === s.id ? 'selected' : ''}>${s.full_name} (${s.student_number})</option>`).join('')}
-                    </select>
+            <div class="modal-content">
+                <div class="fee-summary">
+                    <p><strong>Total Amount:</strong> $${fee.amount.toFixed(2)}</p>
+                    <p><strong>Amount Paid:</strong> $${fee.amount_paid.toFixed(2)}</p>
+                    <p><strong>Balance:</strong> $${fee.balance.toFixed(2)}</p>
+                    <p><strong>Status:</strong> ${fee.status}</p>
                 </div>
-                <div class="form-group">
-                    <label>Fee Category</label>
-                    <select name="fee_category">
-                        <option value="Registration" ${fee.fee_category === 'Registration' ? 'selected' : ''}>Registration</option>
-                        <option value="Tuition" ${fee.fee_category === 'Tuition' ? 'selected' : ''}>Tuition</option>
-                        <option value="Examination" ${fee.fee_category === 'Examination' ? 'selected' : ''}>Examination</option>
-                        <option value="Accommodation" ${fee.fee_category === 'Accommodation' ? 'selected' : ''}>Accommodation</option>
-                        <option value="Library" ${fee.fee_category === 'Library' ? 'selected' : ''}>Library</option>
-                        <option value="Other" ${fee.fee_category === 'Other' ? 'selected' : ''}>Other</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Amount</label>
-                    <input type="number" name="amount" value="${fee.amount}" min="0" step="0.01">
-                </div>
-                <div class="form-group">
-                    <label>Amount Paid</label>
-                    <input type="number" name="amount_paid" value="${fee.amount_paid || 0}" min="0" step="0.01">
-                </div>
-                <div class="form-group">
-                    <label>Due Date</label>
-                    <input type="date" name="due_date" value="${fee.due_date ? fee.due_date.split('T')[0] : ''}">
-                </div>
-                <div class="form-group">
-                    <label>Status</label>
-                    <select name="status">
-                        <option value="unpaid" ${fee.status === 'unpaid' ? 'selected' : ''}>Unpaid</option>
-                        <option value="partial" ${fee.status === 'partial' ? 'selected' : ''}>Partial</option>
-                        <option value="paid" ${fee.status === 'paid' ? 'selected' : ''}>Paid</option>
-                    </select>
-                </div>
-                <button type="submit" class="btn btn-primary">Update Fee</button>
-            </form>
+                ${historyHtml}
+                <hr>
+                <h4>Record New Payment</h4>
+                <form id="paymentForm" class="modal-form">
+                    <div class="form-group">
+                        <label>Amount Paid *</label>
+                        <input type="number" name="amount_paid" required min="0" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Payment Method</label>
+                        <select name="payment_method">
+                            <option value="Cash">Cash</option>
+                            <option value="Bank Transfer">Bank Transfer</option>
+                            <option value="Mobile Money">Mobile Money</option>
+                            <option value="Card">Card</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Payment Reference</label>
+                        <input type="text" name="payment_reference">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Record Payment</button>
+                </form>
+            </div>
         `);
         
-        document.getElementById('editFeeForm').addEventListener('submit', async (e) => {
+        document.getElementById('paymentForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
-            const updateData = Object.fromEntries(formData);
+            const paymentData = Object.fromEntries(formData);
             
             try {
-                await apiRequest(`/fees/${id}`, {
-                    method: 'PUT',
-                    body: JSON.stringify(updateData)
+                await apiRequest(`/fees/${id}/payment`, {
+                    method: 'POST',
+                    body: JSON.stringify(paymentData)
                 });
-                showToast('Fee updated successfully');
+                showToast('Payment recorded successfully');
                 hideModal();
                 loadFees();
             } catch (error) {
-                showToast('Failed to update fee', 'error');
+                showToast('Failed to record payment', 'error');
             }
         });
     } catch (error) {
-        showToast('Failed to load fee data', 'error');
+        showToast('Failed to load fee details', 'error');
     }
 }
-
-window.editFee = editFee;
-
-async function deleteFee(id) {
-    if (!confirm('Are you sure you want to delete this fee?')) return;
-    
-    try {
-        await apiRequest(`/fees/${id}`, { method: 'DELETE' });
-        showToast('Fee deleted successfully');
-        loadFees();
-    } catch (error) {
-        showToast('Failed to delete fee', 'error');
-    }
-}
-
-window.deleteFee = deleteFee;
 
 // Result CRUD operations
 document.getElementById('addResultBtn').addEventListener('click', async () => {
     try {
         const students = await apiRequest('/students');
+        const courses = await apiRequest('/courses');
         
         showModal(`
             <div class="modal-header">
@@ -1109,8 +1113,11 @@ document.getElementById('addResultBtn').addEventListener('click', async () => {
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>Course Name *</label>
-                    <input type="text" name="course_name" required>
+                    <label>Course *</label>
+                    <select name="course_id" required>
+                        <option value="">Select Course</option>
+                        ${courses.map(c => `<option value="${c.id}">${c.course_name} (${c.course_code})</option>`).join('')}
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>Semester *</label>
