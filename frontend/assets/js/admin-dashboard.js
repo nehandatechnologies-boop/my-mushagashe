@@ -1093,6 +1093,20 @@ async function editFee(id) {
     }
 }
 
+async function deleteFee(id) {
+    if (!confirm('Are you sure you want to delete this fee?')) return;
+    
+    try {
+        await apiRequest(`/fees/${id}`, { method: 'DELETE' });
+        showToast('Fee deleted successfully');
+        loadFees();
+    } catch (error) {
+        showToast('Failed to delete fee', 'error');
+    }
+}
+
+window.deleteFee = deleteFee;
+
 // Result CRUD operations
 document.getElementById('addResultBtn').addEventListener('click', async () => {
     try {

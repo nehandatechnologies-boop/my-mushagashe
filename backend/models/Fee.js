@@ -235,7 +235,13 @@ class Fee {
     const fee = await this.findById(id);
     if (!fee) throw new Error('Fee not found');
 
-    const newAmountPaid = (fee.amount_paid || 0) + amount_paid;
+    // Convert amount_paid to number to prevent string concatenation
+    const paymentAmount = parseFloat(amount_paid);
+    if (isNaN(paymentAmount) || paymentAmount <= 0) {
+      throw new Error('Invalid payment amount');
+    }
+
+    const newAmountPaid = (fee.amount_paid || 0) + paymentAmount;
     const newBalance = fee.amount - newAmountPaid;
     const newStatus = newBalance <= 0 ? 'paid' : 'partial';
 
@@ -255,7 +261,7 @@ class Fee {
     await PaymentHistory.create({
       fee_id: id,
       user_id: fee.user_id,
-      amount_paid,
+      amount_paid: paymentAmount,
       payment_reference,
       payment_method,
       receipt_number,
