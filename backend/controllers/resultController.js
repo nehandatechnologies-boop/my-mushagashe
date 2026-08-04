@@ -4,13 +4,15 @@ const User = require('../models/User');
 const Fee = require('../models/Fee');
 const { generateResultPDF } = require('../services/pdfService');
 const Course = require('../models/Course');
+const SubjectResult = require('../models/SubjectResult');
+const Subject = require('../models/Subject');
 
 // Create new result
 const createResult = async (req, res) => {
   try {
     const {
       user_id, course_id, semester, academic_year, assessment_mark,
-      exam_mark, final_mark, grade, credits, lecturer, remarks
+      exam_mark, final_mark, grade, credits, lecturer, remarks, subject_marks
     } = req.body;
 
     // Validation
@@ -30,7 +32,15 @@ const createResult = async (req, res) => {
     }
 
     // Calculate final mark if not provided
-    const calculatedFinalMark = final_mark || ((assessment_mark || 0) + (exam_mark || 0)) / 2;
+    let calculatedFinalMark = final_mark;
+    
+    // If subject marks are provided, calculate average
+    if (subject_marks && Array.isArray(subject_marks) && subject_marks.length > 0) {
+      const totalMarks = subject_marks.reduce((sum, sm) => sum + (parseFloat(sm.mark) || 0), 0);
+      calculatedFinalMark = totalMarks / subject_marks.length;
+    } else if (assessment_mark !== undefined || exam_mark !== undefined) {
+      calculatedFinalMark = final_mark || ((assessment_mark || 0) + (exam_mark || 0)) / 2;
+    }
     
     // Calculate grade if not provided
     const calculatedGrade = grade || Result.calculateGrade(calculatedFinalMark);
@@ -50,6 +60,22 @@ const createResult = async (req, res) => {
     };
 
     const result = await Result.create(resultData);
+
+    // Create subject results if provided
+    if (subject_marks && Array.isArray(subject_marks) && subject_marks.length > 0) {
+      for (const sm of subject_marks) {
+        if (sm.subject_id && sm.mark !== undefined) {
+          const subjectResultData = {
+            result_id: result.id,
+            subject_id: parseInt(sm.subject_id),
+            mark: parseFloat(sm.mark),
+            grade: SubjectResult.calculateGrade(parseFloat(sm.mark)),
+            remarks: sm.remarks || null
+          };
+          await SubjectResult.create(subjectResultData);
+        }
+      }
+    }
 
     res.status(201).json({
       message: 'Result created successfully',
@@ -153,7 +179,7 @@ const updateResult = async (req, res) => {
     const { id } = req.params;
     const {
       course_id, semester, academic_year, assessment_mark, exam_mark,
-      final_mark, grade, credits, lecturer, remarks
+      final_mark, grade, credits, lecturer, remarks, subject_marks
     } = req.body;
 
     console.log('Update result request:', { id, body: req.body, user: req.user });
@@ -180,7 +206,12 @@ const updateResult = async (req, res) => {
     let calculatedFinalMark = final_mark;
     let calculatedGrade = grade;
 
-    if (assessment_mark !== undefined || exam_mark !== undefined) {
+    // If subject marks are provided, calculate average
+    if (subject_marks && Array.isArray(subject_marks) && subject_marks.length > 0) {
+      const totalMarks = subject_marks.reduce((sum, sm) => sum + (parseFloat(sm.mark) || 0), 0);
+      calculatedFinalMark = totalMarks / subject_marks.length;
+      calculatedGrade = SubjectResult.calculateGrade(calculatedFinalMark);
+    } else if (assessment_mark !== undefined || exam_mark !== undefined) {
       const assessmentVal = assessment_mark !== undefined && assessment_mark !== '' ? parseFloat(assessment_mark) : 0;
       const examVal = exam_mark !== undefined && exam_mark !== '' ? parseFloat(exam_mark) : 0;
       calculatedFinalMark = final_mark || (assessmentVal + examVal) / 2;
@@ -210,6 +241,26 @@ const updateResult = async (req, res) => {
     });
 
     await Result.update(id, updateData);
+
+    // Update subject results if provided
+    if (subject_marks && Array.isArray(subject_marks)) {
+      // Delete existing subject results for this result
+      await SubjectResult.deleteByResultId(id);
+      
+      // Create new subject results
+      for (const sm of subject_marks) {
+        if (sm.subject_id && sm.mark !== undefined) {
+          const subjectResultData = {
+            result_id: parseInt(id),
+            subject_id: parseInt(sm.subject_id),
+            mark: parseFloat(sm.mark),
+            grade: SubjectResult.calculateGrade(parseFloat(sm.mark)),
+            remarks: sm.remarks || null
+          };
+          await SubjectResult.create(subjectResultData);
+        }
+      }
+    }
 
     const updatedResult = await Result.findById(id);
 

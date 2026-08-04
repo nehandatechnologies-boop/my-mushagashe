@@ -179,6 +179,10 @@ document.getElementById('addResultBtn').addEventListener('click', async () => {
                     <label>Academic Year *</label>
                     <input type="number" name="academic_year" required min="2000" max="2100" value="${new Date().getFullYear()}">
                 </div>
+                <div id="subjectsContainer" style="display: none;">
+                    <h4>Subject Marks</h4>
+                    <div id="subjectsList"></div>
+                </div>
                 <div class="form-group">
                     <label>Assessment Mark</label>
                     <input type="number" name="assessment_mark" min="0" max="100">
@@ -196,10 +200,51 @@ document.getElementById('addResultBtn').addEventListener('click', async () => {
             </form>
         `);
         
+        // Load subjects for lecturer's course
+        if (user.course_id) {
+            try {
+                const subjects = await apiRequest(`/subjects/course/${user.course_id}`);
+                const subjectsContainer = document.getElementById('subjectsContainer');
+                const subjectsList = document.getElementById('subjectsList');
+                
+                if (subjects && subjects.length > 0) {
+                    subjectsContainer.style.display = 'block';
+                    subjectsList.innerHTML = subjects.map(subject => `
+                        <div class="form-group subject-mark-group">
+                            <label>${subject.subject_name} (${subject.subject_code})</label>
+                            <input type="number" 
+                                   class="subject-mark-input" 
+                                   data-subject-id="${subject.id}" 
+                                   placeholder="Enter mark (0-100)" 
+                                   min="0" 
+                                   max="100">
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Failed to load subjects:', error);
+            }
+        }
+        
         document.getElementById('addResultForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
             const resultData = Object.fromEntries(formData);
+            
+            // Collect subject marks
+            const subjectMarks = [];
+            document.querySelectorAll('.subject-mark-input').forEach(input => {
+                if (input.value) {
+                    subjectMarks.push({
+                        subject_id: input.dataset.subjectId,
+                        mark: parseFloat(input.value)
+                    });
+                }
+            });
+            
+            if (subjectMarks.length > 0) {
+                resultData.subject_marks = subjectMarks;
+            }
             
             try {
                 await apiRequest('/results', {
@@ -249,6 +294,10 @@ window.editResult = async (id) => {
                     <label>Academic Year *</label>
                     <input type="number" name="academic_year" required min="2000" max="2100" value="${result.academic_year}">
                 </div>
+                <div id="subjectsContainer">
+                    <h4>Subject Marks</h4>
+                    <div id="subjectsList"></div>
+                </div>
                 <div class="form-group">
                     <label>Assessment Mark</label>
                     <input type="number" name="assessment_mark" min="0" max="100" value="${result.assessment_mark || ''}">
@@ -266,10 +315,53 @@ window.editResult = async (id) => {
             </form>
         `);
         
+        // Load subjects for lecturer's course and populate with existing marks
+        if (user.course_id) {
+            try {
+                const subjects = await apiRequest(`/subjects/course/${user.course_id}`);
+                const subjectsList = document.getElementById('subjectsList');
+                
+                if (subjects && subjects.length > 0) {
+                    subjectsList.innerHTML = subjects.map(subject => {
+                        const existingMark = result.subject_results && result.subject_results.find(sr => sr.subject_id === subject.id);
+                        return `
+                            <div class="form-group subject-mark-group">
+                                <label>${subject.subject_name} (${subject.subject_code})</label>
+                                <input type="number" 
+                                       class="subject-mark-input" 
+                                       data-subject-id="${subject.id}" 
+                                       placeholder="Enter mark (0-100)" 
+                                       min="0" 
+                                       max="100"
+                                       value="${existingMark ? existingMark.mark : ''}">
+                            </div>
+                        `;
+                    }).join('');
+                }
+            } catch (error) {
+                console.error('Failed to load subjects:', error);
+            }
+        }
+        
         document.getElementById('editResultForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
             const updateData = Object.fromEntries(formData);
+            
+            // Collect subject marks
+            const subjectMarks = [];
+            document.querySelectorAll('.subject-mark-input').forEach(input => {
+                if (input.value) {
+                    subjectMarks.push({
+                        subject_id: input.dataset.subjectId,
+                        mark: parseFloat(input.value)
+                    });
+                }
+            });
+            
+            if (subjectMarks.length > 0) {
+                updateData.subject_marks = subjectMarks;
+            }
             
             try {
                 await apiRequest(`/results/${id}`, {
@@ -284,7 +376,7 @@ window.editResult = async (id) => {
             }
         });
     } catch (error) {
-        showToast(error.message || 'Failed to load result', 'error');
+        showToast('Failed to load result data', 'error');
     }
 };
 

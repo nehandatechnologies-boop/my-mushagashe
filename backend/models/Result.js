@@ -1,4 +1,5 @@
 const supabase = require('../config/supabase');
+const SubjectResult = require('./SubjectResult');
 
 class Result {
   static async create(resultData) {
@@ -65,6 +66,9 @@ class Result {
         data.course_code = data.courses.course_code;
         delete data.courses;
       }
+
+      // Fetch subject results for this result
+      data.subject_results = await SubjectResult.findByResultId(id);
     }
 
     return data;

@@ -101,6 +101,10 @@ async function loadPageData(page) {
         case 'lecturers':
             await loadLecturers();
             break;
+        case 'subjects':
+            await loadSubjects();
+            await loadSubjectCourseFilter();
+            break;
         case 'fees':
             await loadFees();
             break;
@@ -306,9 +310,22 @@ async function loadResults() {
             return;
         }
 
-        tbody.innerHTML = results.map(result => `
+        tbody.innerHTML = results.map(result => {
+            // Display subject marks if available
+            const subjectMarksHtml = result.subject_results && result.subject_results.length > 0
+                ? `<div class="subject-marks">
+                    ${result.subject_results.map(sr => `
+                        <span class="subject-mark-badge">${sr.subject_name}: ${sr.mark} (${sr.grade})</span>
+                    `).join('')}
+                   </div>`
+                : '';
+            
+            return `
             <tr>
-                <td>${result.full_name || 'Unknown'}</td>
+                <td>
+                    ${result.full_name || 'Unknown'}
+                    ${subjectMarksHtml}
+                </td>
                 <td>${result.course_name}</td>
                 <td>${result.semester}</td>
                 <td>${result.academic_year}</td>
@@ -319,7 +336,8 @@ async function loadResults() {
                     <button class="action-btn delete" onclick="deleteResult(${result.id})">Delete</button>
                 </td>
             </tr>
-        `).join('');
+        `;
+        }).join('');
     } catch (error) {
         console.error('Error loading results:', error);
         showToast('Failed to load results', 'error');
@@ -1124,14 +1142,14 @@ document.getElementById('addResultBtn').addEventListener('click', async () => {
             <form id="addResultForm" class="modal-form">
                 <div class="form-group">
                     <label>Student *</label>
-                    <select name="user_id" required>
+                    <select name="user_id" required id="studentSelect">
                         <option value="">Select Student</option>
                         ${students.map(s => `<option value="${s.id}">${s.full_name} (${s.student_number})</option>`).join('')}
                     </select>
                 </div>
                 <div class="form-group">
                     <label>Course *</label>
-                    <select name="course_id" required>
+                    <select name="course_id" required id="courseSelect">
                         <option value="">Select Course</option>
                         ${courses.map(c => `<option value="${c.id}">${c.course_name} (${c.course_code})</option>`).join('')}
                     </select>
@@ -1146,7 +1164,11 @@ document.getElementById('addResultBtn').addEventListener('click', async () => {
                 </div>
                 <div class="form-group">
                     <label>Academic Year *</label>
-                    <input type="number" name="academic_year" required min="2000" max="2100">
+                    <input type="number" name="academic_year" required min="2000" max="2100" value="${new Date().getFullYear()}">
+                </div>
+                <div id="subjectsContainer" style="display: none;">
+                    <h4>Subject Marks</h4>
+                    <div id="subjectsList"></div>
                 </div>
                 <div class="form-group">
                     <label>Assessment Mark</label>
@@ -1164,21 +1186,73 @@ document.getElementById('addResultBtn').addEventListener('click', async () => {
             </form>
         `);
         
+        // Load subjects when course is selected
+        document.getElementById('courseSelect').addEventListener('change', async (e) => {
+            const courseId = e.target.value;
+            if (courseId) {
+                try {
+                    const subjects = await apiRequest(`/subjects/course/${courseId}`);
+                    const subjectsContainer = document.getElementById('subjectsContainer');
+                    const subjectsList = document.getElementById('subjectsList');
+                    
+                    if (subjects && subjects.length > 0) {
+                        subjectsContainer.style.display = 'block';
+                        subjectsList.innerHTML = subjects.map(subject => `
+                            <div class="form-group subject-mark-group">
+                                <label>${subject.subject_name} (${subject.subject_code})</label>
+                                <input type="number" 
+                                       class="subject-mark-input" 
+                                       data-subject-id="${subject.id}" 
+                                       placeholder="Enter mark (0-100)" 
+                                       min="0" 
+                                       max="100">
+                            </div>
+                        `).join('');
+                    } else {
+                        subjectsContainer.style.display = 'none';
+                    }
+                } catch (error) {
+                    console.error('Failed to load subjects:', error);
+                }
+            } else {
+                document.getElementById('subjectsContainer').style.display = 'none';
+            }
+        });
+        
         document.getElementById('addResultForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
             const resultData = Object.fromEntries(formData);
             
+            // Collect subject marks
+            const subjectMarks = [];
+            document.querySelectorAll('.subject-mark-input').forEach(input => {
+                if (input.value) {
+                    subjectMarks.push({
+                        subject_id: input.dataset.subjectId,
+                        mark: parseFloat(input.value)
+                    });
+                }
+            });
+            
+            if (subjectMarks.length > 0) {
+                resultData.subject_marks = subjectMarks;
+            }
+            
+            console.log('Submitting result data:', resultData);
+            
             try {
-                await apiRequest('/results', {
+                const response = await apiRequest('/results', {
                     method: 'POST',
                     body: JSON.stringify(resultData)
                 });
+                console.log('Result created:', response);
                 showToast('Result added successfully');
                 hideModal();
                 loadResults();
             } catch (error) {
-                showToast('Failed to add result', 'error');
+                console.error('Add result error:', error);
+                showToast('Failed to add result: ' + (error.message || 'Unknown error'), 'error');
             }
         });
     } catch (error) {
@@ -1189,6 +1263,8 @@ document.getElementById('addResultBtn').addEventListener('click', async () => {
 async function editResult(id) {
     try {
         const result = await apiRequest(`/results/${id}`);
+        const students = await apiRequest('/students');
+        const courses = await apiRequest('/courses');
         
         showModal(`
             <div class="modal-header">
@@ -1197,8 +1273,28 @@ async function editResult(id) {
             </div>
             <form id="editResultForm" class="modal-form">
                 <div class="form-group">
-                    <label>Course Name</label>
-                    <input type="text" name="course_name" value="${result.course_name}">
+                    <label>Student *</label>
+                    <select name="user_id" required>
+                        ${students.map(s => `<option value="${s.id}" ${result.user_id === s.id ? 'selected' : ''}>${s.full_name} (${s.student_number})</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Course *</label>
+                    <select name="course_id" required>
+                        ${courses.map(c => `<option value="${c.id}" ${result.course_id === c.id ? 'selected' : ''}>${c.course_name} (${c.course_code})</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Term *</label>
+                    <select name="semester" required>
+                        <option value="1" ${result.semester === 1 ? 'selected' : ''}>Term 1</option>
+                        <option value="2" ${result.semester === 2 ? 'selected' : ''}>Term 2</option>
+                        <option value="3" ${result.semester === 3 ? 'selected' : ''}>Term 3</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Academic Year *</label>
+                    <input type="number" name="academic_year" required min="2000" max="2100" value="${result.academic_year}">
                 </div>
                 <div class="form-group">
                     <label>Assessment Mark</label>
@@ -1230,11 +1326,11 @@ async function editResult(id) {
                 hideModal();
                 loadResults();
             } catch (error) {
-                showToast('Failed to update result', 'error');
+                showToast('Failed to update result: ' + (error.message || 'Unknown error'), 'error');
             }
         });
     } catch (error) {
-        showToast('Failed to load result data', 'error');
+        showToast('Failed to load result data: ' + (error.message || 'Unknown error'), 'error');
     }
 }
 
@@ -1253,6 +1349,186 @@ async function deleteResult(id) {
 }
 
 window.deleteResult = deleteResult;
+
+// Subject CRUD operations
+async function loadSubjects() {
+    try {
+        const search = document.getElementById('subjectSearch').value;
+        const courseFilter = document.getElementById('subjectCourseFilter').value;
+        
+        let endpoint = '/subjects';
+        const params = [];
+        if (search) params.push(`search=${encodeURIComponent(search)}`);
+        if (courseFilter) params.push(`course_id=${courseFilter}`);
+        if (params.length) endpoint += '?' + params.join('&');
+        
+        const subjects = await apiRequest(endpoint);
+        const tbody = document.getElementById('subjectsTableBody');
+        
+        if (!subjects || subjects.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center">No subjects found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = subjects.map(subject => `
+            <tr>
+                <td>${subject.subject_code}</td>
+                <td>${subject.subject_name}</td>
+                <td>${subject.course_name || 'N/A'}</td>
+                <td>${subject.credits || 1}</td>
+                <td>
+                    <button class="action-btn edit" onclick="editSubject(${subject.id})">Edit</button>
+                    <button class="action-btn delete" onclick="deleteSubject(${subject.id})">Delete</button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading subjects:', error);
+        showToast('Failed to load subjects', 'error');
+    }
+}
+
+window.addSubject = async () => {
+    console.log('Add Subject function called');
+    try {
+        const courses = await apiRequest('/courses');
+        console.log('Courses loaded:', courses);
+        
+        showModal(`
+            <div class="modal-header">
+                <h3>Add New Subject</h3>
+                <button class="modal-close" onclick="hideModal()">&times;</button>
+            </div>
+            <form id="addSubjectForm" class="modal-form">
+                <div class="form-group">
+                    <label>Subject Code *</label>
+                    <input type="text" name="subject_code" required>
+                </div>
+                <div class="form-group">
+                    <label>Subject Name *</label>
+                    <input type="text" name="subject_name" required>
+                </div>
+                <div class="form-group">
+                    <label>Course *</label>
+                    <select name="course_id" required>
+                        <option value="">Select Course</option>
+                        ${courses.map(c => `<option value="${c.id}">${c.course_name} (${c.course_code})</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Credits</label>
+                    <input type="number" name="credits" value="1" min="1" max="10">
+                </div>
+                <button type="submit" class="btn btn-primary">Add Subject</button>
+            </form>
+        `);
+        
+        document.getElementById('addSubjectForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const subjectData = Object.fromEntries(formData);
+            
+            try {
+                await apiRequest('/subjects', {
+                    method: 'POST',
+                    body: JSON.stringify(subjectData)
+                });
+                showToast('Subject added successfully');
+                hideModal();
+                loadSubjects();
+            } catch (error) {
+                showToast('Failed to add subject: ' + (error.message || 'Unknown error'), 'error');
+            }
+        });
+    } catch (error) {
+        console.error('Add subject error:', error);
+        showToast('Failed to load courses', 'error');
+    }
+};
+
+async function editSubject(id) {
+    try {
+        const subject = await apiRequest(`/subjects/${id}`);
+        const courses = await apiRequest('/courses');
+        
+        showModal(`
+            <div class="modal-header">
+                <h3>Edit Subject</h3>
+                <button class="modal-close" onclick="hideModal()">&times;</button>
+            </div>
+            <form id="editSubjectForm" class="modal-form">
+                <div class="form-group">
+                    <label>Subject Code *</label>
+                    <input type="text" name="subject_code" value="${subject.subject_code}" required>
+                </div>
+                <div class="form-group">
+                    <label>Subject Name *</label>
+                    <input type="text" name="subject_name" value="${subject.subject_name}" required>
+                </div>
+                <div class="form-group">
+                    <label>Course *</label>
+                    <select name="course_id" required>
+                        ${courses.map(c => `<option value="${c.id}" ${subject.course_id === c.id ? 'selected' : ''}>${c.course_name} (${c.course_code})</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Credits</label>
+                    <input type="number" name="credits" value="${subject.credits || 1}" min="1" max="10">
+                </div>
+                <button type="submit" class="btn btn-primary">Update Subject</button>
+            </form>
+        `);
+        
+        document.getElementById('editSubjectForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const updateData = Object.fromEntries(formData);
+            
+            try {
+                await apiRequest(`/subjects/${id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(updateData)
+                });
+                showToast('Subject updated successfully');
+                hideModal();
+                loadSubjects();
+            } catch (error) {
+                showToast('Failed to update subject: ' + (error.message || 'Unknown error'), 'error');
+            }
+        });
+    } catch (error) {
+        showToast('Failed to load subject data: ' + (error.message || 'Unknown error'), 'error');
+    }
+}
+
+window.editSubject = editSubject;
+
+async function deleteSubject(id) {
+    if (!confirm('Are you sure you want to delete this subject? This will also delete all associated subject marks.')) return;
+    
+    try {
+        await apiRequest(`/subjects/${id}`, { method: 'DELETE' });
+        showToast('Subject deleted successfully');
+        loadSubjects();
+    } catch (error) {
+        showToast('Failed to delete subject', 'error');
+    }
+}
+
+window.deleteSubject = deleteSubject;
+
+// Load courses for subject filter
+async function loadSubjectCourseFilter() {
+    try {
+        const courses = await apiRequest('/courses');
+        const select = document.getElementById('subjectCourseFilter');
+        
+        select.innerHTML = '<option value="">All Courses</option>' + 
+            courses.map(c => `<option value="${c.id}">${c.course_name} (${c.course_code})</option>`).join('');
+    } catch (error) {
+        console.error('Error loading courses for filter:', error);
+    }
+}
 
 // Announcement CRUD operations
 document.getElementById('addAnnouncementBtn').addEventListener('click', () => {
@@ -1458,6 +1734,8 @@ document.getElementById('feeSearch').addEventListener('input', loadFees);
 document.getElementById('feeFilter').addEventListener('change', loadFees);
 document.getElementById('resultSearch').addEventListener('input', loadResults);
 document.getElementById('semesterFilter').addEventListener('change', loadResults);
+document.getElementById('subjectSearch').addEventListener('input', loadSubjects);
+document.getElementById('subjectCourseFilter').addEventListener('change', loadSubjects);
 
 // Navigation click handlers
 document.querySelectorAll('.nav-item').forEach(item => {

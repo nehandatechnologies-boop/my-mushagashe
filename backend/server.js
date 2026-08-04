@@ -26,6 +26,7 @@ const announcementRoutes = require('./routes/announcementRoutes');
 const dashboardRoutes = require('./routes/dashboardRoutes');
 const paymentHistoryRoutes = require('./routes/paymentHistoryRoutes');
 const templateRoutes = require('./routes/templateRoutes');
+const subjectRoutes = require('./routes/subjectRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -106,6 +107,7 @@ app.use('/api/announcements', announcementRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/payment-history', paymentHistoryRoutes);
 app.use('/api/templates', templateRoutes);
+app.use('/api/subjects', subjectRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
