@@ -53,6 +53,13 @@
                     </svg>
                     <span>Lecturers</span>
                 </a>
+                <a href="#" class="nav-item" data-page="subjects">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    </svg>
+                    <span>Subjects</span>
+                </a>
                 <a href="#" class="nav-item" data-page="fees">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="12" y1="1" x2="12" y2="23"></line>
@@ -335,6 +342,48 @@
                                     <tbody id="coursesTableBody">
                                         <tr>
                                             <td colspan="6" class="text-center">Loading courses...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Subjects Page -->
+                <div id="subjects-page" class="page">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Subject Management</h3>
+                            <button id="addSubjectBtn" class="btn btn-primary">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                                Add Subject
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-controls">
+                                <input type="text" id="subjectSearch" placeholder="Search subjects..." class="search-input">
+                                <select id="subjectCourseFilter" class="filter-select">
+                                    <option value="">All Courses</option>
+                                </select>
+                            </div>
+                            <div id="subjectsTableContainer">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Subject Code</th>
+                                            <th>Subject Name</th>
+                                            <th>Course</th>
+                                            <th>Credits</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="subjectsTableBody">
+                                        <tr>
+                                            <td colspan="5" class="text-center">Loading subjects...</td>
                                         </tr>
                                     </tbody>
                                 </table>
