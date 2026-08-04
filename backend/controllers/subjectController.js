@@ -10,6 +10,16 @@ const createSubject = async (req, res) => {
       return res.status(400).json({ error: 'Subject code, name, and course ID are required' });
     }
 
+    // Lecturers can only create subjects for their assigned course
+    if (req.user.role === 'lecturer') {
+      if (!req.user.course_id) {
+        return res.status(403).json({ error: 'Access denied: You must be assigned to a course to create subjects' });
+      }
+      if (parseInt(course_id) !== req.user.course_id) {
+        return res.status(403).json({ error: 'Access denied: You can only create subjects for your assigned course' });
+      }
+    }
+
     const subjectData = {
       subject_code,
       subject_name,
@@ -93,10 +103,30 @@ const updateSubject = async (req, res) => {
     const { id } = req.params;
     const { subject_code, subject_name, course_id, credits } = req.body;
 
+    // Get existing subject to check course
+    const existingSubject = await Subject.findById(id);
+    if (!existingSubject) {
+      return res.status(404).json({ error: 'Subject not found' });
+    }
+
+    // Lecturers can only update subjects for their assigned course
+    if (req.user.role === 'lecturer') {
+      if (!req.user.course_id) {
+        return res.status(403).json({ error: 'Access denied: You must be assigned to a course to update subjects' });
+      }
+      if (existingSubject.course_id !== req.user.course_id) {
+        return res.status(403).json({ error: 'Access denied: You can only update subjects for your assigned course' });
+      }
+      // Lecturers cannot change the course_id
+      if (course_id !== undefined && parseInt(course_id) !== req.user.course_id) {
+        return res.status(403).json({ error: 'Access denied: You cannot change the course' });
+      }
+    }
+
     const updateData = {};
     if (subject_code !== undefined) updateData.subject_code = subject_code;
     if (subject_name !== undefined) updateData.subject_name = subject_name;
-    if (course_id !== undefined) updateData.course_id = parseInt(course_id);
+    if (course_id !== undefined && req.user.role === 'admin') updateData.course_id = parseInt(course_id);
     if (credits !== undefined) updateData.credits = parseInt(credits);
 
     const subject = await Subject.update(id, updateData);

@@ -74,11 +74,16 @@ document.querySelectorAll('.nav-link').forEach(link => {
         document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
         document.getElementById(`${section}-section`).classList.add('active');
         
-        document.getElementById('page-title').textContent = 
-            section === 'students' ? 'My Students' : 'Results';
+        const titles = {
+            'students': 'My Students',
+            'results': 'Results',
+            'subjects': 'Subjects'
+        };
+        document.getElementById('page-title').textContent = titles[section] || section;
         
         if (section === 'students') loadStudents();
         if (section === 'results') loadResults();
+        if (section === 'subjects') loadSubjects();
     });
 });
 
@@ -384,8 +389,137 @@ window.editResult = async (id) => {
 document.getElementById('logoutBtn').addEventListener('click', () => {
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    window.location.href = 'index.html';
+    window.location.href = 'lecturer-login.html';
 });
+
+// Load subjects for lecturer's course
+async function loadSubjects() {
+    try {
+        const user = JSON.parse(localStorage.getItem('user'));
+        const subjects = await apiRequest(`/subjects/course/${user.course_id}`);
+        const tbody = document.getElementById('subjects-table-body');
+        
+        if (!subjects || subjects.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center">No subjects found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = subjects.map(subject => `
+            <tr>
+                <td>${subject.subject_code}</td>
+                <td>${subject.subject_name}</td>
+                <td>${subject.credits || 1}</td>
+                <td>
+                    <button class="btn btn-sm lecturer-edit-btn" onclick="window.editSubject(${subject.id})">Edit</button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading subjects:', error);
+        showToast('Failed to load subjects', 'error');
+    }
+}
+
+// Add subject
+window.addSubject = async () => {
+    try {
+        const user = JSON.parse(localStorage.getItem('user'));
+        
+        showModal(`
+            <div class="modal-header">
+                <h3>Add New Subject</h3>
+                <button class="modal-close" onclick="hideModal()">&times;</button>
+            </div>
+            <form id="addSubjectForm" class="modal-form">
+                <div class="form-group">
+                    <label>Subject Code *</label>
+                    <input type="text" name="subject_code" required>
+                </div>
+                <div class="form-group">
+                    <label>Subject Name *</label>
+                    <input type="text" name="subject_name" required>
+                </div>
+                <div class="form-group">
+                    <label>Credits</label>
+                    <input type="number" name="credits" value="1" min="1" max="10">
+                </div>
+                <input type="hidden" name="course_id" value="${user.course_id}">
+                <button type="submit" class="btn btn-primary">Add Subject</button>
+            </form>
+        `);
+        
+        document.getElementById('addSubjectForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const subjectData = Object.fromEntries(formData);
+            
+            try {
+                await apiRequest('/subjects', {
+                    method: 'POST',
+                    body: JSON.stringify(subjectData)
+                });
+                showToast('Subject added successfully');
+                hideModal();
+                loadSubjects();
+            } catch (error) {
+                showToast('Failed to add subject: ' + (error.message || 'Unknown error'), 'error');
+            }
+        });
+    } catch (error) {
+        console.error('Add subject error:', error);
+        showToast('Failed to add subject', 'error');
+    }
+};
+
+// Edit subject
+window.editSubject = async (id) => {
+    try {
+        const subject = await apiRequest(`/subjects/${id}`);
+        
+        showModal(`
+            <div class="modal-header">
+                <h3>Edit Subject</h3>
+                <button class="modal-close" onclick="hideModal()">&times;</button>
+            </div>
+            <form id="editSubjectForm" class="modal-form">
+                <div class="form-group">
+                    <label>Subject Code *</label>
+                    <input type="text" name="subject_code" value="${subject.subject_code}" required>
+                </div>
+                <div class="form-group">
+                    <label>Subject Name *</label>
+                    <input type="text" name="subject_name" value="${subject.subject_name}" required>
+                </div>
+                <div class="form-group">
+                    <label>Credits</label>
+                    <input type="number" name="credits" value="${subject.credits || 1}" min="1" max="10">
+                </div>
+                <button type="submit" class="btn btn-primary">Update Subject</button>
+            </form>
+        `);
+        
+        document.getElementById('editSubjectForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const updateData = Object.fromEntries(formData);
+            
+            try {
+                await apiRequest(`/subjects/${id}`, {
+                    method: 'PUT',
+                    body: JSON.stringify(updateData)
+                });
+                showToast('Subject updated successfully');
+                hideModal();
+                loadSubjects();
+            } catch (error) {
+                showToast('Failed to update subject: ' + (error.message || 'Unknown error'), 'error');
+            }
+        });
+    } catch (error) {
+        console.error('Edit subject error:', error);
+        showToast('Failed to load subject data', 'error');
+    }
+};
 
 // Initialize
 loadLecturerInfo();

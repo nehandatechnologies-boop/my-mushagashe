@@ -11,8 +11,8 @@ const validateSubject = [
   body('course_id').notEmpty().withMessage('Course ID is required')
 ];
 
-// Create new subject (admin only)
-router.post('/', authenticate, adminOnly, validateSubject, subjectController.createSubject);
+// Create new subject (admin or lecturer for their course)
+router.post('/', authenticate, validateSubject, subjectController.createSubject);
 
 // Get all subjects (authenticated)
 router.get('/', authenticate, subjectController.getAllSubjects);
@@ -23,8 +23,8 @@ router.get('/course/:course_id', authenticate, subjectController.getSubjectsByCo
 // Get subject by ID (authenticated)
 router.get('/:id', authenticate, subjectController.getSubjectById);
 
-// Update subject (admin only)
-router.put('/:id', authenticate, adminOnly, subjectController.updateSubject);
+// Update subject (admin or lecturer for their course)
+router.put('/:id', authenticate, subjectController.updateSubject);
 
 // Delete subject (admin only)
 router.delete('/:id', authenticate, adminOnly, subjectController.deleteSubject);

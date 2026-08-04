@@ -164,6 +164,13 @@
                     </svg>
                     Results
                 </a>
+                <a href="#" class="nav-link lecturer-nav-link" data-section="subjects">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    </svg>
+                    Subjects
+                </a>
             </nav>
             <div class="sidebar-footer">
                 <button id="logoutBtn" class="btn btn-secondary btn-full lecturer-logout-btn">
@@ -240,6 +247,37 @@
                             <tbody id="results-table-body">
                                 <tr>
                                     <td colspan="9" class="text-center">Loading results...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <!-- Subjects Section -->
+                <section id="subjects-section" class="content-section lecturer-content-section">
+                    <div class="section-header lecturer-section-header">
+                        <h2>Subjects in My Course</h2>
+                        <button id="addSubjectBtn" class="btn btn-primary lecturer-add-btn" onclick="window.addSubject()">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="12" y1="5" x2="12" y2="19"></line>
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                            </svg>
+                            Add Subject
+                        </button>
+                    </div>
+                    <div class="table-container lecturer-table-container">
+                        <table class="data-table lecturer-table">
+                            <thead>
+                                <tr>
+                                    <th>Subject Code</th>
+                                    <th>Subject Name</th>
+                                    <th>Credits</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="subjects-table-body">
+                                <tr>
+                                    <td colspan="4" class="text-center">Loading subjects...</td>
                                 </tr>
                             </tbody>
                         </table>
