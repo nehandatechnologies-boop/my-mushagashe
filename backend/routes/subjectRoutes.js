@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
-const subjectController = require('../controllers/subject');
+const subjectController = require('../controllers/subjectController');
 const { authenticate, adminOnly } = require('../middleware/auth');
 
 // Validation middleware
