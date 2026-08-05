@@ -178,14 +178,22 @@ window.showStudentResults = async (studentName, studentNumber) => {
             
             return `
                 <div style="background: #f9fafb; padding: 1rem; margin-bottom: 0.5rem; border-radius: 0.5rem;">
-                    <div style="font-weight: 600; color: #1e40af;">${result.course_name || 'N/A'}</div>
-                    <div style="color: #6b7280; font-size: 0.9rem;">Term ${result.semester} - ${result.academic_year}</div>
-                    <div style="margin-top: 0.5rem;">
-                        <span style="font-weight: 500;">Final Mark:</span> ${result.final_mark || 'N/A'}
-                        <span style="margin-left: 1rem; font-weight: 500;">Grade:</span> 
-                        <span class="badge badge-${getGradeBadgeClass(result.grade)}">${result.grade || 'N/A'}</span>
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div>
+                            <div style="font-weight: 600; color: #1e40af;">${result.course_name || 'N/A'}</div>
+                            <div style="color: #6b7280; font-size: 0.9rem;">Term ${result.semester} - ${result.academic_year}</div>
+                            <div style="margin-top: 0.5rem;">
+                                <span style="font-weight: 500;">Final Mark:</span> ${result.final_mark || 'N/A'}
+                                <span style="margin-left: 1rem; font-weight: 500;">Grade:</span> 
+                                <span class="badge badge-${getGradeBadgeClass(result.grade)}">${result.grade || 'N/A'}</span>
+                            </div>
+                            ${subjectMarksHtml}
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="btn btn-sm lecturer-edit-btn" onclick="window.editResult(${result.id}); event.stopPropagation();">Edit</button>
+                            <button class="btn btn-sm btn-danger" onclick="window.deleteResult(${result.id}); event.stopPropagation();" style="background: #dc2626; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer;">Delete</button>
+                        </div>
                     </div>
-                    ${subjectMarksHtml}
                 </div>
             `;
         }).join('');
@@ -441,6 +449,20 @@ window.editResult = async (id) => {
         });
     } catch (error) {
         showToast('Failed to load result data', 'error');
+    }
+};
+
+// Delete result
+window.deleteResult = async (id) => {
+    if (!confirm('Are you sure you want to delete this result?')) return;
+    
+    try {
+        await apiRequest(`/results/${id}`, { method: 'DELETE' });
+        showToast('Result deleted successfully');
+        hideModal();
+        loadResults();
+    } catch (error) {
+        showToast('Failed to delete result', 'error');
     }
 };
 

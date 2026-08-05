@@ -365,14 +365,22 @@ window.showStudentResults = async (studentName, studentNumber) => {
             
             return `
                 <div style="background: #f9fafb; padding: 1rem; margin-bottom: 0.5rem; border-radius: 0.5rem;">
-                    <div style="font-weight: 600; color: #1e40af;">${result.course_name || 'N/A'}</div>
-                    <div style="color: #6b7280; font-size: 0.9rem;">Term ${result.semester} - ${result.academic_year}</div>
-                    <div style="margin-top: 0.5rem;">
-                        <span style="font-weight: 500;">Final Mark:</span> ${result.final_mark || 'N/A'}
-                        <span style="margin-left: 1rem; font-weight: 500;">Grade:</span> 
-                        <span class="result-grade ${result.grade}">${result.grade || 'N/A'}</span>
+                    <div style="display: flex; justify-content: space-between; align-items: start;">
+                        <div>
+                            <div style="font-weight: 600; color: #1e40af;">${result.course_name || 'N/A'}</div>
+                            <div style="color: #6b7280; font-size: 0.9rem;">Term ${result.semester} - ${result.academic_year}</div>
+                            <div style="margin-top: 0.5rem;">
+                                <span style="font-weight: 500;">Final Mark:</span> ${result.final_mark || 'N/A'}
+                                <span style="margin-left: 1rem; font-weight: 500;">Grade:</span> 
+                                <span class="result-grade ${result.grade}">${result.grade || 'N/A'}</span>
+                            </div>
+                            ${subjectMarksHtml}
+                        </div>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <button class="action-btn edit" onclick="editResult(${result.id}); event.stopPropagation();">Edit</button>
+                            <button class="action-btn delete" onclick="deleteResult(${result.id}); event.stopPropagation();">Delete</button>
+                        </div>
                     </div>
-                    ${subjectMarksHtml}
                 </div>
             `;
         }).join('');
