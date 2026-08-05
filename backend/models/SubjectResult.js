@@ -65,12 +65,11 @@ class SubjectResult {
           credits
         )
       `)
-      .eq('result_id', resultId)
-      .order('subjects.subject_name', { ascending: true });
+      .eq('result_id', resultId);
 
     if (error) throw error;
 
-    // Flatten the nested data
+    // Flatten the nested data and sort by subject name in JavaScript
     return data.map(sr => {
       if (sr.subjects) {
         sr.subject_code = sr.subjects.subject_code;
@@ -79,7 +78,7 @@ class SubjectResult {
         delete sr.subjects;
       }
       return sr;
-    });
+    }).sort((a, b) => (a.subject_name || '').localeCompare(b.subject_name || ''));
   }
 
   static async findAll(filters = {}) {
