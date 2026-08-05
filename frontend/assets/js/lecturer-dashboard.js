@@ -141,28 +141,12 @@ async function loadResults() {
         let html = '';
         Object.values(resultsByStudent).forEach(student => {
             html += `
-                <tr class="student-header-row" style="background: #f0f9ff;">
+                <tr class="student-header-row" style="background: #f0f9ff; cursor: pointer;" onclick="window.showStudentResults('${student.full_name}', '${student.student_number}')">
                     <td colspan="9" style="padding: 0.75rem 1rem; font-weight: 600; color: #1e40af;">
-                        ${student.full_name} (${student.student_number})
+                        ${student.full_name} (${student.student_number}) ▼
                     </td>
                 </tr>
             `;
-            student.results.forEach(result => {
-                html += `
-                    <tr>
-                        <td style="padding-left: 2rem;">${result.course_name || 'N/A'}</td>
-                        <td>Semester ${result.semester}</td>
-                        <td>${result.academic_year}</td>
-                        <td>${result.assessment_mark || 'N/A'}</td>
-                        <td>${result.exam_mark || 'N/A'}</td>
-                        <td>${result.final_mark || 'N/A'}</td>
-                        <td><span class="badge badge-${getGradeBadgeClass(result.grade)}">${result.grade || 'N/A'}</span></td>
-                        <td>
-                            <button class="btn btn-sm lecturer-edit-btn" onclick="window.editResult(${result.id})">Edit</button>
-                        </td>
-                    </tr>
-                `;
-            });
         });
 
         tbody.innerHTML = html;
@@ -171,6 +155,55 @@ async function loadResults() {
         showToast('Failed to load results', 'error');
     }
 }
+
+// Show detailed results for a specific student
+window.showStudentResults = async (studentName, studentNumber) => {
+    try {
+        const results = await apiRequest('/results');
+        const studentResults = results.filter(r => r.full_name === studentName && r.student_number === studentNumber);
+        
+        if (studentResults.length === 0) {
+            showToast('No results found for this student', 'error');
+            return;
+        }
+
+        const resultsHtml = studentResults.map(result => {
+            const subjectMarksHtml = result.subject_results && result.subject_results.length > 0
+                ? `<div class="subject-marks" style="margin-top: 0.5rem;">
+                    ${result.subject_results.map(sr => `
+                        <span class="subject-mark-badge">${sr.subject_name}: ${sr.mark} (${sr.grade})</span>
+                    `).join('')}
+                   </div>`
+                : '';
+            
+            return `
+                <div style="background: #f9fafb; padding: 1rem; margin-bottom: 0.5rem; border-radius: 0.5rem;">
+                    <div style="font-weight: 600; color: #1e40af;">${result.course_name || 'N/A'}</div>
+                    <div style="color: #6b7280; font-size: 0.9rem;">Term ${result.semester} - ${result.academic_year}</div>
+                    <div style="margin-top: 0.5rem;">
+                        <span style="font-weight: 500;">Final Mark:</span> ${result.final_mark || 'N/A'}
+                        <span style="margin-left: 1rem; font-weight: 500;">Grade:</span> 
+                        <span class="badge badge-${getGradeBadgeClass(result.grade)}">${result.grade || 'N/A'}</span>
+                    </div>
+                    ${subjectMarksHtml}
+                </div>
+            `;
+        }).join('');
+
+        showModal(`
+            <div class="modal-header">
+                <h3>Results - ${studentName} (${studentNumber})</h3>
+                <button class="modal-close" onclick="hideModal()">&times;</button>
+            </div>
+            <div class="modal-content" style="max-height: 500px; overflow-y: auto;">
+                ${resultsHtml}
+            </div>
+        `);
+    } catch (error) {
+        console.error('Error loading student results:', error);
+        showToast('Failed to load student results', 'error');
+    }
+};
 
 function getGradeBadgeClass(grade) {
     if (!grade) return 'secondary';
