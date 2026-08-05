@@ -310,34 +310,60 @@ async function loadResults() {
             return;
         }
 
-        tbody.innerHTML = results.map(result => {
-            // Display subject marks if available
-            const subjectMarksHtml = result.subject_results && result.subject_results.length > 0
-                ? `<div class="subject-marks">
-                    ${result.subject_results.map(sr => `
-                        <span class="subject-mark-badge">${sr.subject_name}: ${sr.mark} (${sr.grade})</span>
-                    `).join('')}
-                   </div>`
-                : '';
-            
-            return `
-            <tr>
-                <td>
-                    ${result.full_name || 'Unknown'}
-                    ${subjectMarksHtml}
-                </td>
-                <td>${result.course_name}</td>
-                <td>${result.semester}</td>
-                <td>${result.academic_year}</td>
-                <td>${result.final_mark || 'N/A'}</td>
-                <td><span class="result-grade ${result.grade}">${result.grade}</span></td>
-                <td>
-                    <button class="action-btn edit" onclick="editResult(${result.id})">Edit</button>
-                    <button class="action-btn delete" onclick="deleteResult(${result.id})">Delete</button>
-                </td>
-            </tr>
-        `;
-        }).join('');
+        // Group results by student
+        const resultsByStudent = results.reduce((acc, result) => {
+            const studentKey = `${result.full_name}_${result.student_number}`;
+            if (!acc[studentKey]) {
+                acc[studentKey] = {
+                    full_name: result.full_name,
+                    student_number: result.student_number,
+                    results: []
+                };
+            }
+            acc[studentKey].results.push(result);
+            return acc;
+        }, {});
+
+        // Generate HTML grouped by student
+        let html = '';
+        Object.values(resultsByStudent).forEach(student => {
+            html += `
+                <tr class="student-header-row" style="background: #f0f9ff;">
+                    <td colspan="7" style="padding: 0.75rem 1rem; font-weight: 600; color: #1e40af;">
+                        ${student.full_name} (${student.student_number})
+                    </td>
+                </tr>
+            `;
+            student.results.forEach(result => {
+                // Display subject marks if available
+                const subjectMarksHtml = result.subject_results && result.subject_results.length > 0
+                    ? `<div class="subject-marks">
+                        ${result.subject_results.map(sr => `
+                            <span class="subject-mark-badge">${sr.subject_name}: ${sr.mark} (${sr.grade})</span>
+                        `).join('')}
+                       </div>`
+                    : '';
+                
+                html += `
+                    <tr>
+                        <td style="padding-left: 2rem;">
+                            ${result.course_name}
+                            ${subjectMarksHtml}
+                        </td>
+                        <td>Term ${result.semester}</td>
+                        <td>${result.academic_year}</td>
+                        <td>${result.final_mark || 'N/A'}</td>
+                        <td><span class="result-grade ${result.grade}">${result.grade}</span></td>
+                        <td>
+                            <button class="action-btn edit" onclick="editResult(${result.id})">Edit</button>
+                            <button class="action-btn delete" onclick="deleteResult(${result.id})">Delete</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        });
+
+        tbody.innerHTML = html;
     } catch (error) {
         console.error('Error loading results:', error);
         showToast('Failed to load results', 'error');

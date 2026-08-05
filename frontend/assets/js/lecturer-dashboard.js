@@ -122,22 +122,50 @@ async function loadResults() {
             tbody.innerHTML = '<tr><td colspan="9" class="text-center">No results found</td></tr>';
             return;
         }
-        
-        tbody.innerHTML = results.map(result => `
-            <tr>
-                <td>${result.full_name || 'N/A'} (${result.student_number || 'N/A'})</td>
-                <td>${result.course_name || 'N/A'}</td>
-                <td>Semester ${result.semester}</td>
-                <td>${result.academic_year}</td>
-                <td>${result.assessment_mark || 'N/A'}</td>
-                <td>${result.exam_mark || 'N/A'}</td>
-                <td>${result.final_mark || 'N/A'}</td>
-                <td><span class="badge badge-${getGradeBadgeClass(result.grade)}">${result.grade || 'N/A'}</span></td>
-                <td>
-                    <button class="btn btn-sm btn-secondary" onclick="editResult(${result.id})">Edit</button>
-                </td>
-            </tr>
-        `).join('');
+
+        // Group results by student
+        const resultsByStudent = results.reduce((acc, result) => {
+            const studentKey = `${result.full_name}_${result.student_number}`;
+            if (!acc[studentKey]) {
+                acc[studentKey] = {
+                    full_name: result.full_name,
+                    student_number: result.student_number,
+                    results: []
+                };
+            }
+            acc[studentKey].results.push(result);
+            return acc;
+        }, {});
+
+        // Generate HTML grouped by student
+        let html = '';
+        Object.values(resultsByStudent).forEach(student => {
+            html += `
+                <tr class="student-header-row" style="background: #f0f9ff;">
+                    <td colspan="9" style="padding: 0.75rem 1rem; font-weight: 600; color: #1e40af;">
+                        ${student.full_name} (${student.student_number})
+                    </td>
+                </tr>
+            `;
+            student.results.forEach(result => {
+                html += `
+                    <tr>
+                        <td style="padding-left: 2rem;">${result.course_name || 'N/A'}</td>
+                        <td>Semester ${result.semester}</td>
+                        <td>${result.academic_year}</td>
+                        <td>${result.assessment_mark || 'N/A'}</td>
+                        <td>${result.exam_mark || 'N/A'}</td>
+                        <td>${result.final_mark || 'N/A'}</td>
+                        <td><span class="badge badge-${getGradeBadgeClass(result.grade)}">${result.grade || 'N/A'}</span></td>
+                        <td>
+                            <button class="btn btn-sm lecturer-edit-btn" onclick="window.editResult(${result.id})">Edit</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        });
+
+        tbody.innerHTML = html;
     } catch (error) {
         console.error('Error loading results:', error);
         showToast('Failed to load results', 'error');
@@ -146,10 +174,8 @@ async function loadResults() {
 
 function getGradeBadgeClass(grade) {
     if (!grade) return 'secondary';
-    const gradeUpper = grade.toUpperCase();
-    if (gradeUpper === 'A' || gradeUpper === 'A+') return 'success';
-    if (gradeUpper === 'B' || gradeUpper === 'B+') return 'info';
-    if (gradeUpper === 'C' || gradeUpper === 'C+') return 'warning';
+    if (grade === 'A' || grade === 'B') return 'success';
+    if (grade === 'C' || grade === 'D') return 'warning';
     return 'danger';
 }
 
