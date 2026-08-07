@@ -38,96 +38,96 @@ async function generateZimbabweResultPDF(studentData, resultData, courseData, te
     // Format session (e.g., "MARCH – APRIL 2026")
     const session = formatSession(resultData.semester, resultData.academic_year);
 
-  // Fill in the template fields (coordinates adjusted for Zimbabwe template)
+  // Fill in the template fields with conservative coordinates
   console.log('Filling template fields...');
   
-  // Course Name (right side, after "COURSE NAME" label)
+  // Course Name - center area
   console.log('Course Name:', courseData.course_name);
   page.drawText(courseData.course_name?.toUpperCase() || 'N/A', {
-    x: 350,
-    y: height - 200,
-    size: 11,
+    x: 100,
+    y: height - 150,
+    size: 12,
     font: boldFont,
     color: rgb(0, 0, 0),
   });
 
-  // Surname (right side, after "SURNAME" label)
+  // Surname
   console.log('Surname:', surname);
   page.drawText(surname, {
-    x: 350,
-    y: height - 230,
-    size: 11,
+    x: 100,
+    y: height - 180,
+    size: 12,
     font: boldFont,
     color: rgb(0, 0, 0),
   });
 
-  // First Name (right side, after "FIRST NAME" label)
+  // First Name
   console.log('First Name:', firstName);
   page.drawText(firstName, {
-    x: 350,
-    y: height - 255,
-    size: 11,
+    x: 100,
+    y: height - 210,
+    size: 12,
     font: boldFont,
     color: rgb(0, 0, 0),
   });
 
-  // Result (Overall Decision - right side, after "RESULT" label)
+  // Result (Overall Decision)
   console.log('Overall Decision:', overallDecision);
   page.drawText(overallDecision, {
-    x: 350,
-    y: height - 280,
-    size: 11,
+    x: 100,
+    y: height - 240,
+    size: 12,
     font: boldFont,
     color: rgb(0, 0, 0),
   });
 
-  // Course Level (right side, after "COURSE LEVEL" label)
+  // Course Level
   page.drawText('NATIONAL CERTIFICATE', {
-    x: 350,
-    y: height - 305,
-    size: 11,
+    x: 100,
+    y: height - 270,
+    size: 12,
     font: boldFont,
     color: rgb(0, 0, 0),
   });
 
-  // Session (right side, after "SESSION" label)
+  // Session
   console.log('Session:', session);
   page.drawText(session, {
-    x: 350,
-    y: height - 330,
-    size: 11,
+    x: 100,
+    y: height - 300,
+    size: 12,
     font: boldFont,
     color: rgb(0, 0, 0),
   });
 
-  // Institution (right side, after "INSTITUTION" label)
+  // Institution
   page.drawText('MUSHAGASHE VTC', {
-    x: 350,
-    y: height - 355,
-    size: 11,
+    x: 100,
+    y: height - 330,
+    size: 12,
     font: boldFont,
     color: rgb(0, 0, 0),
   });
 
   // Fill subject grades table
-  let subjectY = height - 400;
+  let subjectY = height - 380;
   console.log('Filling subject grades...');
   subjectResults.forEach((sr, index) => {
     console.log(`Subject ${index + 1}: ${sr.subject_name} - ${sr.grade}`);
-    // Subject Title (left column under "SUBJECT TITLES")
+    // Subject Title
     page.drawText((sr.subject_name || '').toUpperCase(), {
-      x: 80,
+      x: 50,
       y: subjectY,
-      size: 10,
+      size: 11,
       font,
       color: rgb(0, 0, 0),
     });
 
-    // Grade (right column under "GRADE")
+    // Grade
     page.drawText(sr.grade || 'N/A', {
-      x: 450,
+      x: 400,
       y: subjectY,
-      size: 10,
+      size: 11,
       font: boldFont,
       color: rgb(0, 0, 0),
     });
@@ -135,23 +135,23 @@ async function generateZimbabweResultPDF(studentData, resultData, courseData, te
     subjectY -= 25;
   });
 
-  // Overall Decision (under "OVERALL DECISION")
+  // Overall Decision
   page.drawText(overallDecision, {
-    x: 350,
-    y: height - 520,
-    size: 11,
+    x: 100,
+    y: height - 500,
+    size: 14,
     font: boldFont,
     color: rgb(0, 0, 0),
   });
 
-  // Date (in signature area)
+  // Date
   const currentDate = new Date();
   const dateStr = `${currentDate.getDate()}/${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`;
   console.log('Date:', dateStr);
   page.drawText(dateStr, {
-    x: 480,
-    y: height - 620,
-    size: 10,
+    x: 400,
+    y: height - 600,
+    size: 11,
     font,
     color: rgb(0, 0, 0),
   });
@@ -227,20 +227,29 @@ async function generateResultPDF(studentData, resultData, courseData, templateBu
     // Check if custom template is provided or exists in templates directory
     if (!templateBuffer) {
       const templatePath = path.join(__dirname, '../templates/student results.pdf');
+      console.log('=== PDF Template Debug ===');
       console.log('Looking for template at:', templatePath);
       console.log('Template exists:', fs.existsSync(templatePath));
+      
       if (fs.existsSync(templatePath)) {
-        templateBuffer = fs.readFileSync(templatePath);
-        console.log('Template loaded, size:', templateBuffer.length);
+        try {
+          templateBuffer = fs.readFileSync(templatePath);
+          console.log('Template loaded successfully, size:', templateBuffer.length);
+        } catch (readError) {
+          console.error('Error reading template file:', readError);
+        }
+      } else {
+        console.log('Template file not found at path');
       }
     }
 
     if (templateBuffer) {
       // Load custom template and fill with Zimbabwe format
-      console.log('Using Zimbabwe template');
+      console.log('=== Using Zimbabwe Template ===');
+      console.log('Template buffer size:', templateBuffer.length);
       return await generateZimbabweResultPDF(studentData, resultData, courseData, templateBuffer);
     } else {
-      console.log('Template not found, using default');
+      console.log('=== No template found, using default PDF generation ===');
       // Create default template with letterhead
       pdfDoc = await PDFLibDocument.create();
       const page = pdfDoc.addPage([595, 842]); // A4 size

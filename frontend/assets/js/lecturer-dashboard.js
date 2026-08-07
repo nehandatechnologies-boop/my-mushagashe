@@ -1,4 +1,21 @@
-const API_BASE = 'https://my-mushagashe.onrender.com/api';
+// API Configuration - Detect environment
+const isNgrok = window.location.hostname.includes('ngrok-free.app') || window.location.hostname.includes('ngrok.io');
+const isRender = window.location.hostname.includes('onrender.com');
+const isFly = window.location.hostname.includes('fly.dev');
+const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+
+let API_BASE;
+if (isNgrok) {
+  API_BASE = '/api';
+} else if (isRender) {
+  API_BASE = '/api';
+} else if (isFly) {
+  API_BASE = '/api';
+} else if (isLocalhost) {
+  API_BASE = 'http://localhost:5000/api';
+} else {
+  API_BASE = '/api';
+}
 
 async function apiRequest(endpoint, options = {}) {
     const token = localStorage.getItem('token');

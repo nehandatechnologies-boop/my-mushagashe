@@ -7,6 +7,8 @@ const Course = require('../models/Course');
 const SubjectResult = require('../models/SubjectResult');
 const Subject = require('../models/Subject');
 
+console.log('=== resultController.js loaded with PDF template support ===');
+
 // Create new result
 const createResult = async (req, res) => {
   try {
@@ -371,6 +373,9 @@ const importResults = async (req, res) => {
 
 // Generate secure PDF for a single result
 const downloadResultPDF = async (req, res) => {
+  console.log('=== DOWNLOAD RESULT PDF CALLED ===');
+  console.log('Request params:', req.params);
+  console.log('Request user:', req.user);
   try {
     console.log('PDF download requested for result ID:', req.params.id);
     const { id } = req.params;
