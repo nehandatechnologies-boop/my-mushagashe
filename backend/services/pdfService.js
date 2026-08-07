@@ -12,98 +12,109 @@ const path = require('path');
  * @returns {Promise<Buffer>} - Filled PDF buffer
  */
 async function generateZimbabweResultPDF(studentData, resultData, courseData, templateBuffer) {
-  const pdfDoc = await PDFLibDocument.load(templateBuffer);
-  const pages = pdfDoc.getPages();
-  const page = pages[0];
-  const { width, height } = page.getSize();
+  try {
+    console.log('Loading Zimbabwe template...');
+    const pdfDoc = await PDFLibDocument.load(templateBuffer);
+    const pages = pdfDoc.getPages();
+    const page = pages[0];
+    const { width, height } = page.getSize();
+    console.log('Template loaded. Page size:', width, 'x', height);
+    
+    const font = await pdfDoc.embedFont(PDFLibDocument.StandardFonts.Helvetica);
+    const boldFont = await pdfDoc.embedFont(PDFLibDocument.StandardFonts.HelveticaBold);
+
+    // Parse student name into surname and first name
+    const nameParts = (studentData.full_name || '').split(' ');
+    const surname = nameParts.length > 0 ? nameParts[nameParts.length - 1].toUpperCase() : '';
+    const firstName = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ').toUpperCase() : nameParts[0]?.toUpperCase() || '';
+
+    // Get subject results
+    const subjectResults = resultData.subject_results || [];
+    console.log('Subject results:', subjectResults.length);
+    
+    // Calculate overall decision based on grades
+    const overallDecision = calculateOverallDecision(subjectResults);
+
+    // Format session (e.g., "MARCH – APRIL 2026")
+    const session = formatSession(resultData.semester, resultData.academic_year);
+
+  // Fill in the template fields (coordinates adjusted for Zimbabwe template)
+  console.log('Filling template fields...');
   
-  const font = await pdfDoc.embedFont(PDFLibDocument.StandardFonts.Helvetica);
-  const boldFont = await pdfDoc.embedFont(PDFLibDocument.StandardFonts.HelveticaBold);
-
-  // Parse student name into surname and first name
-  const nameParts = (studentData.full_name || '').split(' ');
-  const surname = nameParts.length > 0 ? nameParts[nameParts.length - 1].toUpperCase() : '';
-  const firstName = nameParts.length > 1 ? nameParts.slice(0, -1).join(' ').toUpperCase() : nameParts[0]?.toUpperCase() || '';
-
-  // Get subject results
-  const subjectResults = resultData.subject_results || [];
-  
-  // Calculate overall decision based on grades
-  const overallDecision = calculateOverallDecision(subjectResults);
-
-  // Format session (e.g., "MARCH – APRIL 2026")
-  const session = formatSession(resultData.semester, resultData.academic_year);
-
-  // Fill in the template fields (coordinates need to be adjusted based on actual template)
-  // These are approximate positions - may need adjustment after testing
-  
-  // Course Name
+  // Course Name (right side, after "COURSE NAME" label)
+  console.log('Course Name:', courseData.course_name);
   page.drawText(courseData.course_name?.toUpperCase() || 'N/A', {
-    x: 200,
+    x: 350,
+    y: height - 200,
+    size: 11,
+    font: boldFont,
+    color: rgb(0, 0, 0),
+  });
+
+  // Surname (right side, after "SURNAME" label)
+  console.log('Surname:', surname);
+  page.drawText(surname, {
+    x: 350,
+    y: height - 230,
+    size: 11,
+    font: boldFont,
+    color: rgb(0, 0, 0),
+  });
+
+  // First Name (right side, after "FIRST NAME" label)
+  console.log('First Name:', firstName);
+  page.drawText(firstName, {
+    x: 350,
+    y: height - 255,
+    size: 11,
+    font: boldFont,
+    color: rgb(0, 0, 0),
+  });
+
+  // Result (Overall Decision - right side, after "RESULT" label)
+  console.log('Overall Decision:', overallDecision);
+  page.drawText(overallDecision, {
+    x: 350,
     y: height - 280,
     size: 11,
     font: boldFont,
     color: rgb(0, 0, 0),
   });
 
-  // Surname
-  page.drawText(surname, {
-    x: 200,
-    y: height - 320,
-    size: 11,
-    font: boldFont,
-    color: rgb(0, 0, 0),
-  });
-
-  // First Name
-  page.drawText(firstName, {
-    x: 200,
-    y: height - 345,
-    size: 11,
-    font: boldFont,
-    color: rgb(0, 0, 0),
-  });
-
-  // Result (Overall Decision)
-  page.drawText(overallDecision, {
-    x: 200,
-    y: height - 370,
-    size: 11,
-    font: boldFont,
-    color: rgb(0, 0, 0),
-  });
-
-  // Course Level
+  // Course Level (right side, after "COURSE LEVEL" label)
   page.drawText('NATIONAL CERTIFICATE', {
-    x: 200,
-    y: height - 395,
+    x: 350,
+    y: height - 305,
     size: 11,
     font: boldFont,
     color: rgb(0, 0, 0),
   });
 
-  // Session
+  // Session (right side, after "SESSION" label)
+  console.log('Session:', session);
   page.drawText(session, {
-    x: 200,
-    y: height - 420,
+    x: 350,
+    y: height - 330,
     size: 11,
     font: boldFont,
     color: rgb(0, 0, 0),
   });
 
-  // Institution
+  // Institution (right side, after "INSTITUTION" label)
   page.drawText('MUSHAGASHE VTC', {
-    x: 200,
-    y: height - 445,
+    x: 350,
+    y: height - 355,
     size: 11,
     font: boldFont,
     color: rgb(0, 0, 0),
   });
 
   // Fill subject grades table
-  let subjectY = height - 490;
+  let subjectY = height - 400;
+  console.log('Filling subject grades...');
   subjectResults.forEach((sr, index) => {
-    // Subject Title
+    console.log(`Subject ${index + 1}: ${sr.subject_name} - ${sr.grade}`);
+    // Subject Title (left column under "SUBJECT TITLES")
     page.drawText((sr.subject_name || '').toUpperCase(), {
       x: 80,
       y: subjectY,
@@ -112,7 +123,7 @@ async function generateZimbabweResultPDF(studentData, resultData, courseData, te
       color: rgb(0, 0, 0),
     });
 
-    // Grade
+    // Grade (right column under "GRADE")
     page.drawText(sr.grade || 'N/A', {
       x: 450,
       y: subjectY,
@@ -124,31 +135,39 @@ async function generateZimbabweResultPDF(studentData, resultData, courseData, te
     subjectY -= 25;
   });
 
-  // Overall Decision
+  // Overall Decision (under "OVERALL DECISION")
   page.drawText(overallDecision, {
     x: 350,
-    y: height - 580,
+    y: height - 520,
     size: 11,
     font: boldFont,
     color: rgb(0, 0, 0),
   });
 
-  // Date
+  // Date (in signature area)
   const currentDate = new Date();
   const dateStr = `${currentDate.getDate()}/${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`;
+  console.log('Date:', dateStr);
   page.drawText(dateStr, {
     x: 480,
-    y: height - 680,
+    y: height - 620,
     size: 10,
     font,
     color: rgb(0, 0, 0),
   });
 
+  console.log('Applying security features...');
   // Apply security features
   pdfDoc = await applyPDFSecurity(pdfDoc);
 
+  console.log('Saving PDF...');
   const pdfBytes = await pdfDoc.save();
+  console.log('PDF saved, size:', pdfBytes.length);
   return Buffer.from(pdfBytes);
+  } catch (error) {
+    console.error('Error in generateZimbabweResultPDF:', error);
+    throw error;
+  }
 }
 
 /**
