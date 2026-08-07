@@ -8,7 +8,7 @@ const uploadTemplate = async (req, res) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    // Validate file type
+    // Validate file type - accept PDF files
     if (req.file.mimetype !== 'application/pdf') {
       return res.status(400).json({ error: 'Only PDF files are allowed' });
     }
@@ -20,7 +20,7 @@ const uploadTemplate = async (req, res) => {
     }
 
     // Save the template
-    const templatePath = path.join(templatesDir, 'result-template.pdf');
+    const templatePath = path.join(templatesDir, 'student results.pdf');
     
     // Remove existing template if it exists
     if (fs.existsSync(templatePath)) {
@@ -31,8 +31,8 @@ const uploadTemplate = async (req, res) => {
     fs.renameSync(req.file.path, templatePath);
 
     res.json({ 
-      message: 'Template uploaded successfully',
-      templatePath: '/templates/result-template.pdf'
+      message: 'PDF template uploaded successfully',
+      templatePath: '/templates/student results.pdf'
     });
   } catch (error) {
     console.error('Upload template error:', error);
@@ -43,14 +43,15 @@ const uploadTemplate = async (req, res) => {
 // Get current template info
 const getTemplateInfo = async (req, res) => {
   try {
-    const templatePath = path.join(__dirname, '../templates/result-template.pdf');
+    const templatePath = path.join(__dirname, '../templates/student results.pdf');
     
     if (fs.existsSync(templatePath)) {
       const stats = fs.statSync(templatePath);
       res.json({ 
         hasTemplate: true,
         uploadedAt: stats.mtime,
-        size: stats.size
+        size: stats.size,
+        type: 'pdf'
       });
     } else {
       res.json({ hasTemplate: false });
@@ -64,7 +65,7 @@ const getTemplateInfo = async (req, res) => {
 // Delete template
 const deleteTemplate = async (req, res) => {
   try {
-    const templatePath = path.join(__dirname, '../templates/result-template.pdf');
+    const templatePath = path.join(__dirname, '../templates/student results.pdf');
     
     if (fs.existsSync(templatePath)) {
       fs.unlinkSync(templatePath);
