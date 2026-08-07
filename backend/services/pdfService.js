@@ -208,15 +208,20 @@ async function generateResultPDF(studentData, resultData, courseData, templateBu
     // Check if custom template is provided or exists in templates directory
     if (!templateBuffer) {
       const templatePath = path.join(__dirname, '../templates/student results.pdf');
+      console.log('Looking for template at:', templatePath);
+      console.log('Template exists:', fs.existsSync(templatePath));
       if (fs.existsSync(templatePath)) {
         templateBuffer = fs.readFileSync(templatePath);
+        console.log('Template loaded, size:', templateBuffer.length);
       }
     }
 
     if (templateBuffer) {
       // Load custom template and fill with Zimbabwe format
+      console.log('Using Zimbabwe template');
       return await generateZimbabweResultPDF(studentData, resultData, courseData, templateBuffer);
     } else {
+      console.log('Template not found, using default');
       // Create default template with letterhead
       pdfDoc = await PDFLibDocument.create();
       const page = pdfDoc.addPage([595, 842]); // A4 size

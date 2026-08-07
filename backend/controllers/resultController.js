@@ -372,6 +372,7 @@ const importResults = async (req, res) => {
 // Generate secure PDF for a single result
 const downloadResultPDF = async (req, res) => {
   try {
+    console.log('PDF download requested for result ID:', req.params.id);
     const { id } = req.params;
 
     // Get result with student and course info
@@ -379,18 +380,21 @@ const downloadResultPDF = async (req, res) => {
     if (!result) {
       return res.status(404).json({ error: 'Result not found' });
     }
+    console.log('Result found:', result.id);
 
     // Get student details
     const student = await User.findById(result.user_id);
     if (!student) {
       return res.status(404).json({ error: 'Student not found' });
     }
+    console.log('Student found:', student.full_name);
 
     // Get course details
     const course = await Course.findById(result.course_id);
     if (!course) {
       return res.status(404).json({ error: 'Course not found' });
     }
+    console.log('Course found:', course.course_name);
 
     // Check fee status for students
     if (req.user.role === 'student') {
@@ -404,8 +408,10 @@ const downloadResultPDF = async (req, res) => {
       }
     }
 
+    console.log('Starting PDF generation...');
     // Generate PDF
     const pdfBuffer = await generateResultPDF(student, result, course);
+    console.log('PDF generated, size:', pdfBuffer.length);
 
     // Set response headers
     res.setHeader('Content-Type', 'application/pdf');
