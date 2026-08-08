@@ -1,7 +1,35 @@
-const PDFDocument = require('pdfkit');
 const { PDFDocument: PDFLibDocument, rgb, StandardFonts } = require('pdf-lib');
 const fs = require('fs');
 const path = require('path');
+
+// Centralized coordinate configuration for Zimbabwe result template
+// PDF coordinate system: (0,0) is bottom-left
+const TEMPLATE_COORDS = {
+  page: 0,
+  fontSize: 10,
+  // Field coordinates (x, y) - these will be calibrated based on actual template
+  fields: {
+    course_name: { x: 400, y: 650 },
+    surname: { x: 400, y: 620 },
+    first_name: { x: 400, y: 590 },
+    result: { x: 400, y: 560 },
+    course_level: { x: 400, y: 530 },
+    session: { x: 400, y: 500 },
+    institution: { x: 400, y: 470 },
+    overall_decision: { x: 400, y: 200 },
+    date: { x: 500, y: 100 }
+  },
+  // Subject table coordinates
+  subjectTable: {
+    startX: 50,
+    gradeX: 400,
+    startY: 430,
+    rowHeight: 25
+  }
+};
+
+// Debug mode flag - set to true to show field boundaries
+const DEBUG_MODE = true;
 
 /**
  * Generate PDF using Zimbabwe Ministry template format
@@ -16,12 +44,12 @@ async function generateZimbabweResultPDF(studentData, resultData, courseData, te
     console.log('Loading Zimbabwe template...');
     let pdfDoc = await PDFLibDocument.load(templateBuffer);
     const pages = pdfDoc.getPages();
-    const page = pages[0];
+    const page = pages[TEMPLATE_COORDS.page];
     const { width, height } = page.getSize();
     console.log('Template loaded. Page size:', width, 'x', height);
     
-    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
-    const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+    const boldFont = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
 
     // Parse student name into surname and first name
     const nameParts = (studentData.full_name || '').split(' ');
@@ -38,136 +66,146 @@ async function generateZimbabweResultPDF(studentData, resultData, courseData, te
     // Format session (e.g., "MARCH – APRIL 2026")
     const session = formatSession(resultData.semester, resultData.academic_year);
 
-  // Fill in the template fields with conservative coordinates
-  console.log('Filling template fields...');
-  
-  // Course Name - center area
-  console.log('Course Name:', courseData.course_name);
-  page.drawText(courseData.course_name?.toUpperCase() || 'N/A', {
-    x: 100,
-    y: height - 157,
-    size: 12,
-    font: boldFont,
-    color: rgb(0, 0, 0),
-  });
+    // Draw debug boxes if debug mode is enabled
+    if (DEBUG_MODE) {
+      await drawDebugBoxes(page, TEMPLATE_COORDS);
+    }
 
-  // Surname
-  console.log('Surname:', surname);
-  page.drawText(surname, {
-    x: 100,
-    y: height - 187,
-    size: 12,
-    font: boldFont,
-    color: rgb(0, 0, 0),
-  });
+    // Fill fields using centralized coordinates
+    console.log('Filling template fields...');
+    
+    // Course Name
+    console.log('Course Name:', courseData.course_name);
+    drawField(page, courseData.course_name?.toUpperCase() || 'N/A', TEMPLATE_COORDS.fields.course_name, boldFont);
 
-  // First Name
-  console.log('First Name:', firstName);
-  page.drawText(firstName, {
-    x: 100,
-    y: height - 217,
-    size: 12,
-    font: boldFont,
-    color: rgb(0, 0, 0),
-  });
+    // Surname
+    console.log('Surname:', surname);
+    drawField(page, surname, TEMPLATE_COORDS.fields.surname, boldFont);
 
-  // Result (Overall Decision)
-  console.log('Overall Decision:', overallDecision);
-  page.drawText(overallDecision, {
-    x: 100,
-    y: height - 247,
-    size: 12,
-    font: boldFont,
-    color: rgb(0, 0, 0),
-  });
+    // First Name
+    console.log('First Name:', firstName);
+    drawField(page, firstName, TEMPLATE_COORDS.fields.first_name, boldFont);
 
-  // Course Level
-  page.drawText('NATIONAL CERTIFICATE', {
-    x: 100,
-    y: height - 277,
-    size: 12,
-    font: boldFont,
-    color: rgb(0, 0, 0),
-  });
+    // Result (Overall Decision)
+    console.log('Overall Decision:', overallDecision);
+    drawField(page, overallDecision, TEMPLATE_COORDS.fields.result, boldFont);
 
-  // Session
-  console.log('Session:', session);
-  page.drawText(session, {
-    x: 100,
-    y: height - 307,
-    size: 12,
-    font: boldFont,
-    color: rgb(0, 0, 0),
-  });
+    // Course Level
+    drawField(page, 'NATIONAL CERTIFICATE', TEMPLATE_COORDS.fields.course_level, boldFont);
 
-  // Institution
-  page.drawText('MUSHAGASHE VTC', {
-    x: 100,
-    y: height - 337,
-    size: 12,
-    font: boldFont,
-    color: rgb(0, 0, 0),
-  });
+    // Session
+    console.log('Session:', session);
+    drawField(page, session, TEMPLATE_COORDS.fields.session, boldFont);
 
-  // Fill subject grades table
-  let subjectY = height - 387;
-  console.log('Filling subject grades...');
-  subjectResults.forEach((sr, index) => {
-    console.log(`Subject ${index + 1}: ${sr.subject_name} - ${sr.grade}`);
-    // Subject Title
-    page.drawText((sr.subject_name || '').toUpperCase(), {
-      x: 50,
-      y: subjectY,
-      size: 12,
-      font,
-      color: rgb(0, 0, 0),
+    // Institution
+    drawField(page, 'MUSHAGASHE VTC', TEMPLATE_COORDS.fields.institution, boldFont);
+
+    // Fill subject grades table
+    console.log('Filling subject grades...');
+    let currentY = TEMPLATE_COORDS.subjectTable.startY;
+    subjectResults.forEach((sr, index) => {
+      console.log(`Subject ${index + 1}: ${sr.subject_name} - ${sr.grade}`);
+      
+      // Subject Title
+      page.drawText((sr.subject_name || '').toUpperCase(), {
+        x: TEMPLATE_COORDS.subjectTable.startX,
+        y: currentY,
+        size: TEMPLATE_COORDS.fontSize,
+        font: font,
+        color: rgb(0, 0, 0),
+      });
+
+      // Grade
+      page.drawText(sr.grade || 'N/A', {
+        x: TEMPLATE_COORDS.subjectTable.gradeX,
+        y: currentY,
+        size: TEMPLATE_COORDS.fontSize,
+        font: boldFont,
+        color: rgb(0, 0, 0),
+      });
+
+      currentY -= TEMPLATE_COORDS.subjectTable.rowHeight;
     });
 
-    // Grade
-    page.drawText(sr.grade || 'N/A', {
-      x: 400,
-      y: subjectY,
-      size: 12,
-      font: boldFont,
-      color: rgb(0, 0, 0),
-    });
+    // Overall Decision (separate from subject table)
+    drawField(page, overallDecision, TEMPLATE_COORDS.fields.overall_decision, boldFont);
 
-    subjectY -= 25;
-  });
+    // Date
+    const currentDate = new Date();
+    const dateStr = `${currentDate.getDate()}/${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`;
+    console.log('Date:', dateStr);
+    drawField(page, dateStr, TEMPLATE_COORDS.fields.date, font);
 
-  // Overall Decision
-  page.drawText(overallDecision, {
-    x: 100,
-    y: height - 507,
-    size: 12,
-    font: boldFont,
-    color: rgb(0, 0, 0),
-  });
+    console.log('Applying security features...');
+    // Apply security features
+    pdfDoc = await applyPDFSecurity(pdfDoc);
 
-  // Date
-  const currentDate = new Date();
-  const dateStr = `${currentDate.getDate()}/${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`;
-  console.log('Date:', dateStr);
-  page.drawText(dateStr, {
-    x: 400,
-    y: height - 607,
-    size: 12,
-    font,
-    color: rgb(0, 0, 0),
-  });
-
-  console.log('Applying security features...');
-  // Apply security features
-  pdfDoc = await applyPDFSecurity(pdfDoc);
-
-  console.log('Saving PDF...');
-  const pdfBytes = await pdfDoc.save();
-  console.log('PDF saved, size:', pdfBytes.length);
-  return Buffer.from(pdfBytes);
+    console.log('Saving PDF...');
+    const pdfBytes = await pdfDoc.save();
+    console.log('PDF saved, size:', pdfBytes.length);
+    return Buffer.from(pdfBytes);
   } catch (error) {
     console.error('Error in generateZimbabweResultPDF:', error);
     throw error;
   }
+}
+
+/**
+ * Draw a text field at the specified coordinates
+ * @param {PDFPage} page - The PDF page
+ * @param {String} text - The text to draw
+ * @param {Object} coords - Coordinates {x, y}
+ * @param {PDFFont} font - The font to use
+ */
+function drawField(page, text, coords, font) {
+  page.drawText(text, {
+    x: coords.x,
+    y: coords.y,
+    size: TEMPLATE_COORDS.fontSize,
+    font: font,
+    color: rgb(0, 0, 0),
+  });
+}
+
+/**
+ * Draw debug boxes around all field coordinates
+ * @param {PDFPage} page - The PDF page
+ * @param {Object} coords - The coordinate configuration
+ */
+async function drawDebugBoxes(page, coords) {
+  console.log('Drawing debug boxes...');
+  const { width, height } = page.getSize();
+  
+  // Draw boxes around each field
+  Object.entries(coords.fields).forEach(([fieldName, fieldCoords]) => {
+    page.drawRectangle({
+      x: fieldCoords.x - 5,
+      y: fieldCoords.y - 5,
+      width: 100,
+      height: 15,
+      borderColor: rgb(1, 0, 0),
+      borderWidth: 1,
+    });
+    
+    // Draw field name above the box
+    page.drawText(fieldName, {
+      x: fieldCoords.x,
+      y: fieldCoords.y + 20,
+      size: 8,
+      color: rgb(1, 0, 0),
+    });
+  });
+  
+  // Draw subject table area
+  page.drawRectangle({
+    x: coords.subjectTable.startX,
+    y: coords.subjectTable.startY - (coords.subjectTable.rowHeight * 10),
+    width: coords.subjectTable.gradeX - coords.subjectTable.startX + 50,
+    height: coords.subjectTable.rowHeight * 10,
+    borderColor: rgb(0, 0, 1),
+    borderWidth: 1,
+ strokeOpacity: 0.5,
+  });
 }
 
 /**
@@ -177,7 +215,7 @@ async function generateZimbabweResultPDF(studentData, resultData, courseData, te
  */
 function calculateOverallDecision(subjectResults) {
   if (!subjectResults || subjectResults.length === 0) {
-    return 'N/A';
+    return 'AWARD';
   }
 
   const failCount = subjectResults.filter(sr => sr.grade === 'F').length;
