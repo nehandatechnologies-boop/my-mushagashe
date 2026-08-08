@@ -14,7 +14,7 @@ const path = require('path');
 async function generateZimbabweResultPDF(studentData, resultData, courseData, templateBuffer) {
   try {
     console.log('Loading Zimbabwe template...');
-    const pdfDoc = await PDFLibDocument.load(templateBuffer);
+    let pdfDoc = await PDFLibDocument.load(templateBuffer);
     const pages = pdfDoc.getPages();
     const page = pages[0];
     const { width, height } = page.getSize();
@@ -45,7 +45,7 @@ async function generateZimbabweResultPDF(studentData, resultData, courseData, te
   console.log('Course Name:', courseData.course_name);
   page.drawText(courseData.course_name?.toUpperCase() || 'N/A', {
     x: 100,
-    y: height - 150,
+    y: height - 157,
     size: 12,
     font: boldFont,
     color: rgb(0, 0, 0),
@@ -55,7 +55,7 @@ async function generateZimbabweResultPDF(studentData, resultData, courseData, te
   console.log('Surname:', surname);
   page.drawText(surname, {
     x: 100,
-    y: height - 180,
+    y: height - 187,
     size: 12,
     font: boldFont,
     color: rgb(0, 0, 0),
@@ -65,7 +65,7 @@ async function generateZimbabweResultPDF(studentData, resultData, courseData, te
   console.log('First Name:', firstName);
   page.drawText(firstName, {
     x: 100,
-    y: height - 210,
+    y: height - 217,
     size: 12,
     font: boldFont,
     color: rgb(0, 0, 0),
@@ -75,7 +75,7 @@ async function generateZimbabweResultPDF(studentData, resultData, courseData, te
   console.log('Overall Decision:', overallDecision);
   page.drawText(overallDecision, {
     x: 100,
-    y: height - 240,
+    y: height - 247,
     size: 12,
     font: boldFont,
     color: rgb(0, 0, 0),
@@ -84,7 +84,7 @@ async function generateZimbabweResultPDF(studentData, resultData, courseData, te
   // Course Level
   page.drawText('NATIONAL CERTIFICATE', {
     x: 100,
-    y: height - 270,
+    y: height - 277,
     size: 12,
     font: boldFont,
     color: rgb(0, 0, 0),
@@ -94,7 +94,7 @@ async function generateZimbabweResultPDF(studentData, resultData, courseData, te
   console.log('Session:', session);
   page.drawText(session, {
     x: 100,
-    y: height - 300,
+    y: height - 307,
     size: 12,
     font: boldFont,
     color: rgb(0, 0, 0),
@@ -103,14 +103,14 @@ async function generateZimbabweResultPDF(studentData, resultData, courseData, te
   // Institution
   page.drawText('MUSHAGASHE VTC', {
     x: 100,
-    y: height - 330,
+    y: height - 337,
     size: 12,
     font: boldFont,
     color: rgb(0, 0, 0),
   });
 
   // Fill subject grades table
-  let subjectY = height - 380;
+  let subjectY = height - 387;
   console.log('Filling subject grades...');
   subjectResults.forEach((sr, index) => {
     console.log(`Subject ${index + 1}: ${sr.subject_name} - ${sr.grade}`);
@@ -118,7 +118,7 @@ async function generateZimbabweResultPDF(studentData, resultData, courseData, te
     page.drawText((sr.subject_name || '').toUpperCase(), {
       x: 50,
       y: subjectY,
-      size: 11,
+      size: 12,
       font,
       color: rgb(0, 0, 0),
     });
@@ -127,7 +127,7 @@ async function generateZimbabweResultPDF(studentData, resultData, courseData, te
     page.drawText(sr.grade || 'N/A', {
       x: 400,
       y: subjectY,
-      size: 11,
+      size: 12,
       font: boldFont,
       color: rgb(0, 0, 0),
     });
@@ -138,8 +138,8 @@ async function generateZimbabweResultPDF(studentData, resultData, courseData, te
   // Overall Decision
   page.drawText(overallDecision, {
     x: 100,
-    y: height - 500,
-    size: 14,
+    y: height - 507,
+    size: 12,
     font: boldFont,
     color: rgb(0, 0, 0),
   });
@@ -150,8 +150,8 @@ async function generateZimbabweResultPDF(studentData, resultData, courseData, te
   console.log('Date:', dateStr);
   page.drawText(dateStr, {
     x: 400,
-    y: height - 600,
-    size: 11,
+    y: height - 607,
+    size: 12,
     font,
     color: rgb(0, 0, 0),
   });
