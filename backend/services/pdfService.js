@@ -9,21 +9,21 @@ const TEMPLATE_COORDS = {
   fontSize: 10,
   // Field coordinates (x, y) - these will be calibrated based on actual template
   fields: {
-    course_name: { x: 400, y: 650 },
-    surname: { x: 400, y: 620 },
-    first_name: { x: 400, y: 590 },
-    result: { x: 400, y: 560 },
-    course_level: { x: 400, y: 530 },
-    session: { x: 400, y: 500 },
-    institution: { x: 400, y: 470 },
-    overall_decision: { x: 400, y: 200 },
-    date: { x: 500, y: 100 }
+    course_name: { x: 400, y: 656 },
+    surname: { x: 400, y: 626 },
+    first_name: { x: 400, y: 596 },
+    result: { x: 400, y: 566 },
+    course_level: { x: 400, y: 536 },
+    session: { x: 400, y: 506 },
+    institution: { x: 400, y: 476 },
+    overall_decision: { x: 400, y: 206 },
+    date: { x: 500, y: 106 }
   },
   // Subject table coordinates
   subjectTable: {
     startX: 50,
     gradeX: 400,
-    startY: 430,
+    startY: 436,
     rowHeight: 25
   }
 };
