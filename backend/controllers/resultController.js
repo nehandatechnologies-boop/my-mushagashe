@@ -433,6 +433,7 @@ const downloadResultPDF = async (req, res) => {
 
 // Download all results as PDF (bulk)
 const downloadResultsPDF = async (req, res) => {
+  console.log('=== DOWNLOAD RESULTS PDF (BULK) CALLED ===');
   try {
     const { semester, academic_year } = req.query;
     const userId = req.user.id;
@@ -466,7 +467,24 @@ const downloadResultsPDF = async (req, res) => {
       return res.status(404).json({ error: 'No results found for the specified term' });
     }
 
-    // Create PDF document
+    console.log('Found', results.length, 'results for bulk download');
+
+    // For now, use the first result to generate a single PDF with the template
+    // In the future, we could generate multiple pages or combine them
+    if (results.length > 0) {
+      const firstResult = results[0];
+      const course = await Course.findById(firstResult.course_id);
+      
+      console.log('Generating PDF for result:', firstResult.id);
+      const pdfBuffer = await generateResultPDF(student, firstResult, course);
+      
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=results_${student.student_number}_${semester}_${academic_year}.pdf`);
+      res.send(pdfBuffer);
+      return;
+    }
+
+    // Fallback to default PDFKit if no results
     const doc = new PDFDocument({ margin: 50 });
     
     // Set response headers
