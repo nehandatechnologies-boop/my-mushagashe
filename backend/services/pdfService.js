@@ -28,10 +28,10 @@ const TEMPLATE_COORDS = {
     subjectWidth: 176.1,    // Subject column width (adjusted)
     gradeWidth: 274.9,      // Grade column width (adjusted)
     rows: [
-      { startY: 370.3, height: 30.8 },   // Row 1 (converted from top Y=390.7, pushed down 50)
-      { startY: 339.3, height: 30.6 },   // Row 2 (converted from top Y=421.9, pushed down 50)
-      { startY: 306.5, height: 32.4 },   // Row 3 (converted from top Y=452.9, pushed down 50)
-      { startY: 273.7, height: 32.4 }    // Row 4 (converted from top Y=485.7, pushed down 50)
+      { startY: 390.3, height: 30.8 },   // Row 1 (moved up 20)
+      { startY: 359.3, height: 30.6 },   // Row 2 (moved up 20)
+      { startY: 326.5, height: 32.4 },   // Row 3 (moved up 20)
+      { startY: 293.7, height: 32.4 }    // Row 4 (moved up 20)
     ]
   }
 };
