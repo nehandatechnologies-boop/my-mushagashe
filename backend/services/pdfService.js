@@ -9,22 +9,23 @@ const TEMPLATE_COORDS = {
   fontSize: 10,
   // Field coordinates (x, y) - these will be calibrated based on actual template
   fields: {
-    course_name: { x: 400, y: 656 },
-    surname: { x: 400, y: 626 },
-    first_name: { x: 400, y: 596 },
-    result: { x: 400, y: 566 },
-    course_level: { x: 400, y: 536 },
-    session: { x: 400, y: 506 },
-    institution: { x: 400, y: 476 },
-    overall_decision: { x: 400, y: 206 },
-    date: { x: 500, y: 106 }
+    course_name: { x: 300, y: 700 },
+    surname: { x: 300, y: 670 },
+    first_name: { x: 300, y: 640 },
+    result: { x: 300, y: 610 },
+    course_level: { x: 300, y: 580 },
+    session: { x: 300, y: 550 },
+    institution: { x: 300, y: 520 },
+    overall_decision: { x: 400, y: 250 },
+    date: { x: 500, y: 150 }
   },
   // Subject table coordinates
+  // 8 cells, each 1.14cm height (32.3 points) and 7.94cm width (225.3 points)
   subjectTable: {
     startX: 50,
-    gradeX: 400,
-    startY: 436,
-    rowHeight: 25
+    gradeX: 375, // startX + 325 (wider)
+    startY: 350, // Lowered further to ensure text appears
+    rowHeight: 32 // 1.14cm in points
   }
 };
 
@@ -58,7 +59,8 @@ async function generateZimbabweResultPDF(studentData, resultData, courseData, te
 
     // Get subject results
     const subjectResults = resultData.subject_results || [];
-    console.log('Subject results:', subjectResults.length);
+    console.log('Subject results count:', subjectResults.length);
+    console.log('Subject results data:', JSON.stringify(subjectResults, null, 2));
     
     // Calculate overall decision based on grades
     const overallDecision = calculateOverallDecision(subjectResults);
