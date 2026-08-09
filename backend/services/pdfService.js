@@ -9,23 +9,30 @@ const TEMPLATE_COORDS = {
   fontSize: 10,
   // Field coordinates (x, y) - these will be calibrated based on actual template
   fields: {
-    course_name: { x: 300, y: 700 },
-    surname: { x: 300, y: 670 },
-    first_name: { x: 300, y: 640 },
-    result: { x: 300, y: 610 },
-    course_level: { x: 300, y: 580 },
-    session: { x: 300, y: 550 },
-    institution: { x: 300, y: 520 },
-    overall_decision: { x: 400, y: 250 },
-    date: { x: 500, y: 150 }
+    course_name: { x: 300, y: 600 },
+    surname: { x: 300, y: 570 },
+    first_name: { x: 300, y: 540 },
+    result: { x: 300, y: 510 },
+    course_level: { x: 300, y: 480 },
+    session: { x: 300, y: 450 },
+    overall_decision: { x: 400, y: 100 },
+    date: { x: 500, y: 0 }
   },
-  // Subject table coordinates
-  // 8 cells, each 1.14cm height (32.3 points) and 7.94cm width (225.3 points)
+  // Subject table coordinates - 2 columns: SUBJECT TITLES | GRADE
+  // Based on actual template measurements (converted to bottom-left origin)
+  // PDF page height = 841.8 pt
   subjectTable: {
-    startX: 50,
-    gradeX: 375, // startX + 325 (wider)
-    startY: 350, // Lowered further to ensure text appears
-    rowHeight: 32 // 1.14cm in points
+    startX: 72.4,           // Table left edge
+    gradeX: 248.5,          // Column divider / Grade column start (moved 50 left total)
+    tableRight: 523.4,      // Table right edge
+    subjectWidth: 176.1,    // Subject column width (adjusted)
+    gradeWidth: 274.9,      // Grade column width (adjusted)
+    rows: [
+      { startY: 370.3, height: 30.8 },   // Row 1 (converted from top Y=390.7, pushed down 50)
+      { startY: 339.3, height: 30.6 },   // Row 2 (converted from top Y=421.9, pushed down 50)
+      { startY: 306.5, height: 32.4 },   // Row 3 (converted from top Y=452.9, pushed down 50)
+      { startY: 273.7, height: 32.4 }    // Row 4 (converted from top Y=485.7, pushed down 50)
+    ]
   }
 };
 
@@ -59,8 +66,30 @@ async function generateZimbabweResultPDF(studentData, resultData, courseData, te
 
     // Get subject results
     const subjectResults = resultData.subject_results || [];
+    console.log('=== SUBJECT RESULTS DEBUG ===');
     console.log('Subject results count:', subjectResults.length);
     console.log('Subject results data:', JSON.stringify(subjectResults, null, 2));
+    console.log('Result data keys:', Object.keys(resultData));
+    console.log('Has subject_results?', !!resultData.subject_results);
+    console.log('Result ID:', resultData.id);
+
+    // If no subject results from resultData, try fetching directly
+    if (subjectResults.length === 0) {
+      console.log('No subject results in resultData, trying direct fetch...');
+      try {
+        const SubjectResult = require('../models/SubjectResult');
+        const directSubjectResults = await SubjectResult.findByResultId(resultData.id);
+        console.log('Direct fetch subject results:', directSubjectResults);
+        console.log('Direct fetch count:', directSubjectResults.length);
+        if (directSubjectResults.length > 0) {
+          subjectResults.push(...directSubjectResults);
+        }
+      } catch (error) {
+        console.error('Error fetching subject results directly:', error);
+      }
+    }
+
+    console.log('Final subject results count:', subjectResults.length);
     
     // Calculate overall decision based on grades
     const overallDecision = calculateOverallDecision(subjectResults);
@@ -70,7 +99,7 @@ async function generateZimbabweResultPDF(studentData, resultData, courseData, te
 
     // Draw debug boxes if debug mode is enabled
     if (DEBUG_MODE) {
-      await drawDebugBoxes(page, TEMPLATE_COORDS);
+      await drawDebugBoxes(page, TEMPLATE_COORDS, subjectResults);
     }
 
     // Fill fields using centralized coordinates
@@ -95,48 +124,64 @@ async function generateZimbabweResultPDF(studentData, resultData, courseData, te
     // Course Level
     drawField(page, 'NATIONAL CERTIFICATE', TEMPLATE_COORDS.fields.course_level, boldFont);
 
-    // Session
-    console.log('Session:', session);
+    // Session - use actual term
     drawField(page, session, TEMPLATE_COORDS.fields.session, boldFont);
 
-    // Institution
-    drawField(page, 'MUSHAGASHE VTC', TEMPLATE_COORDS.fields.institution, boldFont);
+    // Institution - removed from new template
+    // drawField(page, 'MUSHAGASHE VTC', TEMPLATE_COORDS.fields.institution, boldFont);
 
-    // Fill subject grades table
+    // Fill subject grades table - 3 columns
     console.log('Filling subject grades...');
-    let currentY = TEMPLATE_COORDS.subjectTable.startY;
+    console.log('Subject results array:', subjectResults);
+    console.log('Subject results length:', subjectResults.length);
+
+    // Render subject results using exact table cell coordinates
     subjectResults.forEach((sr, index) => {
-      console.log(`Subject ${index + 1}: ${sr.subject_name} - ${sr.grade}`);
+      console.log(`Subject ${index + 1}: ${sr.subject_name} - ${sr.mark} (${sr.grade})`);
+
+      // Get the row coordinates (limit to 4 rows available in template)
+      if (index >= TEMPLATE_COORDS.subjectTable.rows.length) {
+        console.log(`Skipping subject ${index + 1} - exceeds available rows`);
+        return;
+      }
+
+      const row = TEMPLATE_COORDS.subjectTable.rows[index];
       
-      // Subject Title
+      // Check if subject failed (mark < 50)
+      const mark = parseFloat(sr.mark) || 0;
+      const isFailed = mark < 50;
+      const failColor = rgb(1, 0, 0); // Red for failed subjects
+      const normalColor = rgb(0, 0, 0); // Black for passed subjects
+
+      // Subject Title - aligned left with padding, vertically centered in box
       page.drawText((sr.subject_name || '').toUpperCase(), {
-        x: TEMPLATE_COORDS.subjectTable.startX,
-        y: currentY,
+        x: TEMPLATE_COORDS.subjectTable.startX + 5, // 5pt padding
+        y: row.startY + (row.height / 2), // Vertically centered
         size: TEMPLATE_COORDS.fontSize,
         font: font,
-        color: rgb(0, 0, 0),
+        color: normalColor,
       });
 
-      // Grade
-      page.drawText(sr.grade || 'N/A', {
-        x: TEMPLATE_COORDS.subjectTable.gradeX,
-        y: currentY,
+      // Grade - centered in grade box, vertically centered
+      const gradeText = sr.grade || 'N/A';
+      const gradeWidth = boldFont.widthOfTextAtSize(gradeText, TEMPLATE_COORDS.fontSize);
+      page.drawText(gradeText, {
+        x: TEMPLATE_COORDS.subjectTable.gradeX + (TEMPLATE_COORDS.subjectTable.gradeWidth / 2) - (gradeWidth / 2), // Centered horizontally
+        y: row.startY + (row.height / 2), // Vertically centered
         size: TEMPLATE_COORDS.fontSize,
         font: boldFont,
-        color: rgb(0, 0, 0),
+        color: isFailed ? failColor : normalColor,
       });
-
-      currentY -= TEMPLATE_COORDS.subjectTable.rowHeight;
     });
 
-    // Overall Decision (separate from subject table)
-    drawField(page, overallDecision, TEMPLATE_COORDS.fields.overall_decision, boldFont);
+    // Overall Decision - removed from new template
+    // drawField(page, overallDecision, TEMPLATE_COORDS.fields.overall_decision, boldFont);
 
-    // Date
-    const currentDate = new Date();
-    const dateStr = `${currentDate.getDate()}/${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`;
-    console.log('Date:', dateStr);
-    drawField(page, dateStr, TEMPLATE_COORDS.fields.date, font);
+    // Date - removed from new template
+    // const currentDate = new Date();
+    // const dateStr = `${currentDate.getDate()}/${currentDate.getMonth() + 1}/${currentDate.getFullYear()}`;
+    // console.log('Date:', dateStr);
+    // drawField(page, dateStr, TEMPLATE_COORDS.fields.date, font);
 
     console.log('Applying security features...');
     // Apply security features
@@ -173,8 +218,9 @@ function drawField(page, text, coords, font) {
  * Draw debug boxes around all field coordinates
  * @param {PDFPage} page - The PDF page
  * @param {Object} coords - The coordinate configuration
+ * @param {Array} subjectResults - Array of subject results to draw cell boxes
  */
-async function drawDebugBoxes(page, coords) {
+async function drawDebugBoxes(page, coords, subjectResults = []) {
   console.log('Drawing debug boxes...');
   const { width, height } = page.getSize();
   
@@ -198,58 +244,75 @@ async function drawDebugBoxes(page, coords) {
     });
   });
   
-  // Draw subject table area
-  page.drawRectangle({
-    x: coords.subjectTable.startX,
-    y: coords.subjectTable.startY - (coords.subjectTable.rowHeight * 10),
-    width: coords.subjectTable.gradeX - coords.subjectTable.startX + 50,
-    height: coords.subjectTable.rowHeight * 10,
-    borderColor: rgb(0, 0, 1),
-    borderWidth: 1,
- strokeOpacity: 0.5,
+  // Draw individual blue boxes for each subject result element
+  // Each box must match the exact cell dimensions of the table
+  // Based on actual template measurements
+  
+  // Draw boxes for each of the 4 available subject rows
+  coords.subjectTable.rows.forEach((row, index) => {
+    // SUBJECT BOX - matches Subject column cell
+    page.drawRectangle({
+      x: coords.subjectTable.startX,
+      y: row.startY,
+      width: coords.subjectTable.subjectWidth,
+      height: row.height,
+      borderColor: rgb(0, 0, 1),
+      borderWidth: 1,
+      strokeOpacity: 0.5,
+    });
+    page.drawText(`SUBJECT ${index + 1}`, {
+      x: coords.subjectTable.startX,
+      y: row.startY + row.height + 5,
+      size: 8,
+      color: rgb(0, 0, 1),
+    });
+    
+    // GRADE BOX - matches Grade column cell
+    page.drawRectangle({
+      x: coords.subjectTable.gradeX,
+      y: row.startY,
+      width: coords.subjectTable.gradeWidth,
+      height: row.height,
+      borderColor: rgb(0, 0, 1),
+      borderWidth: 1,
+      strokeOpacity: 0.5,
+    });
+    page.drawText(`GRADE ${index + 1}`, {
+      x: coords.subjectTable.gradeX,
+      y: row.startY + row.height + 5,
+      size: 8,
+      color: rgb(0, 0, 1),
+    });
   });
 }
 
 /**
- * Calculate overall decision based on subject grades
+ * Calculate overall decision based on subject marks
  * @param {Array} subjectResults - Array of subject results
- * @returns {String} - Overall decision (AWARD, FAIL, etc.)
+ * @returns {String} - Overall decision (PASS, FAIL)
  */
 function calculateOverallDecision(subjectResults) {
   if (!subjectResults || subjectResults.length === 0) {
-    return 'AWARD';
-  }
-
-  const failCount = subjectResults.filter(sr => sr.grade === 'F').length;
-  const passCount = subjectResults.filter(sr => ['D', 'M', 'C', 'P'].includes(sr.grade)).length;
-
-  if (failCount > 0) {
     return 'FAIL';
   }
-  if (passCount === subjectResults.length) {
-    return 'AWARD';
-  }
-  return 'SUPPLEMENTARY';
+
+  // Check if all subjects have marks >= 50%
+  const allPassed = subjectResults.every(sr => {
+    const mark = parseFloat(sr.mark) || 0;
+    return mark >= 50;
+  });
+
+  return allPassed ? 'PASS' : 'FAIL';
 }
 
 /**
- * Format session string based on semester and year
+ * Format session string based on semester
  * @param {Number} semester - Semester number (1, 2, or 3)
  * @param {Number} academicYear - Academic year
- * @returns {String} - Formatted session string
+ * @returns {String} - Formatted session string (Term 1, Term 2, etc.)
  */
 function formatSession(semester, academicYear) {
-  const months = {
-    1: 'JANUARY – FEBRUARY',
-    2: 'MARCH – APRIL',
-    3: 'MAY – JUNE',
-    4: 'JULY – AUGUST',
-    5: 'SEPTEMBER – OCTOBER',
-    6: 'NOVEMBER – DECEMBER'
-  };
-  
-  const monthRange = months[semester] || 'MARCH – APRIL';
-  return `${monthRange} ${academicYear}`;
+  return `TERM ${semester}`;
 }
 
 /**

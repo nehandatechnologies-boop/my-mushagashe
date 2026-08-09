@@ -61,11 +61,19 @@ const createResult = async (req, res) => {
       remarks
     };
 
+    console.log('=== CREATE RESULT DEBUG ===');
+    console.log('Result data:', resultData);
+    console.log('Subject marks received:', subject_marks);
+    console.log('Subject marks type:', typeof subject_marks);
+    console.log('Subject marks is array:', Array.isArray(subject_marks));
+
     const result = await Result.create(resultData);
 
     // Create subject results if provided
     if (subject_marks && Array.isArray(subject_marks) && subject_marks.length > 0) {
+      console.log('Creating subject results...');
       for (const sm of subject_marks) {
+        console.log('Processing subject mark:', sm);
         if (sm.subject_id && sm.mark !== undefined) {
           const subjectResultData = {
             result_id: result.id,
@@ -74,9 +82,12 @@ const createResult = async (req, res) => {
             grade: SubjectResult.calculateGrade(parseFloat(sm.mark)),
             remarks: sm.remarks || null
           };
+          console.log('Creating subject result:', subjectResultData);
           await SubjectResult.create(subjectResultData);
         }
       }
+    } else {
+      console.log('No subject marks provided to create');
     }
 
     res.status(201).json({
@@ -383,13 +394,20 @@ const downloadResultPDF = async (req, res) => {
     // Get result with student and course info
     const result = await Result.findById(id);
     if (!result) {
+      console.log('Result not found for ID:', id);
       return res.status(404).json({ error: 'Result not found' });
     }
     console.log('Result found:', result.id);
+    console.log('Result data keys:', Object.keys(result));
+    console.log('Has subject_results?', !!result.subject_results);
+    if (result.subject_results) {
+      console.log('Subject results count:', result.subject_results.length);
+    }
 
     // Get student details
     const student = await User.findById(result.user_id);
     if (!student) {
+      console.log('Student not found for ID:', result.user_id);
       return res.status(404).json({ error: 'Student not found' });
     }
     console.log('Student found:', student.full_name);
@@ -397,6 +415,7 @@ const downloadResultPDF = async (req, res) => {
     // Get course details
     const course = await Course.findById(result.course_id);
     if (!course) {
+      console.log('Course not found for ID:', result.course_id);
       return res.status(404).json({ error: 'Course not found' });
     }
     console.log('Course found:', course.course_name);
