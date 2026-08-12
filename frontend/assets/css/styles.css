@@ -1246,6 +1246,20 @@ body {
     margin-bottom: 0.25rem;
 }
 
+.subject-inputs-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+}
+
+.subject-input-group {
+    flex: 1;
+}
+
+.subject-input-group input {
+    width: 100%;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
     .sidebar {

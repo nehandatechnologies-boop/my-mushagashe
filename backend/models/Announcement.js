@@ -6,7 +6,12 @@ class Announcement {
 
     const { data, error } = await supabase
       .from('announcements')
-      .insert({ title, message, priority: priority || 'normal', created_by })
+      .insert({ 
+        title, 
+        message, 
+        priority: priority || 'normal', 
+        created_by
+      })
       .select()
       .single();
 
@@ -140,7 +145,11 @@ class Announcement {
 
     const { data, error } = await supabase
       .from('announcements')
-      .update({ title, message, priority })
+      .update({ 
+        title, 
+        message, 
+        priority
+      })
       .eq('id', id)
       .select()
       .single();

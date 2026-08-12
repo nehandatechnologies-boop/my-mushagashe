@@ -156,13 +156,15 @@ function loadAnnouncementsList(announcements) {
         return;
     }
 
-    container.innerHTML = announcements.map(announcement => `
+    container.innerHTML = announcements.map(announcement => {
+        return `
         <div class="announcement-item ${announcement.priority}">
             <div class="announcement-title">${announcement.title}</div>
             <div class="announcement-message">${announcement.message}</div>
             <div class="announcement-meta">${new Date(announcement.created_at).toLocaleDateString()}</div>
         </div>
-    `).join('');
+    `;
+    }).join('');
 }
 
 // Load recent results

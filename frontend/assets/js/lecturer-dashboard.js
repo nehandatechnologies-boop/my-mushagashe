@@ -19,10 +19,13 @@ if (isNgrok) {
 
 async function apiRequest(endpoint, options = {}) {
     const token = localStorage.getItem('token');
-    const headers = {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` })
-    };
+    const headers = {};
+    
+    headers['Content-Type'] = 'application/json';
+    
+    if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+    }
 
     const response = await fetch(`${API_BASE}${endpoint}`, {
         ...options,
@@ -34,6 +37,12 @@ async function apiRequest(endpoint, options = {}) {
 
     if (!response.ok) {
         const error = await response.json();
+        // If token is invalid, clear it and redirect to login
+        if (response.status === 401) {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = 'lecturer-login.html';
+        }
         throw new Error(error.error || 'Request failed');
     }
 
@@ -301,12 +310,22 @@ document.getElementById('addResultBtn').addEventListener('click', async () => {
                     subjectsList.innerHTML = subjects.map(subject => `
                         <div class="form-group subject-mark-group">
                             <label>${subject.subject_name} (${subject.subject_code})</label>
-                            <input type="number" 
-                                   class="subject-mark-input" 
-                                   data-subject-id="${subject.id}" 
-                                   placeholder="Enter mark (0-100)" 
-                                   min="0" 
-                                   max="100">
+                            <div class="subject-inputs-row">
+                                <div class="subject-input-group">
+                                    <input type="number" 
+                                           class="subject-mark-input" 
+                                           data-subject-id="${subject.id}" 
+                                           placeholder="Mark (0-100)" 
+                                           min="0" 
+                                           max="100">
+                                </div>
+                                <div class="subject-input-group">
+                                    <input type="text" 
+                                           class="subject-remarks-input" 
+                                           data-subject-id="${subject.id}" 
+                                           placeholder="Remarks (optional)">
+                                </div>
+                            </div>
                         </div>
                     `).join('');
                 }
@@ -320,13 +339,16 @@ document.getElementById('addResultBtn').addEventListener('click', async () => {
             const formData = new FormData(e.target);
             const resultData = Object.fromEntries(formData);
             
-            // Collect subject marks
+            // Collect subject marks and remarks
             const subjectMarks = [];
             document.querySelectorAll('.subject-mark-input').forEach(input => {
                 if (input.value) {
+                    const subjectId = input.dataset.subjectId;
+                    const remarksInput = document.querySelector(`.subject-remarks-input[data-subject-id="${subjectId}"]`);
                     subjectMarks.push({
-                        subject_id: input.dataset.subjectId,
-                        mark: parseFloat(input.value)
+                        subject_id: subjectId,
+                        mark: parseFloat(input.value),
+                        remarks: remarksInput ? remarksInput.value : null
                     });
                 }
             });
@@ -416,13 +438,24 @@ window.editResult = async (id) => {
                         return `
                             <div class="form-group subject-mark-group">
                                 <label>${subject.subject_name} (${subject.subject_code})</label>
-                                <input type="number" 
-                                       class="subject-mark-input" 
-                                       data-subject-id="${subject.id}" 
-                                       placeholder="Enter mark (0-100)" 
-                                       min="0" 
-                                       max="100"
-                                       value="${existingMark ? existingMark.mark : ''}">
+                                <div class="subject-inputs-row">
+                                    <div class="subject-input-group">
+                                        <input type="number" 
+                                               class="subject-mark-input" 
+                                               data-subject-id="${subject.id}" 
+                                               placeholder="Mark (0-100)" 
+                                               min="0" 
+                                               max="100"
+                                               value="${existingMark ? existingMark.mark : ''}">
+                                    </div>
+                                    <div class="subject-input-group">
+                                        <input type="text" 
+                                               class="subject-remarks-input" 
+                                               data-subject-id="${subject.id}" 
+                                               placeholder="Remarks (optional)"
+                                               value="${existingMark ? (existingMark.remarks || '') : ''}">
+                                    </div>
+                                </div>
                             </div>
                         `;
                     }).join('');
@@ -437,13 +470,16 @@ window.editResult = async (id) => {
             const formData = new FormData(e.target);
             const updateData = Object.fromEntries(formData);
             
-            // Collect subject marks
+            // Collect subject marks and remarks
             const subjectMarks = [];
             document.querySelectorAll('.subject-mark-input').forEach(input => {
                 if (input.value) {
+                    const subjectId = input.dataset.subjectId;
+                    const remarksInput = document.querySelector(`.subject-remarks-input[data-subject-id="${subjectId}"]`);
                     subjectMarks.push({
-                        subject_id: input.dataset.subjectId,
-                        mark: parseFloat(input.value)
+                        subject_id: subjectId,
+                        mark: parseFloat(input.value),
+                        remarks: remarksInput ? remarksInput.value : null
                     });
                 }
             });

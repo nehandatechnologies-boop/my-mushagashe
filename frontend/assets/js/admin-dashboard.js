@@ -28,13 +28,27 @@ const user = JSON.parse(localStorage.getItem('user') || '{}');
 // API Request helper with authentication
 async function apiRequest(endpoint, options = {}) {
     const url = `${API_BASE}${endpoint}`;
+    const currentToken = localStorage.getItem('token');
+    
+    // If no token and not a login request, redirect to login
+    if (!currentToken && !endpoint.includes('/auth/')) {
+        window.location.href = 'admin-login.html';
+        throw new Error('Not authenticated');
+    }
     
     const defaultOptions = {
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-        }
+        headers: {}
     };
+
+    // Only set Content-Type if not sending FormData
+    if (!(options.body instanceof FormData)) {
+        defaultOptions.headers['Content-Type'] = 'application/json';
+    }
+    
+    // Only add Authorization header if token exists
+    if (currentToken) {
+        defaultOptions.headers['Authorization'] = `Bearer ${currentToken}`;
+    }
 
     const finalOptions = { ...defaultOptions, ...options };
 
@@ -163,13 +177,20 @@ async function loadRecentAnnouncements() {
             return;
         }
 
-        container.innerHTML = announcements.map(announcement => `
+        container.innerHTML = announcements.map(announcement => {
+            let mediaIndicator = '';
+            if (announcement.image_url || announcement.video_url) {
+                mediaIndicator = `<span style="margin-left: 8px; font-size: 0.8rem; color: #6b7280;">📎 Media</span>`;
+            }
+            
+            return `
             <div class="announcement-item ${announcement.priority}">
                 <div class="announcement-title">${announcement.title}</div>
                 <div class="announcement-message">${announcement.message}</div>
-                <div class="announcement-meta">${new Date(announcement.created_at).toLocaleDateString()}</div>
+                <div class="announcement-meta">${new Date(announcement.created_at).toLocaleDateString()}${mediaIndicator}</div>
             </div>
-        `).join('');
+        `;
+        }).join('');
     } catch (error) {
         console.error('Error loading announcements:', error);
     }
@@ -419,7 +440,8 @@ async function loadAnnouncements() {
             return;
         }
 
-        container.innerHTML = announcements.map(announcement => `
+        container.innerHTML = announcements.map(announcement => {
+            return `
             <div class="announcement-item ${announcement.priority}">
                 <div class="announcement-title">${announcement.title}</div>
                 <div class="announcement-message">${announcement.message}</div>
@@ -432,7 +454,8 @@ async function loadAnnouncements() {
                     <button class="action-btn delete" onclick="deleteAnnouncement(${announcement.id})">Delete</button>
                 </div>
             </div>
-        `).join('');
+        `;
+        }).join('');
     } catch (error) {
         console.error('Error loading announcements:', error);
         showToast('Failed to load announcements', 'error');
@@ -1618,12 +1641,16 @@ document.getElementById('addAnnouncementBtn').addEventListener('click', () => {
     document.getElementById('addAnnouncementForm').addEventListener('submit', async (e) => {
         e.preventDefault();
         const formData = new FormData(e.target);
-        const announcementData = Object.fromEntries(formData);
+        const data = {
+            title: formData.get('title'),
+            message: formData.get('message'),
+            priority: formData.get('priority')
+        };
         
         try {
             await apiRequest('/announcements', {
                 method: 'POST',
-                body: JSON.stringify(announcementData)
+                body: JSON.stringify(data)
             });
             showToast('Announcement added successfully');
             hideModal();
@@ -1668,12 +1695,16 @@ async function editAnnouncement(id) {
         document.getElementById('editAnnouncementForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
-            const updateData = Object.fromEntries(formData);
+            const data = {
+                title: formData.get('title'),
+                message: formData.get('message'),
+                priority: formData.get('priority')
+            };
             
             try {
                 await apiRequest(`/announcements/${id}`, {
                     method: 'PUT',
-                    body: JSON.stringify(updateData)
+                    body: JSON.stringify(data)
                 });
                 showToast('Announcement updated successfully');
                 hideModal();
@@ -1987,10 +2018,11 @@ document.getElementById('uploadTemplateForm').addEventListener('submit', async (
     }
     
     try {
+        const currentToken = localStorage.getItem('token');
         const response = await fetch(`${API_BASE}/templates/upload`, {
             method: 'POST',
             headers: {
-                'Authorization': `Bearer ${token}`
+                'Authorization': `Bearer ${currentToken}`
             },
             body: formData
         });
@@ -2026,14 +2058,17 @@ document.getElementById('deleteTemplateBtn').addEventListener('click', async () 
 
 // Check authentication on load
 window.addEventListener('load', () => {
-    if (!token || user.role !== 'admin') {
+    const currentToken = localStorage.getItem('token');
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    
+    if (!currentToken || currentUser.role !== 'admin') {
         window.location.href = 'admin-login.html';
         return;
     }
 
     // Update header
-    document.getElementById('adminName').textContent = user.full_name;
-    document.getElementById('headerAdminName').textContent = user.full_name;
+    document.getElementById('adminName').textContent = currentUser.full_name;
+    document.getElementById('headerAdminName').textContent = currentUser.full_name;
 
     // Load initial data
     loadDashboardStatistics();

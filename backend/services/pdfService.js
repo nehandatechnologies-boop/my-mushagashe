@@ -15,29 +15,38 @@ const TEMPLATE_COORDS = {
     result: { x: 300, y: 510 },
     course_level: { x: 300, y: 480 },
     session: { x: 300, y: 450 },
+    trainer_comment: { x: 185, y: 130 }, // Overall lecturer remarks (moved 5 more right)
     overall_decision: { x: 400, y: 100 },
     date: { x: 500, y: 0 }
   },
-  // Subject table coordinates - 2 columns: SUBJECT TITLES | GRADE
+  // Subject table coordinates - 4 columns: SUBJECT TITLES | AVERAGE MARK | GRADE | REMARKS
   // Based on actual template measurements (converted to bottom-left origin)
   // PDF page height = 841.8 pt
   subjectTable: {
     startX: 72.4,           // Table left edge
-    gradeX: 248.5,          // Column divider / Grade column start (moved 50 left total)
+    averageMarkX: 298.5,    // Average Mark column start (moved 50 right)
+    gradeX: 304.5,          // Grade column start (moved 70 left total)
+    remarksX: 450.5,         // Remarks column start (moved 50 right)
     tableRight: 523.4,      // Table right edge
-    subjectWidth: 176.1,    // Subject column width (adjusted)
-    gradeWidth: 274.9,      // Grade column width (adjusted)
+    subjectWidth: 226.1,    // Subject column width (adjusted)
+    averageMarkWidth: 6,    // Average Mark column width (adjusted)
+    gradeWidth: 146,         // Grade column width (adjusted)
+    remarksWidth: 72.9,    // Remarks column width (adjusted)
     rows: [
-      { startY: 390.3, height: 30.8 },   // Row 1 (moved up 20)
-      { startY: 359.3, height: 30.6 },   // Row 2 (moved up 20)
-      { startY: 326.5, height: 32.4 },   // Row 3 (moved up 20)
-      { startY: 293.7, height: 32.4 }    // Row 4 (moved up 20)
+      { startY: 370.3, height: 30.8 },   // Row 1 (moved down 10)
+      { startY: 339.3, height: 30.6 },   // Row 2 (moved down 10)
+      { startY: 306.5, height: 32.4 },   // Row 3 (moved down 10)
+      { startY: 273.7, height: 32.4 },   // Row 4 (moved down 10)
+      { startY: 240.9, height: 32.4 },   // Row 5 (moved down 10)
+      { startY: 208.1, height: 32.4 },   // Row 6 (moved down 10)
+      { startY: 175.3, height: 32.4 },   // Row 7 (moved down 10)
+      { startY: 142.5, height: 32.4 }    // Row 8 (moved down 10)
     ]
   }
 };
 
 // Debug mode flag - set to true to show field boundaries
-const DEBUG_MODE = true;
+const DEBUG_MODE = false;
 
 /**
  * Generate PDF using Zimbabwe Ministry template format
@@ -127,6 +136,12 @@ async function generateZimbabweResultPDF(studentData, resultData, courseData, te
     // Session - use actual term
     drawField(page, session, TEMPLATE_COORDS.fields.session, boldFont);
 
+    // Trainer's Comment - overall lecturer remarks
+    const trainerComment = resultData.remarks || '';
+    if (trainerComment) {
+      drawField(page, trainerComment, TEMPLATE_COORDS.fields.trainer_comment, font);
+    }
+
     // Institution - removed from new template
     // drawField(page, 'MUSHAGASHE VTC', TEMPLATE_COORDS.fields.institution, boldFont);
 
@@ -162,6 +177,17 @@ async function generateZimbabweResultPDF(studentData, resultData, courseData, te
         color: normalColor,
       });
 
+      // Average Mark - centered in mark box, vertically centered
+      const markText = (sr.mark || 'N/A').toString();
+      const markWidth = font.widthOfTextAtSize(markText, TEMPLATE_COORDS.fontSize);
+      page.drawText(markText, {
+        x: TEMPLATE_COORDS.subjectTable.averageMarkX + (TEMPLATE_COORDS.subjectTable.averageMarkWidth / 2) - (markWidth / 2), // Centered horizontally
+        y: row.startY + (row.height / 2), // Vertically centered
+        size: TEMPLATE_COORDS.fontSize,
+        font: font,
+        color: isFailed ? failColor : normalColor,
+      });
+
       // Grade - centered in grade box, vertically centered
       const gradeText = sr.grade || 'N/A';
       const gradeWidth = boldFont.widthOfTextAtSize(gradeText, TEMPLATE_COORDS.fontSize);
@@ -171,6 +197,16 @@ async function generateZimbabweResultPDF(studentData, resultData, courseData, te
         size: TEMPLATE_COORDS.fontSize,
         font: boldFont,
         color: isFailed ? failColor : normalColor,
+      });
+
+      // Remarks - aligned left with padding, vertically centered in box
+      const remarksText = (sr.remarks || '').substring(0, 15); // Limit to 15 chars to fit
+      page.drawText(remarksText, {
+        x: TEMPLATE_COORDS.subjectTable.remarksX + 5, // 5pt padding
+        y: row.startY + (row.height / 2), // Vertically centered
+        size: TEMPLATE_COORDS.fontSize,
+        font: font,
+        color: normalColor,
       });
     });
 
@@ -248,7 +284,7 @@ async function drawDebugBoxes(page, coords, subjectResults = []) {
   // Each box must match the exact cell dimensions of the table
   // Based on actual template measurements
   
-  // Draw boxes for each of the 4 available subject rows
+  // Draw boxes for each of the 8 available subject rows
   coords.subjectTable.rows.forEach((row, index) => {
     // SUBJECT BOX - matches Subject column cell
     page.drawRectangle({
@@ -267,6 +303,23 @@ async function drawDebugBoxes(page, coords, subjectResults = []) {
       color: rgb(0, 0, 1),
     });
     
+    // AVERAGE MARK BOX - matches Average Mark column cell
+    page.drawRectangle({
+      x: coords.subjectTable.averageMarkX,
+      y: row.startY,
+      width: coords.subjectTable.averageMarkWidth,
+      height: row.height,
+      borderColor: rgb(0, 0, 1),
+      borderWidth: 1,
+      strokeOpacity: 0.5,
+    });
+    page.drawText(`MARK ${index + 1}`, {
+      x: coords.subjectTable.averageMarkX,
+      y: row.startY + row.height + 5,
+      size: 8,
+      color: rgb(0, 0, 1),
+    });
+    
     // GRADE BOX - matches Grade column cell
     page.drawRectangle({
       x: coords.subjectTable.gradeX,
@@ -279,6 +332,23 @@ async function drawDebugBoxes(page, coords, subjectResults = []) {
     });
     page.drawText(`GRADE ${index + 1}`, {
       x: coords.subjectTable.gradeX,
+      y: row.startY + row.height + 5,
+      size: 8,
+      color: rgb(0, 0, 1),
+    });
+    
+    // REMARKS BOX - matches Remarks column cell
+    page.drawRectangle({
+      x: coords.subjectTable.remarksX,
+      y: row.startY,
+      width: coords.subjectTable.remarksWidth,
+      height: row.height,
+      borderColor: rgb(0, 0, 1),
+      borderWidth: 1,
+      strokeOpacity: 0.5,
+    });
+    page.drawText(`REMARKS ${index + 1}`, {
+      x: coords.subjectTable.remarksX,
       y: row.startY + row.height + 5,
       size: 8,
       color: rgb(0, 0, 1),

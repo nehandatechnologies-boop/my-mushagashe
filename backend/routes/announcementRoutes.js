@@ -12,7 +12,7 @@ const validateAnnouncement = [
 ];
 
 // Create new announcement (admin only)
-router.post('/', authenticate, adminOnly, announcementController.createAnnouncement);
+router.post('/', authenticate, adminOnly, validateAnnouncement, announcementController.createAnnouncement);
 
 // Get all announcements (authenticated)
 router.get('/', authenticate, announcementController.getAllAnnouncements);
@@ -30,7 +30,7 @@ router.get('/statistics', authenticate, adminOnly, announcementController.getAnn
 router.get('/:id', authenticate, announcementController.getAnnouncementById);
 
 // Update announcement (admin only)
-router.put('/:id', authenticate, adminOnly, announcementController.updateAnnouncement);
+router.put('/:id', authenticate, adminOnly, validateAnnouncement, announcementController.updateAnnouncement);
 
 // Delete announcement (admin only)
 router.delete('/:id', authenticate, adminOnly, announcementController.deleteAnnouncement);

@@ -106,7 +106,11 @@ const updateAnnouncement = async (req, res) => {
       return res.status(400).json({ error: 'Invalid priority. Must be: low, normal, important, or urgent' });
     }
 
-    const updateData = { title, message, priority };
+    const updateData = { 
+      title, 
+      message, 
+      priority
+    };
 
     // Remove undefined values
     Object.keys(updateData).forEach(key => {
@@ -115,11 +119,15 @@ const updateAnnouncement = async (req, res) => {
       }
     });
 
-    await Announcement.update(id, updateData);
+    const result = await Announcement.update(id, updateData);
 
-    const updatedAnnouncement = await Announcement.findById(id);
+    if (!result) {
+      return res.status(404).json({ error: 'Announcement not found' });
+    }
 
-    res.json(updatedAnnouncement);
+    res.json({
+      message: 'Announcement updated successfully'
+    });
   } catch (error) {
     console.error('Update announcement error:', error);
     res.status(500).json({ error: 'Failed to update announcement' });
