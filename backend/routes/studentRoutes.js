@@ -13,16 +13,9 @@ if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
 
-// Configure multer for profile picture uploads
+// Configure multer for profile picture uploads (memory storage for Supabase upload)
 const profilePictureUpload = multer({
-  storage: multer.diskStorage({
-    destination: function (req, file, cb) {
-      cb(null, uploadDir);
-    },
-    filename: function (req, file, cb) {
-      cb(null, `profile_${req.params.id}_${Date.now()}${path.extname(file.originalname)}`);
-    }
-  }),
+  storage: multer.memoryStorage(),
   limits: {
     fileSize: 5 * 1024 * 1024 // 5MB limit
   },

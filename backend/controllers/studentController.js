@@ -565,10 +565,32 @@ const uploadProfilePicture = async (req, res) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
-    const profilePictureUrl = `/uploads/students/${req.file.filename}`;
+    const supabase = require('../config/supabase');
+
+    // Get file from memory storage
+    const fileBuffer = req.file.buffer;
+    const fileName = `profile_${id}_${Date.now()}${req.file.originalname.substring(req.file.originalname.lastIndexOf('.'))}`;
+
+    // Upload to Supabase Storage
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('profile-pictures')
+      .upload(fileName, fileBuffer, {
+        contentType: req.file.mimetype,
+        upsert: true
+      });
+
+    if (uploadError) {
+      console.error('Supabase upload error:', uploadError);
+      return res.status(500).json({ error: 'Failed to upload to storage' });
+    }
+
+    // Get public URL
+    const { data: { publicUrl } } = supabase.storage
+      .from('profile-pictures')
+      .getPublicUrl(fileName);
 
     // Update user with profile picture URL
-    const result = await User.update(id, { profile_picture_url: profilePictureUrl });
+    const result = await User.update(id, { profile_picture_url: publicUrl });
 
     if (!result) {
       return res.status(404).json({ error: 'Student not found' });
@@ -576,7 +598,7 @@ const uploadProfilePicture = async (req, res) => {
 
     res.json({
       message: 'Profile picture uploaded successfully',
-      profile_picture_url: profilePictureUrl
+      profile_picture_url: publicUrl
     });
   } catch (error) {
     console.error('Upload profile picture error:', error);
@@ -588,6 +610,7 @@ const uploadProfilePicture = async (req, res) => {
 const deleteProfilePicture = async (req, res) => {
   try {
     const { id } = req.params;
+    const supabase = require('../config/supabase');
 
     // Get current user data to find the profile picture URL
     const user = await User.findById(id);
@@ -595,14 +618,15 @@ const deleteProfilePicture = async (req, res) => {
       return res.status(404).json({ error: 'Student not found' });
     }
 
-    // Delete the file if it exists
+    // Delete the file from Supabase Storage if it exists
     if (user.profile_picture_url) {
-      const fs = require('fs');
-      const path = require('path');
-      const filePath = path.join(__dirname, '../../uploads/students', path.basename(user.profile_picture_url));
-      
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
+      const fileName = user.profile_picture_url.split('/').pop();
+      const { error: deleteError } = await supabase.storage
+        .from('profile-pictures')
+        .remove([fileName]);
+
+      if (deleteError) {
+        console.error('Supabase delete error:', deleteError);
       }
     }
 
