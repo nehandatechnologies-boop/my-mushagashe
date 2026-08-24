@@ -561,6 +561,8 @@ const uploadProfilePicture = async (req, res) => {
   try {
     const { id } = req.params;
 
+    console.log('Profile picture upload request:', { id, file: req.file ? req.file.originalname : 'No file' });
+
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
@@ -571,6 +573,8 @@ const uploadProfilePicture = async (req, res) => {
     const fileBuffer = req.file.buffer;
     const fileName = `profile_${id}_${Date.now()}${req.file.originalname.substring(req.file.originalname.lastIndexOf('.'))}`;
 
+    console.log('Uploading to Supabase Storage:', { fileName, size: fileBuffer.length, mimetype: req.file.mimetype });
+
     // Upload to Supabase Storage
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('profile-pictures')
@@ -580,14 +584,18 @@ const uploadProfilePicture = async (req, res) => {
       });
 
     if (uploadError) {
-      console.error('Supabase upload error:', uploadError);
-      return res.status(500).json({ error: 'Failed to upload to storage' });
+      console.error('Supabase upload error details:', uploadError);
+      return res.status(500).json({ error: 'Failed to upload to storage', details: uploadError.message });
     }
+
+    console.log('Upload successful:', uploadData);
 
     // Get public URL
     const { data: { publicUrl } } = supabase.storage
       .from('profile-pictures')
       .getPublicUrl(fileName);
+
+    console.log('Public URL:', publicUrl);
 
     // Update user with profile picture URL
     const result = await User.update(id, { profile_picture_url: publicUrl });
@@ -602,7 +610,7 @@ const uploadProfilePicture = async (req, res) => {
     });
   } catch (error) {
     console.error('Upload profile picture error:', error);
-    res.status(500).json({ error: 'Failed to upload profile picture' });
+    res.status(500).json({ error: 'Failed to upload profile picture', details: error.message });
   }
 };
 
