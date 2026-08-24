@@ -344,9 +344,9 @@ async function loadProfile() {
         const profilePictureContainer = document.getElementById('profilePictureDisplay');
         if (profilePictureContainer) {
             if (profile.profile_picture_url) {
-                profilePictureContainer.innerHTML = `<img src="${profile.profile_picture_url}" alt="Profile Picture" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover;">`;
+                profilePictureContainer.innerHTML = `<img src="${profile.profile_picture_url}" alt="Profile Picture" style="width: 200px; height: 200px; border-radius: 50%; object-fit: cover;">`;
             } else {
-                profilePictureContainer.innerHTML = `<div style="width: 120px; height: 120px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 40px; color: #666;">${profile.full_name.charAt(0).toUpperCase()}</div>`;
+                profilePictureContainer.innerHTML = `<div style="width: 200px; height: 200px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 60px; color: #666;">${profile.full_name.charAt(0).toUpperCase()}</div>`;
             }
         }
     } catch (error) {

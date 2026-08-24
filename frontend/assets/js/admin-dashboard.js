@@ -220,8 +220,8 @@ async function loadStudents() {
             <tr>
                 <td>
                     ${student.profile_picture_url 
-                        ? `<img src="${student.profile_picture_url}" alt="${student.full_name}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">` 
-                        : `<div style="width: 40px; height: 40px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 14px;">${student.full_name.charAt(0).toUpperCase()}</div>`
+                        ? `<img src="${student.profile_picture_url}" alt="${student.full_name}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; cursor: pointer;" onclick="viewProfilePicture('${student.profile_picture_url}', '${student.full_name}')">` 
+                        : `<div style="width: 60px; height: 60px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 20px;">${student.full_name.charAt(0).toUpperCase()}</div>`
                     }
                 </td>
                 <td>${student.student_number}</td>
@@ -710,6 +710,18 @@ window.deleteProfilePicture = async function(id) {
         console.error('Delete profile picture error:', error);
         showToast('Failed to remove profile picture', 'error');
     }
+};
+
+window.viewProfilePicture = function(imageUrl, studentName) {
+    showModal(`
+        <div class="modal-header">
+            <h3>${studentName} - Profile Picture</h3>
+            <button class="modal-close" onclick="hideModal()">&times;</button>
+        </div>
+        <div style="display: flex; justify-content: center; align-items: center; padding: 20px;">
+            <img src="${imageUrl}" alt="${studentName}" style="max-width: 100%; max-height: 500px; border-radius: 8px; object-fit: contain;">
+        </div>
+    `);
 };
 
 window.deleteStudent = async function(id) {
