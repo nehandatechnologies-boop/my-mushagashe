@@ -2,11 +2,45 @@ const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
 const multer = require('multer');
+const fs = require('fs');
+const path = require('path');
 const studentController = require('../controllers/studentController');
 const { authenticate, adminOnly, lecturerOnly } = require('../middleware/auth');
 
-// Configure multer for file uploads
-const upload = multer({
+// Ensure uploads/students directory exists
+const uploadDir = path.join(__dirname, '../../uploads/students');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+
+// Configure multer for profile picture uploads
+const profilePictureUpload = multer({
+  storage: multer.diskStorage({
+    destination: function (req, file, cb) {
+      cb(null, uploadDir);
+    },
+    filename: function (req, file, cb) {
+      cb(null, `profile_${req.params.id}_${Date.now()}${path.extname(file.originalname)}`);
+    }
+  }),
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    const allowedTypes = /jpeg|jpg|png|gif/;
+    const extname = allowedTypes.test(file.originalname.toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    if (extname && mimetype) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only images are allowed (jpeg, jpg, png, gif)'));
+    }
+  }
+});
+
+// Configure multer for Excel file uploads
+const excelUpload = multer({
   storage: multer.memoryStorage(),
   limits: {
     fileSize: 5 * 1024 * 1024 // 5MB limit
@@ -69,6 +103,12 @@ router.put('/:id/assign-course', authenticate, adminOnly, studentController.assi
 router.get('/stats/overview', authenticate, adminOnly, studentController.getStudentStatistics);
 
 // Import students from Excel (admin only)
-router.post('/import/excel', authenticate, adminOnly, upload.single('file'), studentController.importStudentsFromExcel);
+router.post('/import/excel', authenticate, adminOnly, excelUpload.single('file'), studentController.importStudentsFromExcel);
+
+// Upload profile picture (admin only)
+router.post('/:id/profile-picture', authenticate, adminOnly, profilePictureUpload.single('profilePicture'), studentController.uploadProfilePicture);
+
+// Delete profile picture (admin only)
+router.delete('/:id/profile-picture', authenticate, adminOnly, studentController.deleteProfilePicture);
 
 module.exports = router;

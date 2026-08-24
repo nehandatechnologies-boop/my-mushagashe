@@ -212,12 +212,18 @@ async function loadStudents() {
         const tbody = document.getElementById('studentsTableBody');
         
         if (!students || students.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="6" class="text-center">No students found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7" class="text-center">No students found</td></tr>';
             return;
         }
 
         tbody.innerHTML = students.map(student => `
             <tr>
+                <td>
+                    ${student.profile_picture_url 
+                        ? `<img src="${student.profile_picture_url}" alt="${student.full_name}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">` 
+                        : `<div style="width: 40px; height: 40px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 14px;">${student.full_name.charAt(0).toUpperCase()}</div>`
+                    }
+                </td>
                 <td>${student.student_number}</td>
                 <td>${student.full_name}</td>
                 <td>${student.course_name || 'Not assigned'}</td>
@@ -630,6 +636,17 @@ window.editStudent = async function(id) {
                         <option value="">Select Course</option>
                     </select>
                 </div>
+                <div class="form-group">
+                    <label>Profile Picture</label>
+                    ${student.profile_picture_url 
+                        ? `<div style="margin-bottom: 10px;">
+                            <img src="${student.profile_picture_url}" alt="Current profile picture" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover;">
+                            <button type="button" class="btn btn-danger" onclick="deleteProfilePicture(${student.id})" style="margin-left: 10px;">Remove</button>
+                           </div>` 
+                        : '<p>No profile picture set</p>'
+                    }
+                    <input type="file" name="profilePicture" accept="image/*">
+                </div>
                 <button type="submit" class="btn btn-primary">Update Student</button>
             </form>
         `);
@@ -639,7 +656,29 @@ window.editStudent = async function(id) {
         document.getElementById('editStudentForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
-            const updateData = Object.fromEntries(formData);
+            const updateData = {
+                full_name: formData.get('full_name'),
+                phone: formData.get('phone'),
+                status: formData.get('status'),
+                course_id: formData.get('course_id')
+            };
+            
+            // Handle profile picture upload
+            const profilePictureFile = formData.get('profilePicture');
+            if (profilePictureFile && profilePictureFile.size > 0) {
+                const profileFormData = new FormData();
+                profileFormData.append('profilePicture', profilePictureFile);
+                
+                try {
+                    await apiRequest(`/students/${id}/profile-picture`, {
+                        method: 'POST',
+                        body: profileFormData
+                    });
+                } catch (error) {
+                    showToast('Failed to upload profile picture', 'error');
+                    return;
+                }
+            }
             
             try {
                 await apiRequest(`/students/${id}`, {
@@ -651,12 +690,25 @@ window.editStudent = async function(id) {
                 loadStudents();
             } catch (error) {
                 console.error('Update student error:', error);
-                showToast('Failed to update student: ' + (error.message || 'Unknown error'), 'error');
+                showToast('Failed to update student', 'error');
             }
         });
     } catch (error) {
         console.error('Load student error:', error);
-        showToast('Failed to load student data: ' + (error.message || 'Unknown error'), 'error');
+        showToast('Failed to load student data', 'error');
+    }
+};
+
+window.deleteProfilePicture = async function(id) {
+    if (!confirm('Are you sure you want to remove this profile picture?')) return;
+    
+    try {
+        await apiRequest(`/students/${id}/profile-picture`, { method: 'DELETE' });
+        showToast('Profile picture removed successfully');
+        editStudent(id); // Reload the edit form
+    } catch (error) {
+        console.error('Delete profile picture error:', error);
+        showToast('Failed to remove profile picture', 'error');
     }
 };
 

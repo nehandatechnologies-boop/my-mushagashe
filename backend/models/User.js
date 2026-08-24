@@ -168,13 +168,13 @@ class User {
     const {
       full_name, email, student_number, phone, gender, national_id,
       date_of_birth, address, guardian_name, guardian_phone,
-      intake_year, status, course_id, profile_picture
+      intake_year, status, course_id, profile_picture_url
     } = userData;
 
     const updateData = {
       full_name, email, student_number, phone, gender, national_id,
       date_of_birth, address, guardian_name, guardian_phone,
-      intake_year, status, course_id, profile_picture
+      intake_year, status, course_id, profile_picture_url
     };
 
     // Remove undefined values and convert empty strings to null

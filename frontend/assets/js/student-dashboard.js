@@ -339,6 +339,16 @@ async function loadProfile() {
         document.getElementById('profilePhone').value = profile.phone || '';
         document.getElementById('profileEmail').value = profile.email || '';
         document.getElementById('profileGuardianPhone').value = profile.guardian_phone || '';
+        
+        // Display profile picture
+        const profilePictureContainer = document.getElementById('profilePictureDisplay');
+        if (profilePictureContainer) {
+            if (profile.profile_picture_url) {
+                profilePictureContainer.innerHTML = `<img src="${profile.profile_picture_url}" alt="Profile Picture" style="width: 120px; height: 120px; border-radius: 50%; object-fit: cover;">`;
+            } else {
+                profilePictureContainer.innerHTML = `<div style="width: 120px; height: 120px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 40px; color: #666;">${profile.full_name.charAt(0).toUpperCase()}</div>`;
+            }
+        }
     } catch (error) {
         console.error('Error loading profile:', error);
         showToast('Failed to load profile', 'error');

@@ -556,6 +556,68 @@ const importStudentsFromExcel = async (req, res) => {
   }
 };
 
+// Upload profile picture (admin only)
+const uploadProfilePicture = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const profilePictureUrl = `/uploads/students/${req.file.filename}`;
+
+    // Update user with profile picture URL
+    const result = await User.update(id, { profile_picture_url: profilePictureUrl });
+
+    if (!result) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    res.json({
+      message: 'Profile picture uploaded successfully',
+      profile_picture_url: profilePictureUrl
+    });
+  } catch (error) {
+    console.error('Upload profile picture error:', error);
+    res.status(500).json({ error: 'Failed to upload profile picture' });
+  }
+};
+
+// Delete profile picture (admin only)
+const deleteProfilePicture = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    // Get current user data to find the profile picture URL
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    // Delete the file if it exists
+    if (user.profile_picture_url) {
+      const fs = require('fs');
+      const path = require('path');
+      const filePath = path.join(__dirname, '../../uploads/students', path.basename(user.profile_picture_url));
+      
+      if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
+      }
+    }
+
+    // Update user to remove profile picture URL
+    const result = await User.update(id, { profile_picture_url: null });
+
+    res.json({
+      message: 'Profile picture deleted successfully'
+    });
+  } catch (error) {
+    console.error('Delete profile picture error:', error);
+    res.status(500).json({ error: 'Failed to delete profile picture' });
+  }
+};
+
 module.exports = {
   registerStudent,
   createStudent,
@@ -573,5 +635,7 @@ module.exports = {
   getLecturerById,
   updateLecturer,
   deleteLecturer,
-  importStudentsFromExcel
+  importStudentsFromExcel,
+  uploadProfilePicture,
+  deleteProfilePicture
 };
