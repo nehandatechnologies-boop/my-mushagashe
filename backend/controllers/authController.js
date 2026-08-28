@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
-const { generateToken } = require('../middleware/auth');
+const { generateToken, validatePassword, isPasswordInHistory, isAccountLocked, incrementFailedAttempts, resetFailedAttempts } = require('../middleware/auth');
 
 // Admin login
 const adminLogin = async (req, res) => {
@@ -19,11 +19,21 @@ const adminLogin = async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    if (user.role !== 'admin') {
+    // Check if account is locked
+    if (isAccountLocked(user)) {
+      return res.status(403).json({ 
+        error: 'Account is temporarily locked due to multiple failed login attempts',
+        locked_until: user.account_locked_until
+      });
+    }
+
+    if (user.role !== 'admin' && user.role !== 'super_admin') {
+      await incrementFailedAttempts(user.id);
       return res.status(403).json({ error: 'Admin access required' });
     }
 
     if (user.status !== 'active') {
+      await incrementFailedAttempts(user.id);
       return res.status(403).json({ error: 'Account is not active' });
     }
 
@@ -31,8 +41,12 @@ const adminLogin = async (req, res) => {
     const isPasswordValid = bcrypt.compareSync(password, user.password);
     
     if (!isPasswordValid) {
+      await incrementFailedAttempts(user.id);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+
+    // Reset failed attempts on successful login
+    await resetFailedAttempts(user.id);
 
     // Generate token
     const token = generateToken(user);
@@ -67,11 +81,21 @@ const lecturerLogin = async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    if (user.role !== 'lecturer') {
+    // Check if account is locked
+    if (isAccountLocked(user)) {
+      return res.status(403).json({ 
+        error: 'Account is temporarily locked due to multiple failed login attempts',
+        locked_until: user.account_locked_until
+      });
+    }
+
+    if (user.role !== 'lecturer' && user.role !== 'instructor') {
+      await incrementFailedAttempts(user.id);
       return res.status(403).json({ error: 'Lecturer access required' });
     }
 
     if (user.status !== 'active') {
+      await incrementFailedAttempts(user.id);
       return res.status(403).json({ error: 'Account is not active' });
     }
 
@@ -79,8 +103,12 @@ const lecturerLogin = async (req, res) => {
     const isPasswordValid = bcrypt.compareSync(password, user.password);
     
     if (!isPasswordValid) {
+      await incrementFailedAttempts(user.id);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+
+    // Reset failed attempts on successful login
+    await resetFailedAttempts(user.id);
 
     // Generate token
     const token = generateToken(user);
@@ -122,13 +150,23 @@ const studentLogin = async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    // Check if account is locked
+    if (isAccountLocked(user)) {
+      return res.status(403).json({ 
+        error: 'Account is temporarily locked due to multiple failed login attempts',
+        locked_until: user.account_locked_until
+      });
+    }
+
     console.log('Student found:', { id: user.id, role: user.role, status: user.status });
 
     if (user.role !== 'student') {
+      await incrementFailedAttempts(user.id);
       return res.status(403).json({ error: 'Student access required' });
     }
 
     if (user.status !== 'active') {
+      await incrementFailedAttempts(user.id);
       return res.status(403).json({ error: 'Account is not active' });
     }
 
@@ -137,8 +175,12 @@ const studentLogin = async (req, res) => {
     
     if (!isPasswordValid) {
       console.log('Password mismatch for student:', trimmedStudentNumber);
+      await incrementFailedAttempts(user.id);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+
+    // Reset failed attempts on successful login
+    await resetFailedAttempts(user.id);
 
     // Generate token
     const token = generateToken(user);
@@ -219,8 +261,18 @@ const changePassword = async (req, res) => {
       return res.status(400).json({ error: 'Current password and new password are required' });
     }
 
-    if (new_password.length < 6) {
-      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    // Validate new password complexity
+    if (!validatePassword(new_password)) {
+      return res.status(400).json({ 
+        error: 'Password does not meet complexity requirements',
+        requirements: {
+          min_length: PASSWORD_MIN_LENGTH,
+          require_uppercase: PASSWORD_REQUIRE_UPPERCASE,
+          require_lowercase: PASSWORD_REQUIRE_LOWERCASE,
+          require_numbers: PASSWORD_REQUIRE_NUMBERS,
+          require_special_chars: PASSWORD_REQUIRE_SPECIAL_CHARS
+        }
+      });
     }
 
     // Get current user
@@ -237,11 +289,26 @@ const changePassword = async (req, res) => {
       return res.status(401).json({ error: 'Current password is incorrect' });
     }
 
+    // Check if new password is in history (last 5 passwords)
+    const isInHistory = await isPasswordInHistory(userId, new_password);
+    if (isInHistory) {
+      return res.status(400).json({ error: 'New password cannot be the same as any of your last 5 passwords' });
+    }
+
     // Hash new password
     const hashedPassword = bcrypt.hashSync(new_password, 10);
 
-    // Update password
-    await User.updatePassword(userId, hashedPassword);
+    // Get current password history
+    const currentHistory = user.password_history || [];
+    const newPasswordHistory = [user.password, ...currentHistory].slice(0, 5); // Keep last 5 passwords
+
+    // Update password and history
+    await User.update(userId, { 
+      password: hashedPassword,
+      password_history: newPasswordHistory,
+      last_password_change: new Date().toISOString(),
+      must_change_password: false
+    });
 
     res.json({ message: 'Password changed successfully' });
   } catch (error) {

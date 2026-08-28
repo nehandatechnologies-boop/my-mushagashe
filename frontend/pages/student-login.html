@@ -5,93 +5,407 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https://*.onrender.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' https://fonts.gstatic.com;">
     <title>Student Login - Mushagashe Vocational Training Centre</title>
-    <link rel="stylesheet" href="../assets/css/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/design-system.css">
+    <link rel="stylesheet" href="../assets/css/components.css">
+    <style>
+        .login-page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(135deg, var(--primary-50) 0%, var(--surface) 50%, var(--accent-50) 100%);
+        }
+
+        .login-header {
+            padding: var(--space-6) var(--space-8);
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary-600), var(--primary-800));
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-inverse);
+            font-weight: var(--font-bold);
+            font-size: var(--text-base);
+        }
+
+        .logo-text h1 {
+            font-size: var(--text-base);
+            font-weight: var(--font-bold);
+            color: var(--text-primary);
+            line-height: var(--leading-tight);
+        }
+
+        .logo-text p {
+            font-size: var(--text-xs);
+            color: var(--text-secondary);
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-2);
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: var(--text-sm);
+            font-weight: var(--font-medium);
+            transition: color var(--transition-base);
+        }
+
+        .back-link:hover {
+            color: var(--primary-600);
+        }
+
+        .login-main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-12) var(--space-8);
+        }
+
+        .login-container {
+            max-width: 480px;
+            width: 100%;
+        }
+
+        .login-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-2xl);
+            box-shadow: var(--shadow-2xl);
+            padding: var(--space-8);
+        }
+
+        .login-card-header {
+            text-align: center;
+            margin-bottom: var(--space-8);
+        }
+
+        .login-card-icon {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, var(--primary-400), var(--primary-600));
+            border-radius: var(--radius-xl);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto var(--space-4);
+            color: var(--text-inverse);
+        }
+
+        .login-card-title {
+            font-size: var(--text-2xl);
+            font-weight: var(--font-bold);
+            color: var(--text-primary);
+            margin-bottom: var(--space-2);
+        }
+
+        .login-card-subtitle {
+            font-size: var(--text-sm);
+            color: var(--text-secondary);
+        }
+
+        .password-input-wrapper {
+            position: relative;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: var(--space-3);
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent;
+            border: none;
+            color: var(--text-tertiary);
+            cursor: pointer;
+            padding: var(--space-2);
+            border-radius: var(--radius-md);
+            transition: color var(--transition-base);
+        }
+
+        .password-toggle:hover {
+            color: var(--text-primary);
+        }
+
+        .form-options {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: var(--space-6);
+        }
+
+        .forgot-link {
+            color: var(--primary-600);
+            text-decoration: none;
+            font-size: var(--text-sm);
+            font-weight: var(--font-medium);
+            transition: color var(--transition-base);
+        }
+
+        .forgot-link:hover {
+            color: var(--primary-800);
+        }
+
+        .btn-loading {
+            position: relative;
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .btn-loading::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border: 2px solid transparent;
+            border-top-color: currentColor;
+            border-radius: var(--radius-full);
+            animation: spin 0.8s linear infinite;
+        }
+
+        .error-message {
+            display: none;
+            padding: var(--space-3) var(--space-4);
+            background: var(--danger-bg);
+            border: 1px solid var(--danger);
+            border-radius: var(--radius-lg);
+            color: var(--danger);
+            font-size: var(--text-sm);
+            margin-bottom: var(--space-6);
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .login-help {
+            margin-top: var(--space-6);
+            padding-top: var(--space-6);
+            border-top: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .login-help p {
+            font-size: var(--text-sm);
+            color: var(--text-secondary);
+            margin-bottom: var(--space-1);
+        }
+
+        .login-help .help-contact {
+            font-size: var(--text-xs);
+            color: var(--text-tertiary);
+        }
+
+        .login-footer {
+            padding: var(--space-6) var(--space-8);
+            background: var(--gray-50);
+            border-top: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .footer-text {
+            font-size: var(--text-sm);
+            color: var(--text-secondary);
+        }
+
+        @media (max-width: 640px) {
+            .login-header {
+                padding: var(--space-4) var(--space-6);
+            }
+
+            .login-main {
+                padding: var(--space-8) var(--space-6);
+            }
+
+            .login-card {
+                padding: var(--space-6);
+            }
+
+            .login-card-title {
+                font-size: var(--text-xl);
+            }
+        }
+    </style>
 </head>
 <body>
-    <div class="login-container">
-        <div class="login-header">
-            <div class="logo">
-                <h1>Mushagashe Vocational Training Centre</h1>
-                <p>Student Information Management System</p>
-            </div>
-            <a href="index.html" class="back-link">← Back to Home</a>
-        </div>
-
-        <div class="login-content">
-            <div class="login-form-wrapper">
-                <div class="login-form-header">
-                    <h2>Student Login</h2>
-                    <p>Please enter your credentials to access the student portal</p>
+    <div class="login-page">
+        <header class="login-header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <div class="logo-icon">MV</div>
+                    <div class="logo-text">
+                        <h1>Mushagashe VTC</h1>
+                        <p>Student Information Portal</p>
+                    </div>
                 </div>
+                <a href="../index.html" class="back-link">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                    <span>Back to Home</span>
+                </a>
+            </div>
+        </header>
 
-                <form id="studentLoginForm" class="login-form">
-                    <div class="form-group">
-                        <label for="student_number">Student Number</label>
-                        <input 
-                            type="text" 
-                            id="student_number" 
-                            name="student_number" 
-                            placeholder="e.g., STU2024001" 
-                            required
-                            autocomplete="username"
-                        >
+        <main class="login-main">
+            <div class="login-container">
+                <div class="login-card">
+                    <div class="login-card-header">
+                        <div class="login-card-icon">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="9" cy="7" r="4"></circle>
+                            </svg>
+                        </div>
+                        <h2 class="login-card-title">Student Login</h2>
+                        <p class="login-card-subtitle">Enter your credentials to access the student portal</p>
                     </div>
 
-                    <div class="form-group">
-                        <label for="password">Password</label>
-                        <input 
-                            type="password" 
-                            id="password" 
-                            name="password" 
-                            placeholder="Enter your password" 
-                            required
-                            autocomplete="current-password"
-                        >
-                        <button type="button" class="toggle-password" onclick="togglePassword('password')" aria-label="Toggle password visibility">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                                <circle cx="12" cy="12" r="3"></circle>
-                            </svg>
+                    <form id="studentLoginForm">
+                        <div class="form-group">
+                            <label class="form-label required" for="student_number">Student Number</label>
+                            <input 
+                                type="text" 
+                                id="student_number" 
+                                name="student_number" 
+                                class="input"
+                                placeholder="e.g., STU2024001" 
+                                required
+                                autocomplete="username"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label required" for="password">Password</label>
+                            <div class="password-input-wrapper">
+                                <input 
+                                    type="password" 
+                                    id="password" 
+                                    name="password" 
+                                    class="input"
+                                    placeholder="Enter your password" 
+                                    required
+                                    autocomplete="current-password"
+                                >
+                                <button type="button" class="password-toggle" onclick="togglePassword('password')" aria-label="Toggle password visibility">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                                        <circle cx="12" cy="12" r="3"></circle>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-options">
+                            <label class="checkbox">
+                                <input type="checkbox" name="remember">
+                                <span>Remember me</span>
+                            </label>
+                            <a href="#" class="forgot-link">Forgot password?</a>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-full" id="loginBtn">
+                            <span class="btn-text">Sign In</span>
                         </button>
+                    </form>
+
+                    <div id="error-message" class="error-message"></div>
+                    
+                    <div class="login-help">
+                        <p>Need help? Contact IT Support</p>
+                        <p class="help-contact">support@mushagashe.edu | +263 77 838 7971</p>
                     </div>
-
-                    <div class="form-options">
-                        <label class="checkbox-label">
-                            <input type="checkbox" name="remember">
-                            <span>Remember me</span>
-                        </label>
-                        <a href="#" class="forgot-link">Forgot password?</a>
-                    </div>
-
-                    <button type="submit" class="btn btn-primary btn-full">
-                        <span class="btn-text">Login</span>
-                        <span class="btn-loader" style="display: none;">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="10" stroke-dasharray="60" stroke-dashoffset="20"></circle>
-                            </svg>
-                        </span>
-                    </button>
-                </form>
-
-                <div id="error-message" class="error-message" style="display: none;"></div>
-                
-                <div class="login-help">
-                    <p>Need help? Contact the IT Support Desk</p>
-                    <p class="help-contact">support@mushagashe.edu | +263-77-123-4567</p>
                 </div>
             </div>
-        </div>
+        </main>
 
         <footer class="login-footer">
-            <p>Mushagashe Vocational Training Centre</p>
-            <p>&copy; <span id="current-year"></span> All Rights Reserved</p>
+            <p class="footer-text">Mushagashe Vocational Training Centre</p>
+            <p class="footer-text">&copy; <span id="current-year"></span> All Rights Reserved</p>
         </footer>
     </div>
 
-    <script src="../assets/js/student-login.js"></script>
     <script>
-        // Automatic copyright year update
+        function togglePassword(inputId) {
+            const input = document.getElementById(inputId);
+            const button = input.nextElementSibling;
+            const icon = button.querySelector('svg');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.innerHTML = '<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"></path><line x1="1" y1="1" x2="23" y2="23"></line>';
+            } else {
+                input.type = 'password';
+                icon.innerHTML = '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle>';
+            }
+        }
+
         document.getElementById('current-year').textContent = new Date().getFullYear();
+
+        document.getElementById('studentLoginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const btn = document.getElementById('loginBtn');
+            const btnText = btn.querySelector('.btn-text');
+            const errorDiv = document.getElementById('error-message');
+            
+            const studentNumber = document.getElementById('student_number').value;
+            const password = document.getElementById('password').value;
+            
+            btn.classList.add('btn-loading');
+            btnText.textContent = 'Signing in...';
+            errorDiv.classList.remove('show');
+            
+            try {
+                const response = await fetch('/api/auth/student/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ student_number: studentNumber, password: password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
+                    window.location.href = 'student-dashboard.html';
+                } else {
+                    errorDiv.textContent = data.error || 'Login failed. Please try again.';
+                    errorDiv.classList.add('show');
+                }
+            } catch (error) {
+                errorDiv.textContent = 'Network error. Please check your connection and try again.';
+                errorDiv.classList.add('show');
+            } finally {
+                btn.classList.remove('btn-loading');
+                btnText.textContent = 'Sign In';
+            }
+        });
     </script>
 </body>
 </html>

@@ -2,6 +2,8 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Fee = require('../models/Fee');
 const XLSX = require('xlsx');
+const { logLogin, logDataAccess, logDataModification, logDataDeletion, logFailedAccess } = require('../middleware/auditLogger');
+const { PrivacyConsent, PrivacyNotice } = require('../models/PrivacyConsent');
 
 // Public student registration
 const registerStudent = async (req, res) => {
@@ -9,7 +11,7 @@ const registerStudent = async (req, res) => {
     const {
       full_name, email, student_number, password, phone, gender,
       national_id, date_of_birth, address, guardian_name, guardian_phone,
-      intake_year
+      intake_year, privacy_consent
     } = req.body;
 
     // Trim whitespace from inputs
@@ -24,6 +26,11 @@ const registerStudent = async (req, res) => {
 
     if (trimmedPassword.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    // Privacy consent validation
+    if (!privacy_consent || !privacy_consent.data_processing) {
+      return res.status(400).json({ error: 'Privacy consent is required for registration' });
     }
 
     // Check if student number or email already exists
@@ -50,6 +57,31 @@ const registerStudent = async (req, res) => {
     };
 
     const result = await User.create(studentData);
+
+    // Get current privacy notice
+    const currentNotice = await PrivacyNotice.getCurrent();
+    if (currentNotice) {
+      // Record consent
+      await PrivacyConsent.create({
+        user_id: result.id,
+        notice_id: currentNotice.id,
+        consent_type: 'DATA_PROCESSING',
+        consented: privacy_consent.data_processing,
+        ip_address: req.ip,
+        user_agent: req.get('user-agent')
+      });
+
+      if (privacy_consent.marketing !== undefined) {
+        await PrivacyConsent.create({
+          user_id: result.id,
+          notice_id: currentNotice.id,
+          consent_type: 'MARKETING',
+          consented: privacy_consent.marketing,
+          ip_address: req.ip,
+          user_agent: req.get('user-agent')
+        });
+      }
+    }
 
     console.log('Student registered successfully:', { id: result.id, student_number: trimmedStudentNumber });
 
@@ -146,17 +178,23 @@ const getStudentById = async (req, res) => {
     const student = await User.findById(id);
 
     if (!student) {
+      await logFailedAccess(req.user, 'STUDENT', id, 'Student not found', req.ip, req.get('user-agent'));
       return res.status(404).json({ error: 'Student not found' });
     }
 
     if (student.role !== 'student') {
+      await logFailedAccess(req.user, 'STUDENT', id, 'User is not a student', req.ip, req.get('user-agent'));
       return res.status(400).json({ error: 'User is not a student' });
     }
 
     // Lecturer can only view students in their assigned course
     if (req.user.role === 'lecturer' && student.course_id !== req.user.course_id) {
+      await logFailedAccess(req.user, 'STUDENT', id, 'Access denied: Wrong course assignment', req.ip, req.get('user-agent'));
       return res.status(403).json({ error: 'Access denied: You can only view students in your assigned course' });
     }
+
+    // Log data access
+    await logDataAccess(req.user, 'STUDENT', id, req.ip, req.get('user-agent'));
 
     const { password: _, ...studentWithoutPassword } = student;
 
@@ -177,15 +215,11 @@ const updateStudent = async (req, res) => {
       intake_year, status, course_id
     } = req.body;
 
-    // Get existing student to check course
-    const existingStudent = await User.findById(id);
-    if (!existingStudent) {
+    // Get current student data for audit
+    const currentStudent = await User.findById(id);
+    if (!currentStudent) {
+      await logFailedAccess(req.user, 'STUDENT', id, 'Student not found', req.ip, req.get('user-agent'));
       return res.status(404).json({ error: 'Student not found' });
-    }
-
-    // Lecturer can only update students in their assigned course
-    if (req.user.role === 'lecturer' && existingStudent.course_id !== req.user.course_id) {
-      return res.status(403).json({ error: 'Access denied: You can only update students in your assigned course' });
     }
 
     const updateData = {
@@ -201,17 +235,16 @@ const updateStudent = async (req, res) => {
       }
     });
 
-    await User.update(id, updateData);
+    const updatedStudent = await User.update(id, updateData);
 
-    const updatedStudent = await User.findById(id);
+    // Log data modification
+    await logDataModification(req.user, 'UPDATE', 'STUDENT', id, currentStudent, updatedStudent, req.ip, req.get('user-agent'));
+
     const { password: _, ...studentWithoutPassword } = updatedStudent;
 
     res.json(studentWithoutPassword);
   } catch (error) {
     console.error('Update student error:', error);
-    if (error.message.includes('UNIQUE')) {
-      return res.status(400).json({ error: 'Student number or email already exists' });
-    }
     res.status(500).json({ error: 'Failed to update student' });
   }
 };
@@ -223,14 +256,19 @@ const deleteStudent = async (req, res) => {
 
     const student = await User.findById(id);
     if (!student) {
+      await logFailedAccess(req.user, 'STUDENT', id, 'Student not found', req.ip, req.get('user-agent'));
       return res.status(404).json({ error: 'Student not found' });
     }
 
     if (student.role !== 'student') {
+      await logFailedAccess(req.user, 'STUDENT', id, 'User is not a student', req.ip, req.get('user-agent'));
       return res.status(400).json({ error: 'User is not a student' });
     }
 
     await User.delete(id);
+
+    // Log data deletion
+    await logDataDeletion(req.user, 'STUDENT', id, student, req.ip, req.get('user-agent'));
 
     res.json({ message: 'Student deleted successfully' });
   } catch (error) {

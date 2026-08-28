@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const studentController = require('../controllers/studentController');
 const { authenticate, adminOnly, lecturerOnly } = require('../middleware/auth');
+const { requirePermission, requireResourceAccess } = require('../middleware/permission');
 
 // Ensure uploads/students directory exists
 const uploadDir = path.join(__dirname, '../../uploads/students');
@@ -58,50 +59,50 @@ const validateStudent = [
 // Public student registration
 router.post('/register', studentController.registerStudent);
 
-// Create new student (admin only)
-router.post('/', authenticate, adminOnly, studentController.createStudent);
+// Create new student (requires CREATE_STUDENT permission)
+router.post('/', authenticate, requirePermission('CREATE_STUDENT'), studentController.createStudent);
 
-// Get all students (admin and lecturer)
-router.get('/', authenticate, studentController.getAllStudents);
+// Get all students (requires VIEW_STUDENT permission)
+router.get('/', authenticate, requirePermission('VIEW_STUDENT'), studentController.getAllStudents);
 
-// Lecturer management routes (admin only) - must come before :id routes
-router.post('/lecturers', authenticate, adminOnly, studentController.createLecturer);
-router.get('/lecturers', authenticate, adminOnly, studentController.getAllLecturers);
-router.get('/lecturers/:id', authenticate, adminOnly, studentController.getLecturerById);
-router.put('/lecturers/:id', authenticate, adminOnly, studentController.updateLecturer);
-router.delete('/lecturers/:id', authenticate, adminOnly, studentController.deleteLecturer);
+// Lecturer management routes (requires MANAGE_USERS permission)
+router.post('/lecturers', authenticate, requirePermission('MANAGE_USERS'), studentController.createLecturer);
+router.get('/lecturers', authenticate, requirePermission('VIEW_STUDENT'), studentController.getAllLecturers);
+router.get('/lecturers/:id', authenticate, requirePermission('VIEW_STUDENT'), studentController.getLecturerById);
+router.put('/lecturers/:id', authenticate, requirePermission('EDIT_STUDENT'), studentController.updateLecturer);
+router.delete('/lecturers/:id', authenticate, requirePermission('DELETE_STUDENT'), studentController.deleteLecturer);
 
-// Get student by ID (admin and lecturer)
-router.get('/:id', authenticate, studentController.getStudentById);
+// Get student by ID (requires VIEW_STUDENT permission + resource access check)
+router.get('/:id', authenticate, requirePermission('VIEW_STUDENT'), requireResourceAccess('student'), studentController.getStudentById);
 
-// Update student (admin only)
-router.put('/:id', authenticate, studentController.updateStudent);
+// Update student (requires EDIT_STUDENT permission + resource access check)
+router.put('/:id', authenticate, requirePermission('EDIT_STUDENT'), requireResourceAccess('student'), studentController.updateStudent);
 
-// Delete student (admin only)
-router.delete('/:id', authenticate, studentController.deleteStudent);
+// Delete student (requires DELETE_STUDENT permission + resource access check)
+router.delete('/:id', authenticate, requirePermission('DELETE_STUDENT'), requireResourceAccess('student'), studentController.deleteStudent);
 
-// Suspend student (admin only)
-router.put('/:id/suspend', authenticate, adminOnly, studentController.suspendStudent);
+// Suspend student (requires DISABLE_ACCOUNTS permission)
+router.put('/:id/suspend', authenticate, requirePermission('DISABLE_ACCOUNTS'), studentController.suspendStudent);
 
-// Activate student (admin only)
-router.put('/:id/activate', authenticate, adminOnly, studentController.activateStudent);
+// Activate student (requires DISABLE_ACCOUNTS permission)
+router.put('/:id/activate', authenticate, requirePermission('DISABLE_ACCOUNTS'), studentController.activateStudent);
 
-// Reset student password (admin only)
-router.put('/:id/reset-password', authenticate, adminOnly, studentController.resetPassword);
+// Reset student password (requires RESET_PASSWORDS permission)
+router.put('/:id/reset-password', authenticate, requirePermission('RESET_PASSWORDS'), studentController.resetPassword);
 
-// Assign course to student (admin only)
-router.put('/:id/assign-course', authenticate, adminOnly, studentController.assignCourse);
+// Assign course to student (requires EDIT_STUDENT permission)
+router.put('/:id/assign-course', authenticate, requirePermission('EDIT_STUDENT'), studentController.assignCourse);
 
-// Get student statistics (admin only)
-router.get('/stats/overview', authenticate, adminOnly, studentController.getStudentStatistics);
+// Get student statistics (requires VIEW_STUDENT permission)
+router.get('/stats/overview', authenticate, requirePermission('VIEW_STUDENT'), studentController.getStudentStatistics);
 
-// Import students from Excel (admin only)
-router.post('/import/excel', authenticate, adminOnly, excelUpload.single('file'), studentController.importStudentsFromExcel);
+// Import students from Excel (requires CREATE_STUDENT permission)
+router.post('/import/excel', authenticate, requirePermission('CREATE_STUDENT'), excelUpload.single('file'), studentController.importStudentsFromExcel);
 
-// Upload profile picture (admin only)
-router.post('/:id/profile-picture', authenticate, adminOnly, profilePictureUpload.single('profilePicture'), studentController.uploadProfilePicture);
+// Upload profile picture (requires EDIT_STUDENT permission)
+router.post('/:id/profile-picture', authenticate, requirePermission('EDIT_STUDENT'), profilePictureUpload.single('profilePicture'), studentController.uploadProfilePicture);
 
-// Delete profile picture (admin only)
-router.delete('/:id/profile-picture', authenticate, adminOnly, studentController.deleteProfilePicture);
+// Delete profile picture (requires EDIT_STUDENT permission)
+router.delete('/:id/profile-picture', authenticate, requirePermission('EDIT_STUDENT'), studentController.deleteProfilePicture);
 
 module.exports = router;

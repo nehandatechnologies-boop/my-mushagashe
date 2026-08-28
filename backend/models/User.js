@@ -5,7 +5,7 @@ class User {
     const {
       full_name, email, student_number, password, role, phone, gender,
       national_id, date_of_birth, address, guardian_name, guardian_phone,
-      intake_year, course_id, status
+      intake_year, course_id, status, is_minor, guardian_relationship
     } = userData;
 
     console.log('User.create called with:', { full_name, email, student_number, role, course_id, status });
@@ -13,7 +13,11 @@ class User {
     const insertData = {
       full_name, email, student_number, password, role, phone, gender,
       national_id, date_of_birth, address, guardian_name, guardian_phone,
-      intake_year, course_id, status
+      intake_year, course_id, status, is_minor, guardian_relationship,
+      last_password_change: new Date().toISOString(),
+      password_history: [],
+      failed_login_attempts: 0,
+      must_change_password: false
     };
 
     // Remove undefined values and convert empty strings to null
@@ -168,13 +172,19 @@ class User {
     const {
       full_name, email, student_number, phone, gender, national_id,
       date_of_birth, address, guardian_name, guardian_phone,
-      intake_year, status, course_id, profile_picture_url
+      intake_year, status, course_id, profile_picture_url,
+      is_minor, guardian_relationship, guardian_verified,
+      last_password_change, password_history, failed_login_attempts,
+      account_locked_until, must_change_password, mfa_enabled, mfa_secret
     } = userData;
 
     const updateData = {
       full_name, email, student_number, phone, gender, national_id,
       date_of_birth, address, guardian_name, guardian_phone,
-      intake_year, status, course_id, profile_picture_url
+      intake_year, status, course_id, profile_picture_url,
+      is_minor, guardian_relationship, guardian_verified,
+      last_password_change, password_history, failed_login_attempts,
+      account_locked_until, must_change_password, mfa_enabled, mfa_secret
     };
 
     // Remove undefined values and convert empty strings to null
