@@ -8,6 +8,11 @@ const requirePermission = (permissionName) => {
         return res.status(401).json({ error: 'Authentication required' });
       }
 
+      // Admin and super_admin bypass permission checks
+      if (req.user.role === 'admin' || req.user.role === 'super_admin') {
+        return next();
+      }
+
       const hasPermission = await Permission.hasPermission(req.user.role, permissionName);
 
       if (!hasPermission) {
@@ -31,6 +36,11 @@ const requireAnyPermission = (...permissionNames) => {
     try {
       if (!req.user) {
         return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      // Admin and super_admin bypass permission checks
+      if (req.user.role === 'admin' || req.user.role === 'super_admin') {
+        return next();
       }
 
       const hasPermission = await Permission.hasAnyPermission(req.user.role, permissionNames);

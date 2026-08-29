@@ -137,23 +137,34 @@ async function loadPageData(page) {
 // Load dashboard statistics
 async function loadDashboardStatistics() {
     try {
+        console.log('Loading dashboard statistics...');
         const stats = await apiRequest('/dashboard/statistics');
+        console.log('Statistics received:', stats);
         
-        document.getElementById('totalStudents').textContent = stats.students.total;
-        document.getElementById('totalCourses').textContent = stats.courses.total;
-        document.getElementById('revenueCollected').textContent = `$${stats.fees.total_collected.toFixed(2)}`;
-        document.getElementById('pendingFees').textContent = stats.fees.unpaid;
+        document.getElementById('totalStudents').textContent = stats.students.total || 0;
+        document.getElementById('totalCourses').textContent = stats.courses.total || 0;
+        document.getElementById('revenueCollected').textContent = `$${(stats.fees.total_collected || 0).toFixed(2)}`;
+        document.getElementById('pendingFees').textContent = stats.fees.unpaid || 0;
         
-        document.getElementById('activeStudents').textContent = stats.students.active;
-        document.getElementById('suspendedStudents').textContent = stats.students.suspended;
-        document.getElementById('maleStudents').textContent = stats.students.male;
-        document.getElementById('femaleStudents').textContent = stats.students.female;
+        document.getElementById('activeStudents').textContent = stats.students.active || 0;
+        document.getElementById('suspendedStudents').textContent = stats.students.suspended || 0;
+        document.getElementById('maleStudents').textContent = stats.students.male || 0;
+        document.getElementById('femaleStudents').textContent = stats.students.female || 0;
         
         // Load recent announcements
         await loadRecentAnnouncements();
         
     } catch (error) {
         console.error('Error loading statistics:', error);
+        // Set default values on error
+        document.getElementById('totalStudents').textContent = '0';
+        document.getElementById('totalCourses').textContent = '0';
+        document.getElementById('revenueCollected').textContent = '$0.00';
+        document.getElementById('pendingFees').textContent = '0';
+        document.getElementById('activeStudents').textContent = '0';
+        document.getElementById('suspendedStudents').textContent = '0';
+        document.getElementById('maleStudents').textContent = '0';
+        document.getElementById('femaleStudents').textContent = '0';
         showToast('Failed to load statistics', 'error');
     }
 }
@@ -484,126 +495,132 @@ function hideModal() {
 }
 
 // Student CRUD operations
-document.getElementById('importExcelBtn').addEventListener('click', () => {
-    showModal(`
-        <div class="modal-header">
-            <h3>Import Students from Excel</h3>
-            <button class="modal-close" onclick="hideModal()">&times;</button>
-        </div>
-        <form id="importExcelForm" class="modal-form">
-            <div class="form-group">
-                <label>Excel File *</label>
-                <input type="file" name="file" accept=".xlsx,.xls" required>
-                <small class="form-help">Supported columns: Full Name, Student Number, Email, Password, Phone, Gender, National ID, Date of Birth, Address, Guardian Name, Guardian Phone, Intake Year, Course ID</small>
+const importExcelBtn = document.getElementById('importExcelBtn');
+if (importExcelBtn) {
+    importExcelBtn.addEventListener('click', () => {
+        showModal(`
+            <div class="modal-header">
+                <h3>Import Students from Excel</h3>
+                <button class="modal-close" onclick="hideModal()">&times;</button>
             </div>
-            <button type="submit" class="btn btn-primary">Import Students</button>
-        </form>
-    `);
-    
-    document.getElementById('importExcelForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const fileInput = e.target.querySelector('input[type="file"]');
-        const file = fileInput.files[0];
+            <form id="importExcelForm" class="modal-form">
+                <div class="form-group">
+                    <label>Excel File *</label>
+                    <input type="file" name="file" accept=".xlsx,.xls" required>
+                    <small class="form-help">Supported columns: Full Name, Student Number, Email, Password, Phone, Gender, National ID, Date of Birth, Address, Guardian Name, Guardian Phone, Intake Year, Course ID</small>
+                </div>
+                <button type="submit" class="btn btn-primary">Import Students</button>
+            </form>
+        `);
         
-        if (!file) {
-            showToast('Please select a file', 'error');
-            return;
-        }
-
-        const formData = new FormData();
-        formData.append('file', file);
-
-        try {
-            const response = await fetch(`${API_BASE}/students/import/excel`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`
-                },
-                body: formData
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Import failed');
-            }
-
-            showToast(`Imported ${data.imported.length} students successfully`);
+        document.getElementById('importExcelForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const fileInput = e.target.querySelector('input[type="file"]');
+            const file = fileInput.files[0];
             
-            if (data.errors && data.errors.length > 0) {
-                console.warn('Import errors:', data.errors);
-                // Show first few errors in toast
-                const errorSample = data.errors.slice(0, 3).map(e => e.error || e.message).join('; ');
-                showToast(`${data.errors.length} rows had errors. Sample: ${errorSample}`, 'error');
+            if (!file) {
+                showToast('Please select a file', 'error');
+                return;
             }
 
-            hideModal();
-            loadStudents();
-        } catch (error) {
-            console.error('Import error:', error);
-            showToast('Failed to import students', 'error');
-        }
-    });
-});
+            const formData = new FormData();
+            formData.append('file', file);
 
-document.getElementById('addStudentBtn').addEventListener('click', () => {
-    showModal(`
-        <div class="modal-header">
-            <h3>Add New Student</h3>
-            <button class="modal-close" onclick="hideModal()">&times;</button>
-        </div>
-        <form id="addStudentForm" class="modal-form">
-            <div class="form-group">
-                <label>Full Name *</label>
-                <input type="text" name="full_name" required>
-            </div>
-            <div class="form-group">
-                <label>Student Number *</label>
-                <input type="text" name="student_number" required>
-            </div>
-            <div class="form-group">
-                <label>Email</label>
-                <input type="email" name="email">
-            </div>
-            <div class="form-group">
-                <label>Password *</label>
-                <input type="password" name="password" required minlength="6">
-            </div>
-            <div class="form-group">
-                <label>Phone</label>
-                <input type="tel" name="phone">
-            </div>
-            <div class="form-group">
-                <label>Course</label>
-                <select name="course_id" id="courseSelect">
-                    <option value="">Select Course</option>
-                </select>
-            </div>
-            <button type="submit" class="btn btn-primary">Add Student</button>
-        </form>
-    `);
-    
-    // Load courses for dropdown
-    loadCourseDropdown();
-    
-    document.getElementById('addStudentForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const formData = new FormData(e.target);
-        const studentData = Object.fromEntries(formData);
-        
-        try {
-            await apiRequest('/students', {
-                method: 'POST',
-                body: JSON.stringify(studentData)
-            });
-            showToast('Student added successfully');
-            hideModal();
-            loadStudents();
-        } catch (error) {
-            showToast('Failed to add student', 'error');
-        }
+            try {
+                const response = await fetch(`${API_BASE}/students/import/excel`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Import failed');
+                }
+
+                showToast(`Imported ${data.imported.length} students successfully`);
+                
+                if (data.errors && data.errors.length > 0) {
+                    console.warn('Import errors:', data.errors);
+                    // Show first few errors in toast
+                    const errorSample = data.errors.slice(0, 3).map(e => e.error || e.message).join('; ');
+                    showToast(`${data.errors.length} rows had errors. Sample: ${errorSample}`, 'error');
+                }
+
+                hideModal();
+                loadStudents();
+            } catch (error) {
+                console.error('Import error:', error);
+                showToast('Failed to import students', 'error');
+            }
+        });
     });
-});
+}
+
+const addStudentBtn = document.getElementById('addStudentBtn');
+if (addStudentBtn) {
+    addStudentBtn.addEventListener('click', () => {
+        showModal(`
+            <div class="modal-header">
+                <h3>Add New Student</h3>
+                <button class="modal-close" onclick="hideModal()">&times;</button>
+            </div>
+            <form id="addStudentForm" class="modal-form">
+                <div class="form-group">
+                    <label>Full Name *</label>
+                    <input type="text" name="full_name" required>
+                </div>
+                <div class="form-group">
+                    <label>Student Number *</label>
+                    <input type="text" name="student_number" required>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" name="email">
+                </div>
+                <div class="form-group">
+                    <label>Password *</label>
+                    <input type="password" name="password" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label>Phone</label>
+                    <input type="tel" name="phone">
+                </div>
+                <div class="form-group">
+                    <label>Course</label>
+                    <select name="course_id" id="courseSelect">
+                        <option value="">Select Course</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Add Student</button>
+            </form>
+        `);
+        
+        // Load courses for dropdown
+        loadCourseDropdown();
+        
+        document.getElementById('addStudentForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const studentData = Object.fromEntries(formData);
+            
+            try {
+                await apiRequest('/students', {
+                    method: 'POST',
+                    body: JSON.stringify(studentData)
+                });
+                showToast('Student added successfully');
+                hideModal();
+                loadStudents();
+            } catch (error) {
+                showToast('Failed to add student', 'error');
+            }
+        });
+    });
+}
 
 window.editStudent = async function(id) {
     try {
@@ -738,55 +755,58 @@ window.deleteStudent = async function(id) {
 };
 
 // Course CRUD operations
-document.getElementById('addCourseBtn').addEventListener('click', () => {
-    showModal(`
-        <div class="modal-header">
-            <h3>Add New Course</h3>
-            <button class="modal-close" onclick="hideModal()">&times;</button>
-        </div>
-        <form id="addCourseForm" class="modal-form">
-            <div class="form-group">
-                <label>Course Code *</label>
-                <input type="text" name="course_code" required>
+const addCourseBtn = document.getElementById('addCourseBtn');
+if (addCourseBtn) {
+    addCourseBtn.addEventListener('click', () => {
+        showModal(`
+            <div class="modal-header">
+                <h3>Add New Course</h3>
+                <button class="modal-close" onclick="hideModal()">&times;</button>
             </div>
-            <div class="form-group">
-                <label>Course Name *</label>
-                <input type="text" name="course_name" required>
-            </div>
-            <div class="form-group">
-                <label>Department</label>
-                <input type="text" name="department">
-            </div>
-            <div class="form-group">
-                <label>Duration (years)</label>
-                <input type="number" name="duration" min="1">
-            </div>
-            <div class="form-group">
-                <label>Description</label>
-                <textarea name="description" rows="3"></textarea>
-            </div>
-            <button type="submit" class="btn btn-primary">Add Course</button>
-        </form>
-    `);
-    
-    document.getElementById('addCourseForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const formData = new FormData(e.target);
-        const courseData = Object.fromEntries(formData);
+            <form id="addCourseForm" class="modal-form">
+                <div class="form-group">
+                    <label>Course Code *</label>
+                    <input type="text" name="course_code" required>
+                </div>
+                <div class="form-group">
+                    <label>Course Name *</label>
+                    <input type="text" name="course_name" required>
+                </div>
+                <div class="form-group">
+                    <label>Department</label>
+                    <input type="text" name="department">
+                </div>
+                <div class="form-group">
+                    <label>Duration (years)</label>
+                    <input type="number" name="duration" min="1">
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea name="description" rows="3"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Add Course</button>
+            </form>
+        `);
         
-        try {
-            await apiRequest('/courses', {
-                method: 'POST',
-                body: JSON.stringify(courseData)
-            });
-            showToast('Course added successfully');
-            hideModal();
-            loadCourses();
-        } catch (error) {
-            showToast('Failed to add course', 'error');
-        }
+        document.getElementById('addCourseForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const courseData = Object.fromEntries(formData);
+            
+            try {
+                await apiRequest('/courses', {
+                    method: 'POST',
+                    body: JSON.stringify(courseData)
+                });
+                showToast('Course added successfully');
+                hideModal();
+                loadCourses();
+            } catch (error) {
+                showToast('Failed to add course', 'error');
+            }
+        });
     });
-});
+}
 
 window.editCourse = async function(id) {
     try {
@@ -899,72 +919,76 @@ async function loadLecturers() {
 }
 
 // Lecturer CRUD operations
-document.getElementById('addLecturerBtn').addEventListener('click', async () => {
-    try {
-        const courses = await apiRequest('/courses');
-        
-        showModal(`
-            <div class="modal-header">
-                <h3>Add New Lecturer</h3>
-                <button class="modal-close" onclick="hideModal()">&times;</button>
-            </div>
-            <form id="addLecturerForm" class="modal-form">
-                <div class="form-group">
-                    <label>Full Name *</label>
-                    <input type="text" name="full_name" required>
-                </div>
-                <div class="form-group">
-                    <label>Email *</label>
-                    <input type="email" name="email" required>
-                </div>
-                <div class="form-group">
-                    <label>Password *</label>
-                    <input type="password" name="password" required minlength="6">
-                </div>
-                <div class="form-group">
-                    <label>Phone</label>
-                    <input type="tel" name="phone">
-                </div>
-                <div class="form-group">
-                    <label>Gender</label>
-                    <select name="gender">
-                        <option value="">Select Gender</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Course *</label>
-                    <select name="course_id" required>
-                        <option value="">Select Course</option>
-                        ${courses.map(c => `<option value="${c.id}">${c.course_name} (${c.course_code})</option>`).join('')}
-                    </select>
-                </div>
-                <button type="submit" class="btn btn-primary">Add Lecturer</button>
-            </form>
-        `);
-        
-        document.getElementById('addLecturerForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const lecturerData = Object.fromEntries(formData);
+const addLecturerBtn = document.getElementById('addLecturerBtn');
+if (addLecturerBtn) {
+    addLecturerBtn.addEventListener('click', async () => {
+        try {
+            const courses = await apiRequest('/courses');
             
-            try {
-                await apiRequest('/students/lecturers', {
-                    method: 'POST',
-                    body: JSON.stringify(lecturerData)
-                });
-                showToast('Lecturer added successfully');
-                hideModal();
-                loadLecturers();
-            } catch (error) {
-                showToast('Failed to add lecturer', 'error');
-            }
-        });
-    } catch (error) {
-        showToast('Failed to load courses', 'error');
-    }
-});
+            showModal(`
+                <div class="modal-header">
+                    <h3>Add New Lecturer</h3>
+                    <button class="modal-close" onclick="hideModal()">&times;</button>
+                </div>
+                <form id="addLecturerForm" class="modal-form">
+                    <div class="form-group">
+                        <label>Full Name *</label>
+                        <input type="text" name="full_name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Email *</label>
+                        <input type="email" name="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Password *</label>
+                        <input type="password" name="password" required minlength="6">
+                    </div>
+                    <div class="form-group">
+                        <label>Phone</label>
+                        <input type="tel" name="phone">
+                    </div>
+                    <div class="form-group">
+                        <label>Gender</label>
+                        <select name="gender">
+                            <option value="">Select Gender</option>
+                            <option value="male">Male</option>
+                            <option value="female">Female</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Course *</label>
+                        <select name="course_id" required>
+                            <option value="">Select Course</option>
+                            ${courses.map(c => `<option value="${c.id}">${c.course_name} (${c.course_code})</option>`).join('')}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add Lecturer</button>
+                </form>
+            `);
+            
+            document.getElementById('addLecturerForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const lecturerData = Object.fromEntries(formData);
+                
+                try {
+                    await apiRequest('/students/lecturers', {
+                        method: 'POST',
+                        body: JSON.stringify(lecturerData)
+                    });
+                    showToast('Lecturer added successfully');
+                    hideModal();
+                    loadLecturers();
+                } catch (error) {
+                    showToast('Failed to add lecturer', 'error');
+                }
+            });
+        } catch (error) {
+            console.error('Load courses error:', error);
+            showToast('Failed to load courses', 'error');
+        }
+    });
+}
 
 async function editLecturer(id) {
     try {
@@ -1054,67 +1078,70 @@ async function deleteLecturer(id) {
 window.deleteLecturer = deleteLecturer;
 
 // Fee CRUD operations
-document.getElementById('addFeeBtn').addEventListener('click', async () => {
-    try {
-        const students = await apiRequest('/students');
-        
-        showModal(`
-            <div class="modal-header">
-                <h3>Add New Fee</h3>
-                <button class="modal-close" onclick="hideModal()">&times;</button>
-            </div>
-            <form id="addFeeForm" class="modal-form">
-                <div class="form-group">
-                    <label>Student *</label>
-                    <select name="user_id" required>
-                        <option value="">Select Student</option>
-                        ${students.map(s => `<option value="${s.id}">${s.full_name} (${s.student_number})</option>`).join('')}
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Fee Category *</label>
-                    <select name="fee_category" required>
-                        <option value="Registration">Registration</option>
-                        <option value="Tuition">Tuition</option>
-                        <option value="Examination">Examination</option>
-                        <option value="Accommodation">Accommodation</option>
-                        <option value="Library">Library</option>
-                        <option value="Other">Other</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Amount *</label>
-                    <input type="number" name="amount" required min="0" step="0.01">
-                </div>
-                <div class="form-group">
-                    <label>Due Date</label>
-                    <input type="date" name="due_date">
-                </div>
-                <button type="submit" class="btn btn-primary">Add Fee</button>
-            </form>
-        `);
-        
-        document.getElementById('addFeeForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const feeData = Object.fromEntries(formData);
+const addFeeBtn = document.getElementById('addFeeBtn');
+if (addFeeBtn) {
+    addFeeBtn.addEventListener('click', async () => {
+        try {
+            const students = await apiRequest('/students');
             
-            try {
-                await apiRequest('/fees', {
-                    method: 'POST',
-                    body: JSON.stringify(feeData)
-                });
-                showToast('Fee added successfully');
-                hideModal();
-                loadFees();
-            } catch (error) {
-                showToast('Failed to add fee', 'error');
-            }
-        });
-    } catch (error) {
-        showToast('Failed to load students', 'error');
-    }
-});
+            showModal(`
+                <div class="modal-header">
+                    <h3>Add New Fee</h3>
+                    <button class="modal-close" onclick="hideModal()">&times;</button>
+                </div>
+                <form id="addFeeForm" class="modal-form">
+                    <div class="form-group">
+                        <label>Student *</label>
+                        <select name="user_id" required>
+                            <option value="">Select Student</option>
+                            ${students.map(s => `<option value="${s.id}">${s.full_name} (${s.student_number})</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Fee Category *</label>
+                        <select name="fee_category" required>
+                            <option value="Registration">Registration</option>
+                            <option value="Tuition">Tuition</option>
+                            <option value="Examination">Examination</option>
+                            <option value="Accommodation">Accommodation</option>
+                            <option value="Library">Library</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Amount *</label>
+                        <input type="number" name="amount" required min="0" step="0.01">
+                    </div>
+                    <div class="form-group">
+                        <label>Due Date</label>
+                        <input type="date" name="due_date">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add Fee</button>
+                </form>
+            `);
+            
+            document.getElementById('addFeeForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const feeData = Object.fromEntries(formData);
+                
+                try {
+                    await apiRequest('/fees', {
+                        method: 'POST',
+                        body: JSON.stringify(feeData)
+                    });
+                    showToast('Fee added successfully');
+                    hideModal();
+                    loadFees();
+                } catch (error) {
+                    showToast('Failed to add fee', 'error');
+                }
+            });
+        } catch (error) {
+            showToast('Failed to load students', 'error');
+        }
+    });
+}
 
 async function recordPayment(id) {
     showModal(`
@@ -1272,136 +1299,141 @@ async function deleteFee(id) {
 window.deleteFee = deleteFee;
 
 // Result CRUD operations
-document.getElementById('addResultBtn').addEventListener('click', async () => {
-    try {
-        const students = await apiRequest('/students');
-        const courses = await apiRequest('/courses');
-        
-        showModal(`
-            <div class="modal-header">
-                <h3>Add New Result</h3>
-                <button class="modal-close" onclick="hideModal()">&times;</button>
-            </div>
-            <form id="addResultForm" class="modal-form">
-                <div class="form-group">
-                    <label>Student *</label>
-                    <select name="user_id" required id="studentSelect">
-                        <option value="">Select Student</option>
-                        ${students.map(s => `<option value="${s.id}">${s.full_name} (${s.student_number})</option>`).join('')}
-                    </select>
+const addResultBtn = document.getElementById('addResultBtn');
+if (addResultBtn) {
+    addResultBtn.addEventListener('click', async () => {
+        try {
+            const students = await apiRequest('/students');
+            const courses = await apiRequest('/courses');
+            
+            showModal(`
+                <div class="modal-header">
+                    <h3>Add New Result</h3>
+                    <button class="modal-close" onclick="hideModal()">&times;</button>
                 </div>
-                <div class="form-group">
-                    <label>Course *</label>
-                    <select name="course_id" required id="courseSelect">
-                        <option value="">Select Course</option>
-                        ${courses.map(c => `<option value="${c.id}">${c.course_name} (${c.course_code})</option>`).join('')}
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Term *</label>
-                    <select name="semester" required>
-                        <option value="1">Term 1</option>
-                        <option value="2">Term 2</option>
-                        <option value="3">Term 3</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Academic Year *</label>
-                    <input type="number" name="academic_year" required min="2000" max="2100" value="${new Date().getFullYear()}">
-                </div>
-                <div id="subjectsContainer" style="display: none;">
-                    <h4>Subject Marks</h4>
-                    <div id="subjectsList"></div>
-                </div>
-                <div class="form-group">
-                    <label>Assessment Mark</label>
-                    <input type="number" name="assessment_mark" min="0" max="100">
-                </div>
-                <div class="form-group">
-                    <label>Exam Mark</label>
-                    <input type="number" name="exam_mark" min="0" max="100">
-                </div>
-                <div class="form-group">
-                    <label>Remarks</label>
-                    <input type="text" name="remarks">
-                </div>
-                <button type="submit" class="btn btn-primary">Add Result</button>
-            </form>
-        `);
-        
-        // Load subjects when course is selected
-        document.getElementById('courseSelect').addEventListener('change', async (e) => {
-            const courseId = e.target.value;
-            if (courseId) {
-                try {
-                    const subjects = await apiRequest(`/subjects/course/${courseId}`);
-                    const subjectsContainer = document.getElementById('subjectsContainer');
-                    const subjectsList = document.getElementById('subjectsList');
-                    
-                    if (subjects && subjects.length > 0) {
-                        subjectsContainer.style.display = 'block';
-                        subjectsList.innerHTML = subjects.map(subject => `
-                            <div class="form-group subject-mark-group">
-                                <label>${subject.subject_name} (${subject.subject_code})</label>
-                                <input type="number" 
-                                       class="subject-mark-input" 
-                                       data-subject-id="${subject.id}" 
-                                       placeholder="Enter mark (0-100)" 
-                                       min="0" 
-                                       max="100">
-                            </div>
-                        `).join('');
+                <form id="addResultForm" class="modal-form">
+                    <div class="form-group">
+                        <label>Student *</label>
+                        <select name="user_id" required id="studentSelect">
+                            <option value="">Select Student</option>
+                            ${students.map(s => `<option value="${s.id}">${s.full_name} (${s.student_number})</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Course *</label>
+                        <select name="course_id" required id="courseSelect">
+                            <option value="">Select Course</option>
+                            ${courses.map(c => `<option value="${c.id}">${c.course_name} (${c.course_code})</option>`).join('')}
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Term *</label>
+                        <select name="semester" required>
+                            <option value="1">Term 1</option>
+                            <option value="2">Term 2</option>
+                            <option value="3">Term 3</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Academic Year *</label>
+                        <input type="number" name="academic_year" required min="2000" max="2100" value="${new Date().getFullYear()}">
+                    </div>
+                    <div id="subjectsContainer" style="display: none;">
+                        <h4>Subject Marks</h4>
+                        <div id="subjectsList"></div>
+                    </div>
+                    <div class="form-group">
+                        <label>Assessment Mark</label>
+                        <input type="number" name="assessment_mark" min="0" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label>Exam Mark</label>
+                        <input type="number" name="exam_mark" min="0" max="100">
+                    </div>
+                    <div class="form-group">
+                        <label>Remarks</label>
+                        <input type="text" name="remarks">
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add Result</button>
+                </form>
+            `);
+            
+            // Load subjects when course is selected
+            const courseSelect = document.getElementById('courseSelect');
+            if (courseSelect) {
+                courseSelect.addEventListener('change', async (e) => {
+                    const courseId = e.target.value;
+                    if (courseId) {
+                        try {
+                            const subjects = await apiRequest(`/subjects/course/${courseId}`);
+                            const subjectsContainer = document.getElementById('subjectsContainer');
+                            const subjectsList = document.getElementById('subjectsList');
+                            
+                            if (subjects && subjects.length > 0) {
+                                subjectsContainer.style.display = 'block';
+                                subjectsList.innerHTML = subjects.map(subject => `
+                                    <div class="form-group subject-mark-group">
+                                        <label>${subject.subject_name} (${subject.subject_code})</label>
+                                        <input type="number" 
+                                               class="subject-mark-input" 
+                                               data-subject-id="${subject.id}" 
+                                               placeholder="Enter mark (0-100)" 
+                                               min="0" 
+                                               max="100">
+                                    </div>
+                                `).join('');
+                            } else {
+                                subjectsContainer.style.display = 'none';
+                            }
+                        } catch (error) {
+                            console.error('Failed to load subjects:', error);
+                        }
                     } else {
-                        subjectsContainer.style.display = 'none';
+                        const subjectsContainer = document.getElementById('subjectsContainer');
+                        if (subjectsContainer) subjectsContainer.style.display = 'none';
                     }
-                } catch (error) {
-                    console.error('Failed to load subjects:', error);
-                }
-            } else {
-                document.getElementById('subjectsContainer').style.display = 'none';
-            }
-        });
-        
-        document.getElementById('addResultForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const resultData = Object.fromEntries(formData);
-            
-            // Collect subject marks
-            const subjectMarks = [];
-            document.querySelectorAll('.subject-mark-input').forEach(input => {
-                if (input.value) {
-                    subjectMarks.push({
-                        subject_id: input.dataset.subjectId,
-                        mark: parseFloat(input.value)
-                    });
-                }
-            });
-            
-            if (subjectMarks.length > 0) {
-                resultData.subject_marks = subjectMarks;
-            }
-            
-            console.log('Submitting result data:', resultData);
-            
-            try {
-                const response = await apiRequest('/results', {
-                    method: 'POST',
-                    body: JSON.stringify(resultData)
                 });
-                console.log('Result created:', response);
-                showToast('Result added successfully');
-                hideModal();
-                loadResults();
-            } catch (error) {
-                console.error('Add result error:', error);
-                showToast('Failed to add result: ' + (error.message || 'Unknown error'), 'error');
             }
-        });
-    } catch (error) {
-        showToast('Failed to load students', 'error');
-    }
-});
+            
+            const addResultForm = document.getElementById('addResultForm');
+            if (addResultForm) {
+                addResultForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const formData = new FormData(e.target);
+                    const resultData = Object.fromEntries(formData);
+                    
+                    // Collect subject marks
+                    const subjectMarks = [];
+                    document.querySelectorAll('.subject-mark-input').forEach(input => {
+                        if (input.value) {
+                            subjectMarks.push({
+                                subject_id: input.dataset.subjectId,
+                                mark: parseFloat(input.value)
+                            });
+                        }
+                    });
+                    
+                    resultData.subject_results = subjectMarks;
+                    
+                    try {
+                        await apiRequest('/results', {
+                            method: 'POST',
+                            body: JSON.stringify(resultData)
+                        });
+                        showToast('Result added successfully');
+                        hideModal();
+                        loadResults();
+                    } catch (error) {
+                        showToast('Failed to add result', 'error');
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('Load data error:', error);
+            showToast('Failed to load data', 'error');
+        }
+    });
+}
 
 async function editResult(id) {
     try {
@@ -1674,56 +1706,62 @@ async function loadSubjectCourseFilter() {
 }
 
 // Announcement CRUD operations
-document.getElementById('addAnnouncementBtn').addEventListener('click', () => {
-    showModal(`
-        <div class="modal-header">
-            <h3>Add New Announcement</h3>
-            <button class="modal-close" onclick="hideModal()">&times;</button>
-        </div>
-        <form id="addAnnouncementForm" class="modal-form">
-            <div class="form-group">
-                <label>Title *</label>
-                <input type="text" name="title" required>
+const addAnnouncementBtn = document.getElementById('addAnnouncementBtn');
+if (addAnnouncementBtn) {
+    addAnnouncementBtn.addEventListener('click', () => {
+        showModal(`
+            <div class="modal-header">
+                <h3>Add New Announcement</h3>
+                <button class="modal-close" onclick="hideModal()">&times;</button>
             </div>
-            <div class="form-group">
-                <label>Message *</label>
-                <textarea name="message" rows="4" required></textarea>
-            </div>
-            <div class="form-group">
-                <label>Priority</label>
-                <select name="priority">
-                    <option value="low">Low</option>
-                    <option value="normal" selected>Normal</option>
-                    <option value="important">Important</option>
-                    <option value="urgent">Urgent</option>
-                </select>
-            </div>
-            <button type="submit" class="btn btn-primary">Add Announcement</button>
-        </form>
-    `);
-    
-    document.getElementById('addAnnouncementForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const formData = new FormData(e.target);
-        const data = {
-            title: formData.get('title'),
-            message: formData.get('message'),
-            priority: formData.get('priority')
-        };
+            <form id="addAnnouncementForm" class="modal-form">
+                <div class="form-group">
+                    <label>Title *</label>
+                    <input type="text" name="title" required>
+                </div>
+                <div class="form-group">
+                    <label>Message *</label>
+                    <textarea name="message" rows="4" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Priority</label>
+                    <select name="priority">
+                        <option value="low">Low</option>
+                        <option value="normal" selected>Normal</option>
+                        <option value="important">Important</option>
+                        <option value="urgent">Urgent</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Add Announcement</button>
+            </form>
+        `);
         
-        try {
-            await apiRequest('/announcements', {
-                method: 'POST',
-                body: JSON.stringify(data)
+        const addAnnouncementForm = document.getElementById('addAnnouncementForm');
+        if (addAnnouncementForm) {
+            addAnnouncementForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const data = {
+                    title: formData.get('title'),
+                    message: formData.get('message'),
+                    priority: formData.get('priority')
+                };
+                
+                try {
+                    await apiRequest('/announcements', {
+                        method: 'POST',
+                        body: JSON.stringify(data)
+                    });
+                    showToast('Announcement added successfully');
+                    hideModal();
+                    loadAnnouncements();
+                } catch (error) {
+                    showToast('Failed to add announcement', 'error');
+                }
             });
-            showToast('Announcement added successfully');
-            hideModal();
-            loadAnnouncements();
-        } catch (error) {
-            showToast('Failed to add announcement', 'error');
         }
     });
-});
+}
 
 async function editAnnouncement(id) {
     try {
@@ -1842,60 +1880,70 @@ function showChangePasswordModal() {
         </div>
     `;
     
-    document.getElementById('modalContainer').innerHTML = modalHtml;
-    document.getElementById('modalContainer').style.display = 'flex';
-    
-    document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const currentPassword = document.getElementById('current_password').value;
-        const newPassword = document.getElementById('new_password').value;
-        const confirmPassword = document.getElementById('confirm_password').value;
+    const modalContainer = document.getElementById('modalContainer');
+    if (modalContainer) {
+        modalContainer.innerHTML = modalHtml;
+        modalContainer.style.display = 'flex';
         
-        if (newPassword !== confirmPassword) {
-            showToast('Passwords do not match', 'error');
-            return;
-        }
-        
-        try {
-            await apiRequest('/auth/change-password', {
-                method: 'PUT',
-                body: JSON.stringify({
-                    current_password: currentPassword,
-                    new_password: newPassword
-                })
+        const changePasswordForm = document.getElementById('changePasswordForm');
+        if (changePasswordForm) {
+            changePasswordForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const currentPassword = document.getElementById('current_password').value;
+                const newPassword = document.getElementById('new_password').value;
+                const confirmPassword = document.getElementById('confirm_password').value;
+                
+                if (newPassword !== confirmPassword) {
+                    showToast('Passwords do not match', 'error');
+                    return;
+                }
+                
+                try {
+                    await apiRequest('/auth/change-password', {
+                        method: 'POST',
+                        body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
+                    });
+                    showToast('Password changed successfully');
+                    closeModal();
+                } catch (error) {
+                    showToast('Failed to change password', 'error');
+                }
             });
-            showToast('Password changed successfully');
-            closeModal();
-        } catch (error) {
-            showToast(error.message || 'Failed to change password', 'error');
         }
-    });
+    }
 }
 
 // Close modal
 function closeModal() {
-    document.getElementById('modalContainer').style.display = 'none';
+    const modalContainer = document.getElementById('modalContainer');
+    if (modalContainer) {
+        modalContainer.style.display = 'none';
+    }
 }
 
 // Search and filter event listeners
-document.getElementById('studentSearch').addEventListener('input', loadStudents);
-document.getElementById('studentFilter').addEventListener('change', loadStudents);
-document.getElementById('courseSearch').addEventListener('input', loadCourses);
-document.getElementById('feeSearch').addEventListener('input', loadFees);
-document.getElementById('feeFilter').addEventListener('change', loadFees);
-document.getElementById('resultSearch').addEventListener('input', loadResults);
-document.getElementById('semesterFilter').addEventListener('change', loadResults);
-document.getElementById('subjectSearch').addEventListener('input', loadSubjects);
-document.getElementById('subjectCourseFilter').addEventListener('change', loadSubjects);
+const studentSearch = document.getElementById('studentSearch');
+const studentFilter = document.getElementById('studentFilter');
+const courseSearch = document.getElementById('courseSearch');
+const feeSearch = document.getElementById('feeSearch');
+const feeFilter = document.getElementById('feeFilter');
+const resultSearch = document.getElementById('resultSearch');
+const semesterFilter = document.getElementById('semesterFilter');
+const subjectSearch = document.getElementById('subjectSearch');
 
-// Navigation click handlers
-document.querySelectorAll('.nav-item').forEach(item => {
-    item.addEventListener('click', (e) => {
-        e.preventDefault();
-        const page = item.dataset.page;
-        navigateTo(page);
-    });
-});
+if (studentSearch) studentSearch.addEventListener('input', loadStudents);
+if (studentFilter) studentFilter.addEventListener('change', loadStudents);
+if (courseSearch) courseSearch.addEventListener('input', loadCourses);
+if (feeSearch) feeSearch.addEventListener('input', loadFees);
+if (feeFilter) feeFilter.addEventListener('change', loadFees);
+if (resultSearch) resultSearch.addEventListener('input', loadResults);
+if (semesterFilter) semesterFilter.addEventListener('change', loadResults);
+if (subjectSearch) subjectSearch.addEventListener('input', loadSubjects);
+// Subject course filter change handler
+const subjectCourseFilter = document.getElementById('subjectCourseFilter');
+if (subjectCourseFilter) {
+    subjectCourseFilter.addEventListener('change', loadSubjects);
+}
 
 // View all links
 document.querySelectorAll('.view-all').forEach(link => {
@@ -1907,7 +1955,9 @@ document.querySelectorAll('.view-all').forEach(link => {
 });
 
 // Backup database handler
-document.getElementById('backupDbBtn').addEventListener('click', async () => {
+const backupDbBtn = document.getElementById('backupDbBtn');
+if (backupDbBtn) {
+    backupDbBtn.addEventListener('click', async () => {
     try {
         const response = await fetch(`${API_BASE}/auth/backup/database`, {
             headers: {
@@ -1934,12 +1984,16 @@ document.getElementById('backupDbBtn').addEventListener('click', async () => {
         console.error('Backup error:', error);
         showToast('Failed to backup database', 'error');
     }
-});
+    });
+}
 
 // Restore database handler
-document.getElementById('restoreDbBtn').addEventListener('click', () => {
-    showRestoreModal();
-});
+const restoreDbBtn = document.getElementById('restoreDbBtn');
+if (restoreDbBtn) {
+    restoreDbBtn.addEventListener('click', () => {
+        showRestoreModal();
+    });
+}
 
 // Show restore modal
 function showRestoreModal() {
@@ -1999,6 +2053,7 @@ function showRestoreModal() {
             
             showToast('Database restored successfully. Please refresh the page.');
             closeModal();
+            location.reload();
         } catch (error) {
             console.error('Restore error:', error);
             showToast(error.message || 'Failed to restore database', 'error');
@@ -2007,16 +2062,22 @@ function showRestoreModal() {
 }
 
 // Change password handler
-document.getElementById('changePasswordBtn').addEventListener('click', () => {
-    showChangePasswordModal();
-});
+const changePasswordBtn = document.getElementById('changePasswordBtn');
+if (changePasswordBtn) {
+    changePasswordBtn.addEventListener('click', () => {
+        showChangePasswordModal();
+    });
+}
 
 // Logout handler
-document.getElementById('logoutBtn').addEventListener('click', () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = 'index.html';
-});
+const logoutBtn = document.getElementById('logoutBtn');
+if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = 'index.html';
+    });
+}
 
 // Template management functions
 async function loadTemplateInfo() {
@@ -2025,122 +2086,143 @@ async function loadTemplateInfo() {
         const templateInfoDiv = document.getElementById('templateInfo');
         const templateActions = document.getElementById('templateActions');
         
-        if (templateInfo.hasTemplate) {
-            templateInfoDiv.innerHTML = `
-                <div class="template-status success">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                    </svg>
-                    <span>Template uploaded on ${new Date(templateInfo.uploadedAt).toLocaleDateString()} (${(templateInfo.size / 1024).toFixed(2)} KB)</span>
-                </div>
-            `;
-            templateActions.style.display = 'block';
-        } else {
-            templateInfoDiv.innerHTML = `
-                <div class="template-status warning">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="12" y1="8" x2="12" y2="12"></line>
-                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                    </svg>
-                    <span>No custom template uploaded. Using default template.</span>
-                </div>
-            `;
-            templateActions.style.display = 'none';
+        if (templateInfoDiv && templateActions) {
+            if (templateInfo.hasTemplate) {
+                templateInfoDiv.innerHTML = `
+                    <div class="template-status success">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                        </svg>
+                        <span>Template uploaded on ${new Date(templateInfo.uploadedAt).toLocaleDateString()} (${(templateInfo.size / 1024).toFixed(2)} KB)</span>
+                    </div>
+                `;
+                templateActions.style.display = 'block';
+            } else {
+                templateInfoDiv.innerHTML = `
+                    <div class="template-status warning">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="12" y1="8" x2="12" y2="12"></line>
+                            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                        </svg>
+                        <span>No custom template uploaded. Using default template.</span>
+                    </div>
+                `;
+                templateActions.style.display = 'none';
+            }
         }
     } catch (error) {
         console.error('Failed to load template info:', error);
-        document.getElementById('templateInfo').innerHTML = `
-            <div class="template-status error">
-                <span>Failed to load template information</span>
-            </div>
-        `;
+        const templateInfoDiv = document.getElementById('templateInfo');
+        if (templateInfoDiv) {
+            templateInfoDiv.innerHTML = `
+                <div class="template-status error">
+                    <span>Failed to load template information</span>
+                </div>
+            `;
+        }
     }
 }
 
 // Template upload handler
-document.getElementById('uploadTemplateForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const formData = new FormData(e.target);
-    const file = formData.get('template');
-    
-    if (!file) {
-        showToast('Please select a file', 'error');
-        return;
-    }
-    
-    if (file.size > 10 * 1024 * 1024) {
-        showToast('File size exceeds 10MB limit', 'error');
-        return;
-    }
-    
-    if (file.type !== 'application/pdf') {
-        showToast('Only PDF files are allowed', 'error');
-        return;
-    }
-    
-    try {
-        const currentToken = localStorage.getItem('token');
-        const response = await fetch(`${API_BASE}/templates/upload`, {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${currentToken}`
-            },
-            body: formData
-        });
+const uploadTemplateForm = document.getElementById('uploadTemplateForm');
+if (uploadTemplateForm) {
+    uploadTemplateForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
         
-        const data = await response.json();
+        const formData = new FormData(e.target);
+        const file = formData.get('template');
         
-        if (!response.ok) {
-            throw new Error(data.error || 'Failed to upload template');
+        if (!file) {
+            showToast('Please select a file', 'error');
+            return;
         }
         
-        showToast('Template uploaded successfully');
-        e.target.reset();
-        loadTemplateInfo();
-    } catch (error) {
-        console.error('Upload error:', error);
-        showToast(error.message || 'Failed to upload template', 'error');
-    }
-});
+        if (file.size > 10 * 1024 * 1024) {
+            showToast('File size exceeds 10MB limit', 'error');
+            return;
+        }
+        
+        if (file.type !== 'application/pdf') {
+            showToast('Only PDF files are allowed', 'error');
+            return;
+        }
+        
+        try {
+            const currentToken = localStorage.getItem('token');
+            const response = await fetch(`${API_BASE}/templates/upload`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${currentToken}`
+                },
+                body: formData
+            });
+            
+            const data = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to upload template');
+            }
+            
+            showToast('Template uploaded successfully');
+            e.target.reset();
+            loadTemplateInfo();
+        } catch (error) {
+            console.error('Upload error:', error);
+            showToast(error.message || 'Failed to upload template', 'error');
+        }
+    });
+}
 
 // Template delete handler
-document.getElementById('deleteTemplateBtn').addEventListener('click', async () => {
-    if (!confirm('Are you sure you want to delete the custom template? The default template will be used instead.')) return;
-    
-    try {
-        await apiRequest('/templates/delete', { method: 'DELETE' });
-        showToast('Template deleted successfully');
-        loadTemplateInfo();
-    } catch (error) {
-        console.error('Delete error:', error);
-        showToast('Failed to delete template', 'error');
-    }
-});
+const deleteTemplateBtn = document.getElementById('deleteTemplateBtn');
+if (deleteTemplateBtn) {
+    deleteTemplateBtn.addEventListener('click', async () => {
+        if (!confirm('Are you sure you want to delete the custom template? The default template will be used instead.')) return;
+        
+        try {
+            await apiRequest('/templates/delete', { method: 'DELETE' });
+            showToast('Template deleted successfully');
+            loadTemplateInfo();
+        } catch (error) {
+            console.error('Delete error:', error);
+            showToast('Failed to delete template', 'error');
+        }
+    });
+}
 
 // Check authentication on load
 window.addEventListener('load', () => {
     const currentToken = localStorage.getItem('token');
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
     
+    console.log('Auth check - token:', currentToken ? 'exists' : 'missing');
+    console.log('Auth check - user role:', currentUser.role);
+    
     if (!currentToken || currentUser.role !== 'admin') {
+        console.log('Redirecting to login - not authenticated or not admin');
         window.location.href = 'admin-login.html';
         return;
     }
 
     // Update header
-    document.getElementById('adminName').textContent = currentUser.full_name;
-    document.getElementById('headerAdminName').textContent = currentUser.full_name;
+    const adminName = document.getElementById('adminName');
+    const headerAdminName = document.getElementById('headerAdminName');
+    if (adminName) adminName.textContent = currentUser.full_name;
+    if (headerAdminName) headerAdminName.textContent = currentUser.full_name;
 
+    console.log('Loading dashboard statistics...');
     // Load initial data
     loadDashboardStatistics();
 });
 
 // Close modal when clicking outside
-document.getElementById('modalContainer').addEventListener('click', (e) => {
-    if (e.target.id === 'modalContainer') {
-        hideModal();
-    }
-});
+const modalContainer = document.getElementById('modalContainer');
+if (modalContainer) {
+    modalContainer.addEventListener('click', (e) => {
+        if (e.target.id === 'modalContainer') {
+            hideModal();
+        }
+    });
+}

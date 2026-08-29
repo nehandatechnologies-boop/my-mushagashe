@@ -115,26 +115,34 @@ async function loadPageData(page) {
 // Load dashboard overview data
 async function loadDashboardData() {
     try {
+        console.log('Loading student dashboard data...');
         const data = await apiRequest('/dashboard/student');
+        console.log('Student dashboard data received:', data);
         
         // Update user info
-        document.getElementById('studentName').textContent = data.user.full_name;
-        document.getElementById('headerStudentName').textContent = data.user.full_name;
-        document.getElementById('studentNumber').textContent = data.user.student_number;
+        if (data.user) {
+            document.getElementById('studentName').textContent = data.user.full_name;
+            document.getElementById('headerStudentName').textContent = data.user.full_name;
+            document.getElementById('studentNumber').textContent = data.user.student_number;
+        }
         
         // Update stats
-        document.getElementById('courseName').textContent = data.user.course_name || 'Not assigned';
-        document.getElementById('outstandingBalance').textContent = `$${data.fees.outstanding_balance.toFixed(2)}`;
-        document.getElementById('gpa').textContent = data.results.gpa.toFixed(2);
+        document.getElementById('courseName').textContent = data.user?.course_name || 'Not assigned';
+        document.getElementById('outstandingBalance').textContent = `$${(data.fees?.outstanding_balance || 0).toFixed(2)}`;
+        document.getElementById('gpa').textContent = (data.results?.gpa || 0).toFixed(2);
         
         // Load announcements
-        loadAnnouncementsList(data.announcements);
+        loadAnnouncementsList(data.announcements || []);
         
         // Load recent results
         await loadRecentResults();
         
     } catch (error) {
         console.error('Error loading dashboard data:', error);
+        // Set default values on error
+        document.getElementById('courseName').textContent = 'Not assigned';
+        document.getElementById('outstandingBalance').textContent = '$0.00';
+        document.getElementById('gpa').textContent = '0.00';
         showToast('Failed to load dashboard data', 'error');
     }
 }
