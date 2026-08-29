@@ -400,13 +400,16 @@ const downloadResultPDF = async (req, res) => {
     }
     console.log('Course found:', course.course_name);
 
-    // Check fee status for students
+    // Check fee status for students - block PDF download if outstanding balance > 0
     if (req.user.role === 'student') {
-      const fee = await Fee.findByUserId(req.user.id);
-      if (fee && fee.status === 'unpaid') {
-        const outstandingBalance = fee.amount - (fee.amount_paid || 0);
+      const outstandingBalance = await Fee.getOutstandingBalance(student.id);
+      console.log('Student outstanding balance:', outstandingBalance);
+      
+      if (outstandingBalance > 0) {
+        console.log('Blocking PDF download due to outstanding fees:', outstandingBalance);
         return res.status(403).json({ 
-          error: 'Outstanding fees must be paid before downloading result report',
+          error: 'Result Slip Download Unavailable',
+          message: `Your official result slip cannot be downloaded because you have an outstanding fee balance of $${outstandingBalance.toFixed(2)}. Please clear your outstanding fees and try again.`,
           outstanding_balance: outstandingBalance
         });
       }
@@ -443,12 +446,15 @@ const downloadResultsPDF = async (req, res) => {
       return res.status(404).json({ error: 'Student not found' });
     }
 
-    // Check fee status
-    const fee = await Fee.findByUserId(userId);
-    if (fee && fee.status === 'unpaid') {
-      const outstandingBalance = fee.amount - (fee.amount_paid || 0);
+    // Check fee status - block PDF download if outstanding balance > 0
+    const outstandingBalance = await Fee.getOutstandingBalance(userId);
+    console.log('Student outstanding balance:', outstandingBalance);
+    
+    if (outstandingBalance > 0) {
+      console.log('Blocking bulk PDF download due to outstanding fees:', outstandingBalance);
       return res.status(403).json({ 
-        error: 'Outstanding fees must be paid before downloading results',
+        error: 'Result Slip Download Unavailable',
+        message: `Your official result slip cannot be downloaded because you have an outstanding fee balance of $${outstandingBalance.toFixed(2)}. Please clear your outstanding fees and try again.`,
         outstanding_balance: outstandingBalance
       });
     }

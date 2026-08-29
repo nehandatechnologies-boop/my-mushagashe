@@ -72,17 +72,27 @@ function showToast(message, type = 'success') {
     const toast = document.getElementById('toast');
     const toastMessage = document.getElementById('toastMessage');
     
+    // Robust error handling - if elements don't exist, fall back to console
+    if (!toast || !toastMessage) {
+        console.error('Toast elements not found:', { toast: !!toast, toastMessage: !!toastMessage });
+        console.log(`Toast [${type}]:`, message);
+        return;
+    }
+    
     toastMessage.textContent = message;
     toast.style.display = 'block';
     toast.style.background = type === 'error' ? '#EF4444' : '#10B981';
     
     setTimeout(() => {
-        toast.style.display = 'none';
+        if (toast) toast.style.display = 'none';
     }, 3000);
 }
 
 function hideToast() {
-    document.getElementById('toast').style.display = 'none';
+    const toast = document.getElementById('toast');
+    if (toast) {
+        toast.style.display = 'none';
+    }
 }
 
 // Page navigation
@@ -209,9 +219,20 @@ async function loadRecentAnnouncements() {
 
 // Load students
 async function loadStudents() {
+    const tbody = document.getElementById('studentsTableBody');
+    if (!tbody) {
+        console.error('Students table body not found');
+        return;
+    }
+    
+    // Set loading state
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center">Loading students...</td></tr>';
+    
     try {
-        const search = document.getElementById('studentSearch').value;
-        const filter = document.getElementById('studentFilter').value;
+        const studentSearch = document.getElementById('studentSearch');
+        const studentFilter = document.getElementById('studentFilter');
+        const search = studentSearch ? studentSearch.value : '';
+        const filter = studentFilter ? studentFilter.value : '';
         
         let endpoint = '/students';
         const params = [];
@@ -219,8 +240,9 @@ async function loadStudents() {
         if (filter) params.push(`status=${filter}`);
         if (params.length) endpoint += '?' + params.join('&');
         
+        console.log('Loading students from:', endpoint);
         const students = await apiRequest(endpoint);
-        const tbody = document.getElementById('studentsTableBody');
+        console.log('Students loaded:', students?.length || 0);
         
         if (!students || students.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7" class="text-center">No students found</td></tr>';
@@ -248,20 +270,32 @@ async function loadStudents() {
         `).join('');
     } catch (error) {
         console.error('Error loading students:', error);
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">Failed to load students. Please try again.</td></tr>';
         showToast('Failed to load students', 'error');
     }
 }
 
 // Load courses
 async function loadCourses() {
+    const tbody = document.getElementById('coursesTableBody');
+    if (!tbody) {
+        console.error('Courses table body not found');
+        return;
+    }
+    
+    // Set loading state
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center">Loading courses...</td></tr>';
+    
     try {
-        const search = document.getElementById('courseSearch').value;
+        const courseSearch = document.getElementById('courseSearch');
+        const search = courseSearch ? courseSearch.value : '';
         
         let endpoint = '/courses/with-count';
         if (search) endpoint += `?search=${encodeURIComponent(search)}`;
         
+        console.log('Loading courses from:', endpoint);
         const courses = await apiRequest(endpoint);
-        const tbody = document.getElementById('coursesTableBody');
+        console.log('Courses loaded:', courses?.length || 0);
         
         if (!courses || courses.length === 0) {
             tbody.innerHTML = '<tr><td colspan="6" class="text-center">No courses found</td></tr>';
@@ -283,15 +317,27 @@ async function loadCourses() {
         `).join('');
     } catch (error) {
         console.error('Error loading courses:', error);
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">Failed to load courses. Please try again.</td></tr>';
         showToast('Failed to load courses', 'error');
     }
 }
 
 // Load fees
 async function loadFees() {
+    const tbody = document.getElementById('feesTableBody');
+    if (!tbody) {
+        console.error('Fees table body not found');
+        return;
+    }
+    
+    // Set loading state
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center">Loading fees...</td></tr>';
+    
     try {
-        const search = document.getElementById('feeSearch').value;
-        const filter = document.getElementById('feeFilter').value;
+        const feeSearch = document.getElementById('feeSearch');
+        const feeFilter = document.getElementById('feeFilter');
+        const search = feeSearch ? feeSearch.value : '';
+        const filter = feeFilter ? feeFilter.value : '';
         
         let endpoint = '/fees';
         const params = [];
@@ -299,8 +345,9 @@ async function loadFees() {
         if (filter) params.push(`status=${filter}`);
         if (params.length) endpoint += '?' + params.join('&');
         
+        console.log('Loading fees from:', endpoint);
         const fees = await apiRequest(endpoint);
-        const tbody = document.getElementById('feesTableBody');
+        console.log('Fees loaded:', fees?.length || 0);
         
         if (!fees || fees.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7" class="text-center">No fees found</td></tr>';
@@ -324,24 +371,37 @@ async function loadFees() {
         `).join('');
     } catch (error) {
         console.error('Error loading fees:', error);
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">Failed to load fees. Please try again.</td></tr>';
         showToast('Failed to load fees', 'error');
     }
 }
 
 // Load results
 async function loadResults() {
+    const tbody = document.getElementById('resultsTableBody');
+    if (!tbody) {
+        console.error('Results table body not found');
+        return;
+    }
+    
+    // Set loading state
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center">Loading results...</td></tr>';
+    
     try {
-        const search = document.getElementById('resultSearch').value;
-        const semesterFilter = document.getElementById('semesterFilter').value;
+        const resultSearch = document.getElementById('resultSearch');
+        const semesterFilter = document.getElementById('semesterFilter');
+        const search = resultSearch ? resultSearch.value : '';
+        const semester = semesterFilter ? semesterFilter.value : '';
         
         let endpoint = '/results';
         const params = [];
         if (search) params.push(`search=${encodeURIComponent(search)}`);
-        if (semesterFilter) params.push(`semester=${semesterFilter}`);
+        if (semester) params.push(`semester=${semester}`);
         if (params.length) endpoint += '?' + params.join('&');
         
+        console.log('Loading results from:', endpoint);
         const results = await apiRequest(endpoint);
-        const tbody = document.getElementById('resultsTableBody');
+        console.log('Results loaded:', results?.length || 0);
         
         if (!results || results.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7" class="text-center">No results found</td></tr>';
@@ -377,6 +437,7 @@ async function loadResults() {
         tbody.innerHTML = html;
     } catch (error) {
         console.error('Error loading results:', error);
+        tbody.innerHTML = '<tr><td colspan="7" class="text-center">Failed to load results. Please try again.</td></tr>';
         showToast('Failed to load results', 'error');
     }
 }
@@ -440,9 +501,19 @@ window.showStudentResults = async (studentName, studentNumber) => {
 
 // Load announcements
 async function loadAnnouncements() {
+    const container = document.getElementById('allAnnouncements');
+    if (!container) {
+        console.error('Announcements container not found');
+        return;
+    }
+    
+    // Set loading state
+    container.innerHTML = '<div class="text-center">Loading announcements...</div>';
+    
     try {
+        console.log('Loading announcements from: /announcements');
         const announcements = await apiRequest('/announcements');
-        const container = document.getElementById('allAnnouncements');
+        console.log('Announcements loaded:', announcements?.length || 0);
         
         if (!announcements || announcements.length === 0) {
             container.innerHTML = `
@@ -475,6 +546,7 @@ async function loadAnnouncements() {
         }).join('');
     } catch (error) {
         console.error('Error loading announcements:', error);
+        container.innerHTML = '<div class="text-center">Failed to load announcements. Please try again.</div>';
         showToast('Failed to load announcements', 'error');
     }
 }
@@ -881,9 +953,20 @@ window.deleteCourse = async function(id) {
 
 // Load lecturers
 async function loadLecturers() {
+    const tbody = document.getElementById('lecturersTableBody');
+    if (!tbody) {
+        console.error('Lecturers table body not found');
+        return;
+    }
+    
+    // Set loading state
+    tbody.innerHTML = '<tr><td colspan="6" class="text-center">Loading lecturers...</td></tr>';
+    
     try {
-        const search = document.getElementById('lecturerSearch').value;
-        const filter = document.getElementById('lecturerFilter').value;
+        const lecturerSearch = document.getElementById('lecturerSearch');
+        const lecturerFilter = document.getElementById('lecturerFilter');
+        const search = lecturerSearch ? lecturerSearch.value : '';
+        const filter = lecturerFilter ? lecturerFilter.value : '';
         
         let endpoint = '/students/lecturers';
         const params = [];
@@ -891,8 +974,9 @@ async function loadLecturers() {
         if (filter) params.push(`status=${filter}`);
         if (params.length) endpoint += '?' + params.join('&');
         
+        console.log('Loading lecturers from:', endpoint);
         const lecturers = await apiRequest(endpoint);
-        const tbody = document.getElementById('lecturersTableBody');
+        console.log('Lecturers loaded:', lecturers?.length || 0);
         
         if (!lecturers || lecturers.length === 0) {
             tbody.innerHTML = '<tr><td colspan="6" class="text-center">No lecturers found</td></tr>';
@@ -914,6 +998,7 @@ async function loadLecturers() {
         `).join('');
     } catch (error) {
         console.error('Error loading lecturers:', error);
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center">Failed to load lecturers. Please try again.</td></tr>';
         showToast('Failed to load lecturers', 'error');
     }
 }

@@ -280,6 +280,15 @@ document.getElementById('downloadPDFBtn').addEventListener('click', async () => 
 
         if (!response.ok) {
             const error = await response.json();
+            
+            // Handle outstanding fees error specifically
+            if (response.status === 403 && error.outstanding_balance !== undefined) {
+                showToast(error.message || 'Outstanding fees must be paid before downloading results', 'error');
+                // Optionally show a more detailed message or redirect to fees page
+                console.error('Outstanding balance:', error.outstanding_balance);
+                return;
+            }
+            
             throw new Error(error.error || 'Failed to download PDF');
         }
 
@@ -297,7 +306,7 @@ document.getElementById('downloadPDFBtn').addEventListener('click', async () => 
         showToast('PDF downloaded successfully');
     } catch (error) {
         console.error('Error downloading PDF:', error);
-        showToast('Failed to download PDF', 'error');
+        showToast(error.message || 'Failed to download PDF', 'error');
     }
 });
 
