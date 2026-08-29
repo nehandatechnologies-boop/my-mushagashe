@@ -97,8 +97,14 @@ function hideToast() {
 
 // Page navigation
 function navigateTo(page) {
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-    document.getElementById(`${page}-page`).classList.add('active');
+    document.querySelectorAll('.page-section').forEach(p => p.classList.add('hidden'));
+    document.querySelectorAll('.page-section').forEach(p => p.classList.remove('active'));
+    
+    const targetPage = document.getElementById(`${page}-page`);
+    if (targetPage) {
+        targetPage.classList.remove('hidden');
+        targetPage.classList.add('active');
+    }
     
     document.querySelectorAll('.nav-item').forEach(item => {
         item.classList.remove('active');
@@ -2298,8 +2304,8 @@ window.addEventListener('load', () => {
     if (headerAdminName) headerAdminName.textContent = currentUser.full_name;
 
     console.log('Loading dashboard statistics...');
-    // Load initial data
-    loadDashboardStatistics();
+    // Ensure overview page is active and load initial data
+    navigateTo('overview');
 });
 
 // Close modal when clicking outside
