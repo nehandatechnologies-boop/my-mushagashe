@@ -27,8 +27,6 @@ const dashboardRoutes = require('./routes/dashboardRoutes');
 const paymentHistoryRoutes = require('./routes/paymentHistoryRoutes');
 const templateRoutes = require('./routes/templateRoutes');
 const subjectRoutes = require('./routes/subjectRoutes');
-const privacyRoutes = require('./routes/privacyRoutes');
-const complianceRoutes = require('./routes/complianceRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -117,8 +115,6 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/payment-history', paymentHistoryRoutes);
 app.use('/api/templates', templateRoutes);
 app.use('/api/subjects', subjectRoutes);
-app.use('/api/privacy', privacyRoutes);
-app.use('/api/compliance', complianceRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

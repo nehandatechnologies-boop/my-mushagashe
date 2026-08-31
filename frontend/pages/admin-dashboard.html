@@ -5,369 +5,250 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https://*.onrender.com https://*.supabase.co; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: https://*.supabase.co;">
     <title>Admin Dashboard - Mushagashe Vocational Training Centre</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="../assets/css/design-system.css">
-    <link rel="stylesheet" href="../assets/css/components.css">
-    <link rel="stylesheet" href="../assets/css/app-shell.css">
-    <style>
-        .stats-detail {
-            display: flex;
-            flex-direction: column;
-            gap: var(--space-3);
-        }
-
-        .stat-item {
-            display: flex;
-            justify-content: space-between;
-            padding: var(--space-3);
-            border-radius: var(--radius-lg);
-            background: var(--gray-50);
-        }
-
-        .stat-item .stat-label {
-            font-size: var(--text-sm);
-            color: var(--text-secondary);
-        }
-
-        .stat-item .stat-value {
-            font-size: var(--text-sm);
-            font-weight: var(--font-semibold);
-            color: var(--text-primary);
-        }
-
-        .table-controls {
-            display: flex;
-            gap: var(--space-3);
-            margin-bottom: var(--space-4);
-        }
-
-        .search-input {
-            flex: 1;
-        }
-
-        .filter-select {
-            width: 150px;
-        }
-
-        .header-actions {
-            display: flex;
-            gap: var(--space-2);
-        }
-
-        .settings-section {
-            padding: var(--space-4);
-        }
-
-        .settings-section h4 {
-            font-size: var(--text-base);
-            font-weight: var(--font-semibold);
-            color: var(--text-primary);
-            margin-bottom: var(--space-2);
-        }
-
-        .settings-description {
-            font-size: var(--text-sm);
-            color: var(--text-secondary);
-            margin-bottom: var(--space-4);
-        }
-
-        .template-info {
-            padding: var(--space-4);
-            border-radius: var(--radius-lg);
-            background: var(--gray-50);
-            margin-bottom: var(--space-4);
-        }
-
-        .template-upload-section {
-            margin-bottom: var(--space-4);
-        }
-
-        .template-actions {
-            display: flex;
-            gap: var(--space-3);
-        }
-
-        @media (max-width: 640px) {
-            .table-controls {
-                flex-direction: column;
-            }
-
-            .filter-select {
-                width: 100%;
-            }
-
-            .header-actions {
-                flex-direction: column;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="../assets/css/styles.css">
 </head>
 <body>
-    <div class="app-shell">
+    <div class="dashboard-container">
         <!-- Sidebar -->
-        <aside class="sidebar" id="sidebar">
+        <aside class="sidebar">
             <div class="sidebar-header">
-                <div class="sidebar-logo" style="background: linear-gradient(135deg, var(--accent-400), var(--accent-600));">MV</div>
-                <div class="sidebar-brand">
-                    <h1>Mushagashe VTC</h1>
+                <div class="logo">
+                    <h3>Mushagashe VTC</h3>
                     <p>Admin Panel</p>
                 </div>
             </div>
 
             <nav class="sidebar-nav">
-                <div class="nav-section">
-                    <div class="nav-section-title">Main</div>
-                    <a href="#" class="nav-item active" data-page="overview">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="7" height="7"></rect>
-                            <rect x="14" y="3" width="7" height="7"></rect>
-                            <rect x="14" y="14" width="7" height="7"></rect>
-                            <rect x="3" y="14" width="7" height="7"></rect>
-                        </svg>
-                        <span>Dashboard</span>
-                    </a>
-                    <a href="#" class="nav-item" data-page="students">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="9" cy="7" r="4"></circle>
-                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                        </svg>
-                        <span>Students</span>
-                    </a>
-                    <a href="#" class="nav-item" data-page="courses">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                        </svg>
-                        <span>Courses</span>
-                    </a>
-                    <a href="#" class="nav-item" data-page="lecturers">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                            <circle cx="9" cy="7" r="4"></circle>
-                        </svg>
-                        <span>Lecturers</span>
-                    </a>
-                </div>
-
-                <div class="nav-section">
-                    <div class="nav-section-title">Academic</div>
-                    <a href="#" class="nav-item" data-page="subjects">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                        </svg>
-                        <span>Subjects</span>
-                    </a>
-                    <a href="#" class="nav-item" data-page="results">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                            <polyline points="14 2 14 8 20 8"></polyline>
-                        </svg>
-                        <span>Results</span>
-                    </a>
-                </div>
-
-                <div class="nav-section">
-                    <div class="nav-section-title">Operations</div>
-                    <a href="#" class="nav-item" data-page="fees">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="12" y1="1" x2="12" y2="23"></line>
-                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                        </svg>
-                        <span>Fees</span>
-                    </a>
-                    <a href="#" class="nav-item" data-page="announcements">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                        </svg>
-                        <span>Announcements</span>
-                    </a>
-                </div>
-
-                <div class="nav-section">
-                    <div class="nav-section-title">System</div>
-                    <a href="#" class="nav-item" data-page="settings">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="12" cy="12" r="3"></circle>
-                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                        </svg>
-                        <span>Settings</span>
-                    </a>
-                </div>
+                <a href="#" class="nav-item active" data-page="overview">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="3" width="7" height="7"></rect>
+                        <rect x="14" y="14" width="7" height="7"></rect>
+                        <rect x="3" y="14" width="7" height="7"></rect>
+                    </svg>
+                    <span>Overview</span>
+                </a>
+                <a href="#" class="nav-item" data-page="students">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                    <span>Students</span>
+                </a>
+                <a href="#" class="nav-item" data-page="courses">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    </svg>
+                    <span>Courses</span>
+                </a>
+                <a href="#" class="nav-item" data-page="lecturers">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                    <span>Lecturers</span>
+                </a>
+                <a href="#" class="nav-item" data-page="subjects">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                    </svg>
+                    <span>Subjects</span>
+                </a>
+                <a href="#" class="nav-item" data-page="fees">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="1" x2="12" y2="23"></line>
+                        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                    </svg>
+                    <span>Fees</span>
+                </a>
+                <a href="#" class="nav-item" data-page="results">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                    </svg>
+                    <span>Results</span>
+                </a>
+                <a href="#" class="nav-item" data-page="announcements">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                    </svg>
+                    <span>Announcements</span>
+                </a>
+                <a href="#" class="nav-item" data-page="settings">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                    </svg>
+                    <span>Settings</span>
+                </a>
             </nav>
 
             <div class="sidebar-footer">
-                <div class="sidebar-user">
-                    <div class="sidebar-user-avatar" id="sidebarAvatar">A</div>
-                    <div class="sidebar-user-info">
-                        <div class="sidebar-user-name" id="sidebarUserName">Admin</div>
-                        <div class="sidebar-user-role">Administrator</div>
-                    </div>
-                </div>
-                <div class="sidebar-actions">
-                    <button class="sidebar-btn" id="changePasswordBtn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
-                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
-                        </svg>
-                        <span>Change Password</span>
-                    </button>
-                    <button class="sidebar-btn" id="logoutBtn">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                            <polyline points="16 17 21 12 16 7"></polyline>
-                            <line x1="21" y1="12" x2="9" y2="12"></line>
-                        </svg>
-                        <span>Logout</span>
-                    </button>
-                </div>
+                <button id="backupDbBtn" class="btn btn-secondary" style="margin-bottom: 10px; width: 100%;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="7 10 12 15 17 10"></polyline>
+                        <line x1="12" y1="15" x2="12" y2="3"></line>
+                    </svg>
+                    <span>Backup Database</span>
+                </button>
+                <button id="restoreDbBtn" class="btn btn-secondary" style="margin-bottom: 10px; width: 100%;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                        <polyline points="17 8 12 3 7 8"></polyline>
+                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                    </svg>
+                    <span>Restore Database</span>
+                </button>
+                <button id="changePasswordBtn" class="btn btn-secondary" style="margin-bottom: 10px; width: 100%;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    <span>Change Password</span>
+                </button>
+                <button id="logoutBtn" class="btn btn-logout">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                        <polyline points="16 17 21 12 16 7"></polyline>
+                        <line x1="21" y1="12" x2="9" y2="12"></line>
+                    </svg>
+                    <span>Logout</span>
+                </button>
             </div>
         </aside>
 
-        <div class="sidebar-overlay" id="sidebarOverlay"></div>
-
         <!-- Main Content -->
-        <div class="main-content">
+        <main class="main-content">
             <!-- Header -->
-            <header class="app-header">
+            <header class="dashboard-header">
                 <div class="header-left">
-                    <button class="menu-toggle" id="menuToggle">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <line x1="3" y1="12" x2="21" y2="12"></line>
-                            <line x1="3" y1="6" x2="21" y2="6"></line>
-                            <line x1="3" y1="18" x2="21" y2="18"></line>
-                        </svg>
-                    </button>
-                    <div>
-                        <h1 class="page-title">Admin Dashboard</h1>
-                        <p class="page-subtitle">Welcome back, <span id="adminName">Administrator</span></p>
-                    </div>
+                    <h1>Admin Dashboard</h1>
+                    <p>Welcome back, <span id="adminName">Administrator</span></p>
                 </div>
                 <div class="header-right">
-                    <div class="header-search">
-                        <svg class="header-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <circle cx="11" cy="11" r="8"></circle>
-                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-                        </svg>
-                        <input type="text" placeholder="Search...">
-                    </div>
-                    <div class="header-actions">
-                        <button class="header-action-btn">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                    <div class="user-info">
+                        <div class="user-avatar admin">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                <line x1="3" y1="9" x2="21" y2="9"></line>
+                                <line x1="9" y1="21" x2="9" y2="9"></line>
                             </svg>
-                            <span class="badge"></span>
-                        </button>
-                        <div class="header-divider"></div>
-                        <div class="header-profile">
-                            <div class="header-profile-avatar" id="headerAvatar">A</div>
-                            <div class="header-profile-info">
-                                <div class="header-profile-name" id="headerProfileName">Administrator</div>
-                                <div class="header-profile-role">Admin</div>
-                            </div>
+                        </div>
+                        <div class="user-details">
+                            <p class="user-name" id="headerAdminName">Administrator</p>
+                            <p class="user-role">Admin</p>
                         </div>
                     </div>
                 </div>
             </header>
 
-            <!-- Page Content -->
-            <div class="page-content">
+            <!-- Dashboard Content -->
+            <div class="dashboard-content">
                 <!-- Overview Page -->
-                <div id="overview-page" class="page-section">
-                    <div class="page-header">
-                        <h1>Dashboard Overview</h1>
-                        <p>System statistics and quick insights</p>
-                    </div>
-
+                <div id="overview-page" class="page active">
                     <div class="stats-grid">
                         <div class="stat-card">
-                            <div class="stat-icon primary">
+                            <div class="stat-icon purple">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
                                     <circle cx="9" cy="7" r="4"></circle>
                                 </svg>
                             </div>
-                            <div class="stat-value" id="totalStudents">0</div>
-                            <div class="stat-label">Total Students</div>
+                            <div class="stat-content">
+                                <h3 id="totalStudents">0</h3>
+                                <p>Total Students</p>
+                            </div>
                         </div>
 
                         <div class="stat-card">
-                            <div class="stat-icon accent">
+                            <div class="stat-icon yellow">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
                                     <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
                                 </svg>
                             </div>
-                            <div class="stat-value" id="totalCourses">0</div>
-                            <div class="stat-label">Courses</div>
+                            <div class="stat-content">
+                                <h3 id="totalCourses">0</h3>
+                                <p>Courses</p>
+                            </div>
                         </div>
 
                         <div class="stat-card">
-                            <div class="stat-icon success">
+                            <div class="stat-icon green">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <line x1="12" y1="1" x2="12" y2="23"></line>
                                     <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                                 </svg>
                             </div>
-                            <div class="stat-value" id="revenueCollected">$0</div>
-                            <div class="stat-label">Revenue Collected</div>
+                            <div class="stat-content">
+                                <h3 id="revenueCollected">$0</h3>
+                                <p>Revenue Collected</p>
+                            </div>
                         </div>
 
                         <div class="stat-card">
-                            <div class="stat-icon danger">
+                            <div class="stat-icon red">
                                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <line x1="12" y1="1" x2="12" y2="23"></line>
                                     <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
                                 </svg>
                             </div>
-                            <div class="stat-value" id="pendingFees">0</div>
-                            <div class="stat-label">Pending Fees</div>
+                            <div class="stat-content">
+                                <h3 id="pendingFees">0</h3>
+                                <p>Pending Fees</p>
+                            </div>
                         </div>
                     </div>
 
                     <div class="dashboard-grid">
-                        <div class="dashboard-card">
+                        <div class="card">
                             <div class="card-header">
                                 <h3>Student Statistics</h3>
                             </div>
-                            <div class="stats-detail">
-                                <div class="stat-item">
-                                    <span class="stat-label">Active Students:</span>
-                                    <span class="stat-value" id="activeStudents">0</span>
-                                </div>
-                                <div class="stat-item">
-                                    <span class="stat-label">Suspended Students:</span>
-                                    <span class="stat-value" id="suspendedStudents">0</span>
-                                </div>
-                                <div class="stat-item">
-                                    <span class="stat-label">Male:</span>
-                                    <span class="stat-value" id="maleStudents">0</span>
-                                </div>
-                                <div class="stat-item">
-                                    <span class="stat-label">Female:</span>
-                                    <span class="stat-value" id="femaleStudents">0</span>
+                            <div class="card-body">
+                                <div class="stats-detail">
+                                    <div class="stat-item">
+                                        <span class="stat-label">Active Students:</span>
+                                        <span class="stat-value" id="activeStudents">0</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="stat-label">Suspended Students:</span>
+                                        <span class="stat-value" id="suspendedStudents">0</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="stat-label">Male:</span>
+                                        <span class="stat-value" id="maleStudents">0</span>
+                                    </div>
+                                    <div class="stat-item">
+                                        <span class="stat-label">Female:</span>
+                                        <span class="stat-value" id="femaleStudents">0</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div class="dashboard-card">
+                        <div class="card">
                             <div class="card-header">
                                 <h3>Recent Announcements</h3>
                                 <a href="#" class="view-all" data-page="announcements">View All</a>
                             </div>
-                            <div id="recentAnnouncements" class="announcements-list">
-                                <div class="empty-state">
-                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                                        <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                                    </svg>
-                                    <p class="empty-state-title">No announcements yet</p>
+                            <div class="card-body">
+                                <div id="recentAnnouncements" class="announcements-list">
+                                    <div class="empty-state">
+                                        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                                        </svg>
+                                        <p>No announcements yet</p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -375,65 +256,65 @@
                 </div>
 
                 <!-- Students Page -->
-                <div id="students-page" class="page-section hidden">
-                    <div class="page-header">
-                        <h1>Student Management</h1>
-                        <p>Manage student records and information</p>
-                        <div class="page-actions">
-                            <button id="importExcelBtn" class="btn btn-secondary">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                                    <polyline points="17 8 12 3 7 8"></polyline>
-                                    <line x1="12" y1="3" x2="12" y2="15"></line>
-                                </svg>
-                                Import Excel
-                            </button>
-                            <button id="addStudentBtn" class="btn btn-primary">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                                </svg>
-                                Add Student
-                            </button>
+                <div id="students-page" class="page">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Student Management</h3>
+                            <div class="header-actions">
+                                <button id="importExcelBtn" class="btn btn-secondary">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                        <polyline points="17 8 12 3 7 8"></polyline>
+                                        <line x1="12" y1="3" x2="12" y2="15"></line>
+                                    </svg>
+                                    Import Excel
+                                </button>
+                                <button id="addStudentBtn" class="btn btn-primary">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                                    </svg>
+                                    Add Student
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                    <div class="dashboard-card">
-                        <div class="table-controls">
-                            <input type="text" id="studentSearch" placeholder="Search students..." class="input search-input">
-                            <select id="studentFilter" class="select filter-select">
-                                <option value="">All Status</option>
-                                <option value="active">Active</option>
-                                <option value="suspended">Suspended</option>
-                            </select>
-                        </div>
-                        <div class="table-container">
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Student Number</th>
-                                        <th>Name</th>
-                                        <th>Course</th>
-                                        <th>Phone</th>
-                                        <th>Status</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="studentsTableBody">
-                                    <tr>
-                                        <td colspan="6" class="text-center">Loading students...</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <div class="card-body">
+                            <div class="table-controls">
+                                <input type="text" id="studentSearch" placeholder="Search students..." class="search-input">
+                                <select id="studentFilter" class="filter-select">
+                                    <option value="">All Status</option>
+                                    <option value="active">Active</option>
+                                    <option value="suspended">Suspended</option>
+                                </select>
+                            </div>
+                            <div id="studentsTableContainer">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Student Number</th>
+                                            <th>Name</th>
+                                            <th>Course</th>
+                                            <th>Phone</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="studentsTableBody">
+                                        <tr>
+                                            <td colspan="6" class="text-center">Loading students...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Courses Page -->
-                <div id="courses-page" class="page-section hidden">
-                    <div class="page-header">
-                        <h1>Course Management</h1>
-                        <p>Manage academic courses and programs</p>
-                        <div class="page-actions">
+                <div id="courses-page" class="page">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Course Management</h3>
                             <button id="addCourseBtn" class="btn btn-primary">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -442,40 +323,39 @@
                                 Add Course
                             </button>
                         </div>
-                    </div>
-                    <div class="dashboard-card">
-                        <div class="table-controls">
-                            <input type="text" id="courseSearch" placeholder="Search courses..." class="input search-input">
-                        </div>
-                        <div class="table-container">
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Course Code</th>
-                                        <th>Course Name</th>
-                                        <th>Department</th>
-                                        <th>Duration</th>
-                                        <th>Students</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="coursesTableBody">
-                                    <tr>
-                                        <td colspan="6" class="text-center">Loading courses...</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <div class="card-body">
+                            <div class="table-controls">
+                                <input type="text" id="courseSearch" placeholder="Search courses..." class="search-input">
+                            </div>
+                            <div id="coursesTableContainer">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Course Code</th>
+                                            <th>Course Name</th>
+                                            <th>Department</th>
+                                            <th>Duration</th>
+                                            <th>Students</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="coursesTableBody">
+                                        <tr>
+                                            <td colspan="6" class="text-center">Loading courses...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Subjects Page -->
-                <div id="subjects-page" class="page-section hidden">
-                    <div class="page-header">
-                        <h1>Subject Management</h1>
-                        <p>Manage subjects and course assignments</p>
-                        <div class="page-actions">
-                            <button id="addSubjectBtn" class="btn btn-primary">
+                <div id="subjects-page" class="page">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Subject Management</h3>
+                            <button id="addSubjectBtn" class="btn btn-primary" onclick="window.addSubject()">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <line x1="12" y1="5" x2="12" y2="19"></line>
                                     <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -483,41 +363,40 @@
                                 Add Subject
                             </button>
                         </div>
-                    </div>
-                    <div class="dashboard-card">
-                        <div class="table-controls">
-                            <input type="text" id="subjectSearch" placeholder="Search subjects..." class="input search-input">
-                            <select id="subjectCourseFilter" class="select filter-select">
-                                <option value="">All Courses</option>
-                            </select>
-                        </div>
-                        <div class="table-container">
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Subject Code</th>
-                                        <th>Subject Name</th>
-                                        <th>Course</th>
-                                        <th>Credits</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="subjectsTableBody">
-                                    <tr>
-                                        <td colspan="5" class="text-center">Loading subjects...</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <div class="card-body">
+                            <div class="table-controls">
+                                <input type="text" id="subjectSearch" placeholder="Search subjects..." class="search-input">
+                                <select id="subjectCourseFilter" class="filter-select">
+                                    <option value="">All Courses</option>
+                                </select>
+                            </div>
+                            <div id="subjectsTableContainer">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Subject Code</th>
+                                            <th>Subject Name</th>
+                                            <th>Course</th>
+                                            <th>Credits</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="subjectsTableBody">
+                                        <tr>
+                                            <td colspan="5" class="text-center">Loading subjects...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Lecturers Page -->
-                <div id="lecturers-page" class="page-section hidden">
-                    <div class="page-header">
-                        <h1>Lecturer Management</h1>
-                        <p>Manage lecturer accounts and assignments</p>
-                        <div class="page-actions">
+                <div id="lecturers-page" class="page">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Lecturer Management</h3>
                             <button id="addLecturerBtn" class="btn btn-primary">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -526,44 +405,43 @@
                                 Add Lecturer
                             </button>
                         </div>
-                    </div>
-                    <div class="dashboard-card">
-                        <div class="table-controls">
-                            <input type="text" id="lecturerSearch" placeholder="Search lecturers..." class="input search-input">
-                            <select id="lecturerFilter" class="select filter-select">
-                                <option value="">All Status</option>
-                                <option value="active">Active</option>
-                                <option value="suspended">Suspended</option>
-                            </select>
-                        </div>
-                        <div class="table-container">
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Email</th>
-                                        <th>Course</th>
-                                        <th>Phone</th>
-                                        <th>Status</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="lecturersTableBody">
-                                    <tr>
-                                        <td colspan="6" class="text-center">Loading lecturers...</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <div class="card-body">
+                            <div class="table-controls">
+                                <input type="text" id="lecturerSearch" placeholder="Search lecturers..." class="search-input">
+                                <select id="lecturerFilter" class="filter-select">
+                                    <option value="">All Status</option>
+                                    <option value="active">Active</option>
+                                    <option value="suspended">Suspended</option>
+                                </select>
+                            </div>
+                            <div id="lecturersTableContainer">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Course</th>
+                                            <th>Phone</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="lecturersTableBody">
+                                        <tr>
+                                            <td colspan="6" class="text-center">Loading lecturers...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Fees Page -->
-                <div id="fees-page" class="page-section hidden">
-                    <div class="page-header">
-                        <h1>Fee Management</h1>
-                        <p>Track and manage student fees and payments</p>
-                        <div class="page-actions">
+                <div id="fees-page" class="page">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Fee Management</h3>
                             <button id="addFeeBtn" class="btn btn-primary">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -572,46 +450,45 @@
                                 Add Fee
                             </button>
                         </div>
-                    </div>
-                    <div class="dashboard-card">
-                        <div class="table-controls">
-                            <input type="text" id="feeSearch" placeholder="Search fees..." class="input search-input">
-                            <select id="feeFilter" class="select filter-select">
-                                <option value="">All Status</option>
-                                <option value="unpaid">Unpaid</option>
-                                <option value="partial">Partial</option>
-                                <option value="paid">Paid</option>
-                            </select>
-                        </div>
-                        <div class="table-container">
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Student</th>
-                                        <th>Category</th>
-                                        <th>Amount</th>
-                                        <th>Paid</th>
-                                        <th>Balance</th>
-                                        <th>Status</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="feesTableBody">
-                                    <tr>
-                                        <td colspan="7" class="text-center">Loading fees...</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <div class="card-body">
+                            <div class="table-controls">
+                                <input type="text" id="feeSearch" placeholder="Search fees..." class="search-input">
+                                <select id="feeFilter" class="filter-select">
+                                    <option value="">All Status</option>
+                                    <option value="unpaid">Unpaid</option>
+                                    <option value="partial">Partial</option>
+                                    <option value="paid">Paid</option>
+                                </select>
+                            </div>
+                            <div id="feesTableContainer">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Student</th>
+                                            <th>Category</th>
+                                            <th>Amount</th>
+                                            <th>Paid</th>
+                                            <th>Balance</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="feesTableBody">
+                                        <tr>
+                                            <td colspan="7" class="text-center">Loading fees...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Results Page -->
-                <div id="results-page" class="page-section hidden">
-                    <div class="page-header">
-                        <h1>Results Management</h1>
-                        <p>Manage academic results and grades</p>
-                        <div class="page-actions">
+                <div id="results-page" class="page">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Results Management</h3>
                             <button id="addResultBtn" class="btn btn-primary">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -620,46 +497,45 @@
                                 Add Result
                             </button>
                         </div>
-                    </div>
-                    <div class="dashboard-card">
-                        <div class="table-controls">
-                            <input type="text" id="resultSearch" placeholder="Search results..." class="input search-input">
-                            <select id="semesterFilter" class="select filter-select">
-                                <option value="">All Terms</option>
-                                <option value="1">Term 1</option>
-                                <option value="2">Term 2</option>
-                                <option value="3">Term 3</option>
-                            </select>
-                        </div>
-                        <div class="table-container">
-                            <table class="table">
-                                <thead>
-                                    <tr>
-                                        <th>Student</th>
-                                        <th>Course</th>
-                                        <th>Term</th>
-                                        <th>Year</th>
-                                        <th>Final Mark</th>
-                                        <th>Grade</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="resultsTableBody">
-                                    <tr>
-                                        <td colspan="7" class="text-center">Loading results...</td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                        <div class="card-body">
+                            <div class="table-controls">
+                                <input type="text" id="resultSearch" placeholder="Search results..." class="search-input">
+                                <select id="semesterFilter" class="filter-select">
+                                    <option value="">All Terms</option>
+                                    <option value="1">Term 1</option>
+                                    <option value="2">Term 2</option>
+                                    <option value="3">Term 3</option>
+                                </select>
+                            </div>
+                            <div id="resultsTableContainer">
+                                <table class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Student</th>
+                                            <th>Course</th>
+                                            <th>Term</th>
+                                            <th>Year</th>
+                                            <th>Final Mark</th>
+                                            <th>Grade</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="resultsTableBody">
+                                        <tr>
+                                            <td colspan="7" class="text-center">Loading results...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Announcements Page -->
-                <div id="announcements-page" class="page-section hidden">
-                    <div class="page-header">
-                        <h1>Announcement Management</h1>
-                        <p>Create and manage institutional announcements</p>
-                        <div class="page-actions">
+                <div id="announcements-page" class="page">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Announcement Management</h3>
                             <button id="addAnnouncementBtn" class="btn btn-primary">
                                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                     <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -668,50 +544,60 @@
                                 Add Announcement
                             </button>
                         </div>
-                    </div>
-                    <div class="dashboard-card">
-                        <div id="allAnnouncements" class="announcements-list">
-                            <div class="loading-state">Loading announcements...</div>
+                        <div class="card-body">
+                            <div id="allAnnouncements" class="announcements-list">
+                                <div class="loading-state">Loading announcements...</div>
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Settings Page -->
-                <div id="settings-page" class="page-section hidden">
-                    <div class="page-header">
-                        <h1>System Settings</h1>
-                        <p>Configure system preferences and settings</p>
-                    </div>
-                    <div class="dashboard-card">
-                        <div class="settings-section">
-                            <h4>PDF Result Template</h4>
-                            <p class="settings-description">Upload a custom PDF template for result reports. The template will be used as the letterhead for all generated result PDFs.</p>
-                            
-                            <div id="templateInfo" class="template-info">
-                                <div class="loading-state">Checking template status...</div>
-                            </div>
+                <div id="settings-page" class="page">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>System Settings</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="settings-section">
+                                <h4>PDF Result Template</h4>
+                                <p class="settings-description">Upload a custom PDF template for result reports. The template will be used as the letterhead for all generated result PDFs.</p>
+                                
+                                <div id="templateInfo" class="template-info">
+                                    <div class="loading-state">Checking template status...</div>
+                                </div>
 
-                            <div class="template-upload-section">
-                                <form id="uploadTemplateForm">
-                                    <div class="form-group">
-                                        <label class="form-label">Upload PDF Template</label>
-                                        <input type="file" name="template" accept=".pdf" class="input" required>
-                                        <small class="form-help">Maximum file size: 10MB. Only PDF files are allowed.</small>
-                                    </div>
-                                    <button type="submit" class="btn btn-primary">Upload Template</button>
-                                </form>
-                            </div>
+                                <div class="template-upload-section">
+                                    <form id="uploadTemplateForm">
+                                        <div class="form-group">
+                                            <label>Upload PDF Template</label>
+                                            <input type="file" name="template" accept=".pdf" required>
+                                            <small class="form-help">Maximum file size: 10MB. Only PDF files are allowed.</small>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary">Upload Template</button>
+                                    </form>
+                                </div>
 
-                            <div id="templateActions" class="template-actions" style="display: none;">
-                                <button id="deleteTemplateBtn" class="btn btn-danger">Delete Template</button>
+                                <div id="templateActions" class="template-actions" style="display: none;">
+                                    <button id="deleteTemplateBtn" class="btn btn-danger">Delete Template</button>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
+        </main>
+    </div>
+
+    <div id="modalContainer" class="modal-container" style="display: none;"></div>
+    <div id="toast" class="toast" style="display: none;">
+        <div class="toast-content">
+            <span id="toastMessage"></span>
+            <button class="toast-close" onclick="hideToast()">&times;</button>
         </div>
     </div>
 
+<<<<<<< HEAD
     <!-- Modal Container -->
     <div id="modalContainer" class="modal-container" style="display: none;"></div>
 
@@ -720,54 +606,8 @@
         <span id="toastMessage"></span>
     </div>
 
+=======
+>>>>>>> parent of 0d48ad7 (cvoool)
     <script src="../assets/js/admin-dashboard.js"></script>
-    <script>
-        // Sidebar toggle functionality
-        const menuToggle = document.getElementById('menuToggle');
-        const sidebar = document.getElementById('sidebar');
-        const sidebarOverlay = document.getElementById('sidebarOverlay');
-
-        menuToggle.addEventListener('click', () => {
-            sidebar.classList.toggle('open');
-            sidebarOverlay.classList.toggle('show');
-        });
-
-        sidebarOverlay.addEventListener('click', () => {
-            sidebar.classList.remove('open');
-            sidebarOverlay.classList.remove('show');
-        });
-
-        // Navigation
-        document.querySelectorAll('.nav-item').forEach(item => {
-            item.addEventListener('click', (e) => {
-                e.preventDefault();
-                const page = item.dataset.page;
-                
-                // Update active state
-                document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
-                item.classList.add('active');
-                
-                // Show/hide pages
-                document.querySelectorAll('.page-section').forEach(section => section.classList.add('hidden'));
-                document.getElementById(`${page}-page`).classList.remove('hidden');
-                
-                // Close mobile sidebar
-                if (window.innerWidth <= 1024) {
-                    sidebar.classList.remove('open');
-                    sidebarOverlay.classList.remove('show');
-                }
-            });
-        });
-
-        // View all links
-        document.querySelectorAll('.view-all').forEach(link => {
-            link.addEventListener('click', (e) => {
-                e.preventDefault();
-                const page = link.dataset.page;
-                const navItem = document.querySelector(`.nav-item[data-page="${page}"]`);
-                if (navItem) navItem.click();
-            });
-        });
-    </script>
 </body>
 </html>

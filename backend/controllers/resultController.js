@@ -6,7 +6,6 @@ const { generateResultPDF } = require('../services/pdfService');
 const Course = require('../models/Course');
 const SubjectResult = require('../models/SubjectResult');
 const Subject = require('../models/Subject');
-const { logDataAccess, logDataModification, logDataDeletion, logFailedAccess } = require('../middleware/auditLogger');
 
 console.log('=== resultController.js loaded with PDF template support ===');
 
@@ -30,7 +29,6 @@ const createResult = async (req, res) => {
         return res.status(403).json({ error: 'Access denied: You must be assigned to a course to create results' });
       }
       if (parseInt(course_id) !== req.user.course_id) {
-        await logFailedAccess(req.user, 'RESULT', null, 'Access denied: Wrong course assignment', req.ip, req.get('user-agent'));
         return res.status(403).json({ error: 'Access denied: You can only create results for your assigned course' });
       }
     }
@@ -91,9 +89,6 @@ const createResult = async (req, res) => {
     } else {
       console.log('No subject marks provided to create');
     }
-
-    // Log result creation
-    await logDataModification(req.user, 'CREATE', 'RESULT', result.id, null, resultData, req.ip, req.get('user-agent'));
 
     res.status(201).json({
       message: 'Result created successfully',
@@ -159,13 +154,11 @@ const getResultById = async (req, res) => {
     const result = await Result.findById(id);
 
     if (!result) {
-      await logFailedAccess(req.user, 'RESULT', id, 'Result not found', req.ip, req.get('user-agent'));
       return res.status(404).json({ error: 'Result not found' });
     }
 
     // Check permission
     if (req.user.role === 'student' && result.user_id !== req.user.id) {
-      await logFailedAccess(req.user, 'RESULT', id, 'Access denied: Not own result', req.ip, req.get('user-agent'));
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -174,7 +167,6 @@ const getResultById = async (req, res) => {
       const hasOutstanding = await Fee.hasOutstandingFees(req.user.id);
       if (hasOutstanding) {
         const outstandingBalance = await Fee.getOutstandingBalance(req.user.id);
-        await logFailedAccess(req.user, 'RESULT', id, 'Outstanding fees', req.ip, req.get('user-agent'));
         return res.status(403).json({ 
           error: 'Outstanding fees must be paid before viewing results',
           outstanding_balance: outstandingBalance
@@ -184,12 +176,8 @@ const getResultById = async (req, res) => {
 
     // Lecturer can only view results for their assigned course
     if (req.user.role === 'lecturer' && result.course_id !== req.user.course_id) {
-      await logFailedAccess(req.user, 'RESULT', id, 'Access denied: Wrong course assignment', req.ip, req.get('user-agent'));
       return res.status(403).json({ error: 'Access denied: You can only view results for your assigned course' });
     }
-
-    // Log data access
-    await logDataAccess(req.user, 'RESULT', id, req.ip, req.get('user-agent'));
 
     res.json(result);
   } catch (error) {
@@ -209,48 +197,90 @@ const updateResult = async (req, res) => {
 
     console.log('Update result request:', { id, body: req.body, user: req.user });
 
-    // Get current result for audit
-    const currentResult = await Result.findById(id);
-    if (!currentResult) {
-      await logFailedAccess(req.user, 'RESULT', id, 'Result not found', req.ip, req.get('user-agent'));
+    // Get existing result to check course
+    const existingResult = await Result.findById(id);
+    if (!existingResult) {
       return res.status(404).json({ error: 'Result not found' });
     }
+
+    console.log('Existing result:', existingResult);
 
     // Lecturer can only update results for their assigned course
     if (req.user.role === 'lecturer') {
       if (!req.user.course_id) {
         return res.status(403).json({ error: 'Access denied: You must be assigned to a course to update results' });
       }
-      if (currentResult.course_id !== req.user.course_id) {
-        await logFailedAccess(req.user, 'RESULT', id, 'Access denied: Wrong course assignment', req.ip, req.get('user-agent'));
+      if (existingResult.course_id !== req.user.course_id) {
         return res.status(403).json({ error: 'Access denied: You can only update results for your assigned course' });
       }
     }
 
+    // Recalculate final mark and grade if marks changed
+    let calculatedFinalMark = final_mark;
+    let calculatedGrade = grade;
+
+    // If subject marks are provided, calculate average
+    if (subject_marks && Array.isArray(subject_marks) && subject_marks.length > 0) {
+      const totalMarks = subject_marks.reduce((sum, sm) => sum + (parseFloat(sm.mark) || 0), 0);
+      calculatedFinalMark = totalMarks / subject_marks.length;
+      calculatedGrade = SubjectResult.calculateGrade(calculatedFinalMark);
+    } else if (assessment_mark !== undefined || exam_mark !== undefined) {
+      const assessmentVal = assessment_mark !== undefined && assessment_mark !== '' ? parseFloat(assessment_mark) : 0;
+      const examVal = exam_mark !== undefined && exam_mark !== '' ? parseFloat(exam_mark) : 0;
+      calculatedFinalMark = final_mark || (assessmentVal + examVal) / 2;
+      calculatedGrade = grade || Result.calculateGrade(calculatedFinalMark);
+    }
 
     const updateData = {
-      course_id, semester, academic_year, assessment_mark, exam_mark,
-      final_mark, grade, credits, lecturer, remarks
+      course_id: course_id !== undefined ? parseInt(course_id) : existingResult.course_id,
+      semester: semester !== undefined ? parseInt(semester) : existingResult.semester,
+      academic_year: academic_year !== undefined ? parseInt(academic_year) : existingResult.academic_year,
+      assessment_mark: assessment_mark !== undefined ? (assessment_mark === '' ? null : parseFloat(assessment_mark)) : existingResult.assessment_mark,
+      exam_mark: exam_mark !== undefined ? (exam_mark === '' ? null : parseFloat(exam_mark)) : existingResult.exam_mark,
+      final_mark: calculatedFinalMark !== undefined ? parseFloat(calculatedFinalMark) : existingResult.final_mark,
+      grade: calculatedGrade || existingResult.grade,
+      credits: credits !== undefined ? (credits === '' ? null : parseInt(credits)) : existingResult.credits,
+      lecturer,
+      remarks
     };
 
-    // Remove undefined values and convert empty strings to null
+    console.log('Update data:', updateData);
+
+    // Remove undefined values
     Object.keys(updateData).forEach(key => {
       if (updateData[key] === undefined) {
         delete updateData[key];
-      } else if (updateData[key] === '') {
-        updateData[key] = null;
       }
     });
 
-    const updatedResult = await Result.update(id, updateData);
+    await Result.update(id, updateData);
 
-    // Log result update
-    await logDataModification(req.user, 'UPDATE', 'RESULT', id, currentResult, updatedResult, req.ip, req.get('user-agent'));
+    // Update subject results if provided
+    if (subject_marks && Array.isArray(subject_marks)) {
+      // Delete existing subject results for this result
+      await SubjectResult.deleteByResultId(id);
+      
+      // Create new subject results
+      for (const sm of subject_marks) {
+        if (sm.subject_id && sm.mark !== undefined) {
+          const subjectResultData = {
+            result_id: parseInt(id),
+            subject_id: parseInt(sm.subject_id),
+            mark: parseFloat(sm.mark),
+            grade: SubjectResult.calculateGrade(parseFloat(sm.mark)),
+            remarks: sm.remarks || null
+          };
+          await SubjectResult.create(subjectResultData);
+        }
+      }
+    }
+
+    const updatedResult = await Result.findById(id);
 
     res.json(updatedResult);
   } catch (error) {
     console.error('Update result error:', error);
-    res.status(500).json({ error: 'Failed to update result' });
+    res.status(500).json({ error: 'Failed to update result', details: error.message });
   }
 };
 
@@ -261,25 +291,15 @@ const deleteResult = async (req, res) => {
 
     const result = await Result.findById(id);
     if (!result) {
-      await logFailedAccess(req.user, 'RESULT', id, 'Result not found', req.ip, req.get('user-agent'));
       return res.status(404).json({ error: 'Result not found' });
     }
 
     // Lecturer can only delete results for their assigned course
-    if (req.user.role === 'lecturer') {
-      if (!req.user.course_id) {
-        return res.status(403).json({ error: 'Access denied: You must be assigned to a course to delete results' });
-      }
-      if (result.course_id !== req.user.course_id) {
-        await logFailedAccess(req.user, 'RESULT', id, 'Access denied: Wrong course assignment', req.ip, req.get('user-agent'));
-        return res.status(403).json({ error: 'Access denied: You can only delete results for your assigned course' });
-      }
+    if (req.user.role === 'lecturer' && result.course_id !== req.user.course_id) {
+      return res.status(403).json({ error: 'Access denied: You can only delete results for your assigned course' });
     }
 
     await Result.delete(id);
-
-    // Log result deletion
-    await logDataDeletion(req.user, 'RESULT', id, result, req.ip, req.get('user-agent'));
 
     res.json({ message: 'Result deleted successfully' });
   } catch (error) {

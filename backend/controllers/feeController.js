@@ -1,5 +1,4 @@
 const Fee = require('../models/Fee');
-const { logDataAccess, logDataModification, logDataDeletion, logFailedAccess } = require('../middleware/auditLogger');
 
 // Create new fee
 const createFee = async (req, res) => {
@@ -20,9 +19,6 @@ const createFee = async (req, res) => {
     };
 
     const result = await Fee.create(feeData);
-
-    // Log fee creation
-    await logDataModification(req.user, 'CREATE', 'FEE', result.id, null, feeData, req.ip, req.get('user-agent'));
 
     res.status(201).json({
       message: 'Fee created successfully',
@@ -71,18 +67,13 @@ const getFeeById = async (req, res) => {
     const fee = await Fee.findById(id);
 
     if (!fee) {
-      await logFailedAccess(req.user, 'FEE', id, 'Fee not found', req.ip, req.get('user-agent'));
       return res.status(404).json({ error: 'Fee not found' });
     }
 
     // Check permission
     if (req.user.role === 'student' && fee.user_id !== req.user.id) {
-      await logFailedAccess(req.user, 'FEE', id, 'Access denied: Not own fee', req.ip, req.get('user-agent'));
       return res.status(403).json({ error: 'Access denied' });
     }
-
-    // Log data access
-    await logDataAccess(req.user, 'FEE', id, req.ip, req.get('user-agent'));
 
     res.json(fee);
   } catch (error) {
@@ -100,13 +91,6 @@ const updateFee = async (req, res) => {
       receipt_number, payment_date, due_date, status
     } = req.body;
 
-    // Get current fee for audit
-    const currentFee = await Fee.findById(id);
-    if (!currentFee) {
-      await logFailedAccess(req.user, 'FEE', id, 'Fee not found', req.ip, req.get('user-agent'));
-      return res.status(404).json({ error: 'Fee not found' });
-    }
-
     const updateData = {
       amount, amount_paid, balance, payment_reference, payment_method,
       receipt_number, payment_date, due_date, status
@@ -122,9 +106,6 @@ const updateFee = async (req, res) => {
     await Fee.update(id, updateData);
 
     const updatedFee = await Fee.findById(id);
-
-    // Log fee update
-    await logDataModification(req.user, 'UPDATE', 'FEE', id, currentFee, updatedFee, req.ip, req.get('user-agent'));
 
     res.json(updatedFee);
   } catch (error) {
@@ -178,14 +159,10 @@ const deleteFee = async (req, res) => {
 
     const fee = await Fee.findById(id);
     if (!fee) {
-      await logFailedAccess(req.user, 'FEE', id, 'Fee not found', req.ip, req.get('user-agent'));
       return res.status(404).json({ error: 'Fee not found' });
     }
 
     await Fee.delete(id);
-
-    // Log fee deletion
-    await logDataDeletion(req.user, 'FEE', id, fee, req.ip, req.get('user-agent'));
 
     res.json({ message: 'Fee deleted successfully' });
   } catch (error) {
