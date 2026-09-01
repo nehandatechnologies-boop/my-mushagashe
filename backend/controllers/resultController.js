@@ -197,90 +197,43 @@ const updateResult = async (req, res) => {
 
     console.log('Update result request:', { id, body: req.body, user: req.user });
 
-    // Get existing result to check course
-    const existingResult = await Result.findById(id);
-    if (!existingResult) {
+    // Get current result
+    const currentResult = await Result.findById(id);
+    if (!currentResult) {
       return res.status(404).json({ error: 'Result not found' });
     }
-
-    console.log('Existing result:', existingResult);
 
     // Lecturer can only update results for their assigned course
     if (req.user.role === 'lecturer') {
       if (!req.user.course_id) {
         return res.status(403).json({ error: 'Access denied: You must be assigned to a course to update results' });
       }
-      if (existingResult.course_id !== req.user.course_id) {
+      if (currentResult.course_id !== req.user.course_id) {
         return res.status(403).json({ error: 'Access denied: You can only update results for your assigned course' });
       }
     }
 
-    // Recalculate final mark and grade if marks changed
-    let calculatedFinalMark = final_mark;
-    let calculatedGrade = grade;
-
-    // If subject marks are provided, calculate average
-    if (subject_marks && Array.isArray(subject_marks) && subject_marks.length > 0) {
-      const totalMarks = subject_marks.reduce((sum, sm) => sum + (parseFloat(sm.mark) || 0), 0);
-      calculatedFinalMark = totalMarks / subject_marks.length;
-      calculatedGrade = SubjectResult.calculateGrade(calculatedFinalMark);
-    } else if (assessment_mark !== undefined || exam_mark !== undefined) {
-      const assessmentVal = assessment_mark !== undefined && assessment_mark !== '' ? parseFloat(assessment_mark) : 0;
-      const examVal = exam_mark !== undefined && exam_mark !== '' ? parseFloat(exam_mark) : 0;
-      calculatedFinalMark = final_mark || (assessmentVal + examVal) / 2;
-      calculatedGrade = grade || Result.calculateGrade(calculatedFinalMark);
-    }
 
     const updateData = {
-      course_id: course_id !== undefined ? parseInt(course_id) : existingResult.course_id,
-      semester: semester !== undefined ? parseInt(semester) : existingResult.semester,
-      academic_year: academic_year !== undefined ? parseInt(academic_year) : existingResult.academic_year,
-      assessment_mark: assessment_mark !== undefined ? (assessment_mark === '' ? null : parseFloat(assessment_mark)) : existingResult.assessment_mark,
-      exam_mark: exam_mark !== undefined ? (exam_mark === '' ? null : parseFloat(exam_mark)) : existingResult.exam_mark,
-      final_mark: calculatedFinalMark !== undefined ? parseFloat(calculatedFinalMark) : existingResult.final_mark,
-      grade: calculatedGrade || existingResult.grade,
-      credits: credits !== undefined ? (credits === '' ? null : parseInt(credits)) : existingResult.credits,
-      lecturer,
-      remarks
+      course_id, semester, academic_year, assessment_mark, exam_mark,
+      final_mark, grade, credits, lecturer, remarks
     };
 
-    console.log('Update data:', updateData);
-
-    // Remove undefined values
+    // Remove undefined values and convert empty strings to null
     Object.keys(updateData).forEach(key => {
       if (updateData[key] === undefined) {
         delete updateData[key];
+      } else if (updateData[key] === '') {
+        updateData[key] = null;
       }
     });
 
-    await Result.update(id, updateData);
-
-    // Update subject results if provided
-    if (subject_marks && Array.isArray(subject_marks)) {
-      // Delete existing subject results for this result
-      await SubjectResult.deleteByResultId(id);
-      
-      // Create new subject results
-      for (const sm of subject_marks) {
-        if (sm.subject_id && sm.mark !== undefined) {
-          const subjectResultData = {
-            result_id: parseInt(id),
-            subject_id: parseInt(sm.subject_id),
-            mark: parseFloat(sm.mark),
-            grade: SubjectResult.calculateGrade(parseFloat(sm.mark)),
-            remarks: sm.remarks || null
-          };
-          await SubjectResult.create(subjectResultData);
-        }
-      }
-    }
-
-    const updatedResult = await Result.findById(id);
+    const updatedResult = await Result.update(id, updateData);
 
     res.json(updatedResult);
   } catch (error) {
     console.error('Update result error:', error);
-    res.status(500).json({ error: 'Failed to update result', details: error.message });
+    res.status(500).json({ error: 'Failed to update result' });
   }
 };
 
@@ -295,8 +248,13 @@ const deleteResult = async (req, res) => {
     }
 
     // Lecturer can only delete results for their assigned course
-    if (req.user.role === 'lecturer' && result.course_id !== req.user.course_id) {
-      return res.status(403).json({ error: 'Access denied: You can only delete results for your assigned course' });
+    if (req.user.role === 'lecturer') {
+      if (!req.user.course_id) {
+        return res.status(403).json({ error: 'Access denied: You must be assigned to a course to delete results' });
+      }
+      if (result.course_id !== req.user.course_id) {
+        return res.status(403).json({ error: 'Access denied: You can only delete results for your assigned course' });
+      }
     }
 
     await Result.delete(id);

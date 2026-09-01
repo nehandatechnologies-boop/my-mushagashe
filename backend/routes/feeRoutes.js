@@ -19,20 +19,20 @@ const validatePayment = [
 // Create new fee (admin only)
 router.post('/', authenticate, adminOnly, feeController.createFee);
 
-// Get all fees (authenticated)
-router.get('/', authenticate, feeController.getAllFees);
+// Get all fees (admin only)
+router.get('/', authenticate, adminOnly, feeController.getAllFees);
 
 // Get fee statistics (admin only)
 router.get('/statistics', authenticate, adminOnly, feeController.getFeeStatistics);
 
-// Get outstanding balance for current user (student only)
+// Get outstanding balance for current user (authenticated)
 router.get('/outstanding', authenticate, feeController.getOutstandingBalance);
 
 // Generate receipt number (admin only)
 router.get('/generate-receipt', authenticate, adminOnly, feeController.generateReceiptNumber);
 
-// Get fee by ID (authenticated)
-router.get('/:id', authenticate, feeController.getFeeById);
+// Get fee by ID (admin only)
+router.get('/:id', authenticate, adminOnly, feeController.getFeeById);
 
 // Update fee (admin only)
 router.put('/:id', authenticate, adminOnly, feeController.updateFee);

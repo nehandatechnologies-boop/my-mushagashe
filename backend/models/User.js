@@ -8,8 +8,6 @@ class User {
       intake_year, course_id, status
     } = userData;
 
-    console.log('User.create called with:', { full_name, email, student_number, role, course_id, status });
-
     const insertData = {
       full_name, email, student_number, password, role, phone, gender,
       national_id, date_of_birth, address, guardian_name, guardian_phone,
@@ -25,25 +23,26 @@ class User {
       }
     });
 
-    console.log('Inserting data:', insertData);
-
     const { data, error } = await supabase
       .from('users')
       .insert(insertData)
       .select()
       .single();
 
-    if (error) {
-      console.error('Supabase insert error:', error);
-      throw error;
-    }
+    if (error) throw error;
     return data;
   }
 
   static async findById(id) {
     const { data, error } = await supabase
       .from('users')
-      .select('*')
+      .select(`
+        *,
+        courses:course_id (
+          course_name,
+          course_code
+        )
+      `)
       .eq('id', id)
       .single();
 
@@ -52,18 +51,11 @@ class User {
       throw error;
     }
 
-    // If user has a course, fetch course details
-    if (data && data.course_id) {
-      const { data: courseData, error: courseError } = await supabase
-        .from('courses')
-        .select('course_name, course_code')
-        .eq('id', data.course_id)
-        .single();
-
-      if (!courseError && courseData) {
-        data.course_name = courseData.course_name;
-        data.course_code = courseData.course_code;
-      }
+    // Flatten the nested data
+    if (data && data.courses) {
+      data.course_name = data.courses.course_name;
+      data.course_code = data.courses.course_code;
+      delete data.courses;
     }
 
     return data;
@@ -94,21 +86,6 @@ class User {
       if (error.code === 'PGRST116') return null; // Not found
       throw error;
     }
-
-    // If user has a course, fetch course details
-    if (data && data.course_id) {
-      const { data: courseData, error: courseError } = await supabase
-        .from('courses')
-        .select('course_name, course_code')
-        .eq('id', data.course_id)
-        .single();
-
-      if (!courseError && courseData) {
-        data.course_name = courseData.course_name;
-        data.course_code = courseData.course_code;
-      }
-    }
-
     return data;
   }
 
@@ -136,7 +113,7 @@ class User {
     }
 
     if (filters.search) {
-      query = query.or(`full_name.ilike.%${filters.search}%,student_number.ilike.%${filters.search}%,email.ilike.%${filters.search}%`);
+      query = query.or(`full_name.ilike.%${filters.search}%,email.ilike.%${filters.search}%,student_number.ilike.%${filters.search}%`);
     }
 
     query = query.order('created_at', { ascending: false });
@@ -153,7 +130,7 @@ class User {
 
     if (error) throw error;
 
-    // Flatten the nested course data
+    // Flatten the nested data
     return data.map(user => {
       if (user.courses) {
         user.course_name = user.courses.course_name;
@@ -166,15 +143,15 @@ class User {
 
   static async update(id, userData) {
     const {
-      full_name, email, student_number, phone, gender, national_id,
-      date_of_birth, address, guardian_name, guardian_phone,
-      intake_year, status, course_id, profile_picture_url
+      full_name, email, student_number, password, phone, gender,
+      national_id, date_of_birth, address, guardian_name, guardian_phone,
+      intake_year, course_id, status
     } = userData;
 
     const updateData = {
-      full_name, email, student_number, phone, gender, national_id,
-      date_of_birth, address, guardian_name, guardian_phone,
-      intake_year, status, course_id, profile_picture_url
+      full_name, email, student_number, password, phone, gender,
+      national_id, date_of_birth, address, guardian_name, guardian_phone,
+      intake_year, course_id, status
     };
 
     // Remove undefined values and convert empty strings to null
@@ -186,8 +163,6 @@ class User {
       }
     });
 
-    console.log('Updating user with ID:', id, 'Data:', updateData);
-
     const { data, error } = await supabase
       .from('users')
       .update(updateData)
@@ -195,17 +170,14 @@ class User {
       .select()
       .single();
 
-    if (error) {
-      console.error('Supabase update error:', error);
-      throw error;
-    }
+    if (error) throw error;
     return data;
   }
 
-  static async updatePassword(id, hashedPassword) {
+  static async updatePassword(id, newPassword) {
     const { data, error } = await supabase
       .from('users')
-      .update({ password: hashedPassword })
+      .update({ password: newPassword })
       .eq('id', id)
       .select()
       .single();
@@ -227,20 +199,17 @@ class User {
   static async getStatistics() {
     const { data, error } = await supabase
       .from('users')
-      .select(`
-        gender,
-        status
-      `)
-      .eq('role', 'student');
+      .select('role, status');
 
     if (error) throw error;
 
     const stats = {
-      total: data.length,
-      male_count: data.filter(u => u.gender === 'male').length,
-      female_count: data.filter(u => u.gender === 'female').length,
-      active_count: data.filter(u => u.status === 'active').length,
-      suspended_count: data.filter(u => u.status === 'suspended').length
+      total_users: data.length,
+      total_students: data.filter(u => u.role === 'student').length,
+      total_lecturers: data.filter(u => u.role === 'lecturer').length,
+      total_admins: data.filter(u => u.role === 'admin').length,
+      active_users: data.filter(u => u.status === 'active').length,
+      suspended_users: data.filter(u => u.status === 'suspended').length
     };
 
     return stats;

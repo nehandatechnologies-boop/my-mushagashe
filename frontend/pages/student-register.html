@@ -5,196 +5,471 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https://*.onrender.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' https://fonts.gstatic.com;">
     <title>Student Registration - Mushagashe Vocational Training Centre</title>
-    <link rel="stylesheet" href="../assets/css/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/design-system.css">
+    <link rel="stylesheet" href="../assets/css/components.css">
+    <style>
+        .register-page {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: linear-gradient(135deg, var(--primary-50) 0%, var(--surface) 50%, var(--accent-50) 100%);
+        }
+
+        .register-header {
+            padding: var(--space-6) var(--space-8);
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: var(--space-4);
+        }
+
+        .logo-icon {
+            width: 40px;
+            height: 40px;
+            background: linear-gradient(135deg, var(--primary-400), var(--primary-600));
+            border-radius: var(--radius-lg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-inverse);
+            font-weight: var(--font-bold);
+            font-size: var(--text-base);
+        }
+
+        .logo-text h1 {
+            font-size: var(--text-base);
+            font-weight: var(--font-bold);
+            color: var(--text-primary);
+            line-height: var(--leading-tight);
+        }
+
+        .logo-text p {
+            font-size: var(--text-xs);
+            color: var(--text-secondary);
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-2);
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: var(--text-sm);
+            font-weight: var(--font-medium);
+            transition: color var(--transition-base);
+        }
+
+        .back-link:hover {
+            color: var(--primary-600);
+        }
+
+        .register-main {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--space-12) var(--space-8);
+        }
+
+        .register-container {
+            max-width: 800px;
+            width: 100%;
+        }
+
+        .register-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-2xl);
+            box-shadow: var(--shadow-2xl);
+            padding: var(--space-8);
+        }
+
+        .register-card-header {
+            text-align: center;
+            margin-bottom: var(--space-8);
+        }
+
+        .register-card-icon {
+            width: 64px;
+            height: 64px;
+            background: linear-gradient(135deg, var(--primary-400), var(--primary-600));
+            border-radius: var(--radius-xl);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto var(--space-4);
+            color: var(--text-inverse);
+        }
+
+        .register-card-title {
+            font-size: var(--text-2xl);
+            font-weight: var(--font-bold);
+            color: var(--text-primary);
+            margin-bottom: var(--space-2);
+        }
+
+        .register-card-subtitle {
+            font-size: var(--text-sm);
+            color: var(--text-secondary);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--space-4);
+            margin-bottom: var(--space-4);
+        }
+
+        .error-message {
+            display: none;
+            padding: var(--space-3) var(--space-4);
+            background: var(--danger-bg);
+            border: 1px solid var(--danger);
+            border-radius: var(--radius-lg);
+            color: var(--danger);
+            font-size: var(--text-sm);
+            margin-bottom: var(--space-6);
+        }
+
+        .error-message.show {
+            display: block;
+        }
+
+        .success-message {
+            display: none;
+            padding: var(--space-3) var(--space-4);
+            background: var(--success-bg);
+            border: 1px solid var(--success);
+            border-radius: var(--radius-lg);
+            color: var(--success);
+            font-size: var(--text-sm);
+            margin-bottom: var(--space-6);
+        }
+
+        .success-message.show {
+            display: block;
+        }
+
+        .btn-loading {
+            position: relative;
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .btn-loading::after {
+            content: '';
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            border: 2px solid transparent;
+            border-top-color: currentColor;
+            border-radius: var(--radius-full);
+            animation: spin 0.8s linear infinite;
+        }
+
+        .register-help {
+            margin-top: var(--space-6);
+            padding-top: var(--space-6);
+            border-top: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .register-help p {
+            font-size: var(--text-sm);
+            color: var(--text-secondary);
+        }
+
+        .register-help a {
+            color: var(--primary-600);
+            text-decoration: none;
+            font-weight: var(--font-medium);
+            transition: color var(--transition-base);
+        }
+
+        .register-help a:hover {
+            color: var(--primary-800);
+        }
+
+        .register-footer {
+            padding: var(--space-6) var(--space-8);
+            background: var(--gray-50);
+            border-top: 1px solid var(--border);
+            text-align: center;
+        }
+
+        .footer-text {
+            font-size: var(--text-sm);
+            color: var(--text-secondary);
+        }
+
+        @media (max-width: 640px) {
+            .register-header {
+                padding: var(--space-4) var(--space-6);
+            }
+
+            .register-main {
+                padding: var(--space-8) var(--space-6);
+            }
+
+            .register-card {
+                padding: var(--space-6);
+            }
+
+            .register-card-title {
+                font-size: var(--text-xl);
+            }
+
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
-    <div class="login-container">
-        <div class="login-header">
-            <div class="logo">
-                <h1>Mushagashe Vocational Training Centre</h1>
-                <p>Student Information Management System</p>
-            </div>
-            <a href="index.html" class="back-link">← Back to Home</a>
-        </div>
-
-        <div class="login-content">
-            <div class="login-form-wrapper register-form-wrapper">
-                <div class="login-form-header">
-                    <h2>Create Student Account</h2>
-                    <p>Fill in your details to register as a new student</p>
+    <div class="register-page">
+        <header class="register-header">
+            <div class="header-content">
+                <div class="logo-section">
+                    <div class="logo-icon">MV</div>
+                    <div class="logo-text">
+                        <h1>Mushagashe VTC</h1>
+                        <p>Student Portal</p>
+                    </div>
                 </div>
+                <a href="../index.html" class="back-link">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                    </svg>
+                    <span>Back to Home</span>
+                </a>
+            </div>
+        </header>
 
-                <form id="studentRegisterForm" class="login-form">
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="full_name">Full Name *</label>
-                            <input 
-                                type="text" 
-                                id="full_name" 
-                                name="full_name" 
-                                placeholder="Enter your full name" 
-                                required
-                            >
-                        </div>
-                        <div class="form-group">
-                            <label for="student_number">Student Number *</label>
-                            <input 
-                                type="text" 
-                                id="student_number" 
-                                name="student_number" 
-                                placeholder="e.g., STU2024001" 
-                                required
-                            >
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="email">Email Address *</label>
-                            <input 
-                                type="email" 
-                                id="email" 
-                                name="email" 
-                                placeholder="Enter your email" 
-                                required
-                            >
-                        </div>
-                        <div class="form-group">
-                            <label for="phone">Phone Number</label>
-                            <input 
-                                type="tel" 
-                                id="phone" 
-                                name="phone" 
-                                placeholder="e.g., +263771234567"
-                            >
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="gender">Gender</label>
-                            <select id="gender" name="gender">
-                                <option value="">Select Gender</option>
-                                <option value="Male">Male</option>
-                                <option value="Female">Female</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="national_id">National ID</label>
-                            <input 
-                                type="text" 
-                                id="national_id" 
-                                name="national_id" 
-                                placeholder="Enter national ID number"
-                            >
-                        </div>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="date_of_birth">Date of Birth</label>
-                            <input 
-                                type="date" 
-                                id="date_of_birth" 
-                                name="date_of_birth"
-                            >
-                        </div>
-                        <div class="form-group">
-                            <label for="intake_year">Intake Year *</label>
-                            <select id="intake_year" name="intake_year" required>
-                                <option value="">Select Year</option>
-                                <option value="2024">2024</option>
-                                <option value="2025">2025</option>
-                                <option value="2026">2026</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="address">Address</label>
-                        <textarea 
-                            id="address" 
-                            name="address" 
-                            placeholder="Enter your residential address"
-                            rows="3"
-                        ></textarea>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="guardian_name">Guardian Name</label>
-                            <input 
-                                type="text" 
-                                id="guardian_name" 
-                                name="guardian_name" 
-                                placeholder="Guardian's full name"
-                            >
-                        </div>
-                        <div class="form-group">
-                            <label for="guardian_phone">Guardian Phone</label>
-                            <input 
-                                type="tel" 
-                                id="guardian_phone" 
-                                name="guardian_phone" 
-                                placeholder="Guardian's phone number"
-                            >
-                        </div>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="password">Password *</label>
-                        <input 
-                            type="password" 
-                            id="password" 
-                            name="password" 
-                            placeholder="Create a password (min 6 characters)" 
-                            required
-                            minlength="6"
-                        >
-                    </div>
-
-                    <div class="form-group">
-                        <label for="confirm_password">Confirm Password *</label>
-                        <input 
-                            type="password" 
-                            id="confirm_password" 
-                            name="confirm_password" 
-                            placeholder="Confirm your password" 
-                            required
-                            minlength="6"
-                        >
-                    </div>
-
-                    <button type="submit" class="btn btn-primary btn-full">
-                        <span class="btn-text">Create Account</span>
-                        <span class="btn-loader" style="display: none;">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="10" stroke-dasharray="60" stroke-dashoffset="20"></circle>
+        <main class="register-main">
+            <div class="register-container">
+                <div class="register-card">
+                    <div class="register-card-header">
+                        <div class="register-card-icon">
+                            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                <circle cx="8.5" cy="7" r="4"></circle>
+                                <line x1="20" y1="8" x2="20" y2="14"></line>
+                                <line x1="23" y1="11" x2="17" y2="11"></line>
                             </svg>
-                        </span>
-                    </button>
-                </form>
+                        </div>
+                        <h2 class="register-card-title">Create Student Account</h2>
+                        <p class="register-card-subtitle">Fill in your details to register as a new student</p>
+                    </div>
 
-                <div id="error-message" class="error-message" style="display: none;"></div>
-                <div id="success-message" class="success-message" style="display: none;"></div>
-                
-                <div class="login-help">
-                    <p>Already have an account? <a href="student-login.html" class="help-link">Login here</a></p>
+                    <form id="studentRegisterForm">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label required" for="full_name">Full Name</label>
+                                <input 
+                                    type="text" 
+                                    id="full_name" 
+                                    name="full_name" 
+                                    class="input"
+                                    placeholder="Enter your full name" 
+                                    required
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label required" for="student_number">Student Number</label>
+                                <input 
+                                    type="text" 
+                                    id="student_number" 
+                                    name="student_number" 
+                                    class="input"
+                                    placeholder="e.g., STU2024001" 
+                                    required
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label required" for="email">Email Address</label>
+                                <input 
+                                    type="email" 
+                                    id="email" 
+                                    name="email" 
+                                    class="input"
+                                    placeholder="Enter your email" 
+                                    required
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="phone">Phone Number</label>
+                                <input 
+                                    type="tel" 
+                                    id="phone" 
+                                    name="phone" 
+                                    class="input"
+                                    placeholder="e.g., +263771234567"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" for="gender">Gender</label>
+                                <select id="gender" name="gender" class="select">
+                                    <option value="">Select Gender</option>
+                                    <option value="Male">Male</option>
+                                    <option value="Female">Female</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="national_id">National ID</label>
+                                <input 
+                                    type="text" 
+                                    id="national_id" 
+                                    name="national_id" 
+                                    class="input"
+                                    placeholder="Enter national ID number"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" for="date_of_birth">Date of Birth</label>
+                                <input 
+                                    type="date" 
+                                    id="date_of_birth" 
+                                    name="date_of_birth"
+                                    class="input"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label required" for="intake_year">Intake Year</label>
+                                <select id="intake_year" name="intake_year" class="select" required>
+                                    <option value="">Select Year</option>
+                                    <option value="2024">2024</option>
+                                    <option value="2025">2025</option>
+                                    <option value="2026">2026</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="address">Address</label>
+                            <textarea 
+                                id="address" 
+                                name="address" 
+                                class="textarea"
+                                placeholder="Enter your residential address"
+                                rows="3"
+                            ></textarea>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" for="guardian_name">Guardian Name</label>
+                                <input 
+                                    type="text" 
+                                    id="guardian_name" 
+                                    name="guardian_name" 
+                                    class="input"
+                                    placeholder="Guardian's full name"
+                                >
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="guardian_phone">Guardian Phone</label>
+                                <input 
+                                    type="tel" 
+                                    id="guardian_phone" 
+                                    name="guardian_phone" 
+                                    class="input"
+                                    placeholder="Guardian's phone number"
+                                >
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label required" for="password">Password</label>
+                            <input 
+                                type="password" 
+                                id="password" 
+                                name="password" 
+                                class="input"
+                                placeholder="Create a password (min 6 characters)" 
+                                required
+                                minlength="6"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label required" for="confirm_password">Confirm Password</label>
+                            <input 
+                                type="password" 
+                                id="confirm_password" 
+                                name="confirm_password" 
+                                class="input"
+                                placeholder="Confirm your password" 
+                                required
+                                minlength="6"
+                            >
+                        </div>
+
+                        <button type="submit" class="btn btn-primary btn-full" id="registerBtn">
+                            <span class="btn-text">Create Account</span>
+                        </button>
+                    </form>
+
+                    <div id="error-message" class="error-message"></div>
+                    <div id="success-message" class="success-message"></div>
+                    
+                    <div class="register-help">
+                        <p>Already have an account? <a href="student-login.html">Login here</a></p>
+                    </div>
                 </div>
             </div>
-        </div>
+        </main>
 
-        <footer class="login-footer">
-            <p>Mushagashe Vocational Training Centre</p>
-            <p>&copy; <span id="current-year"></span> All Rights Reserved</p>
+        <footer class="register-footer">
+            <p class="footer-text">Mushagashe Vocational Training Centre</p>
+            <p class="footer-text">&copy; <span id="current-year"></span> All Rights Reserved</p>
         </footer>
     </div>
 
     <script src="../assets/js/student-register.js"></script>
     <script>
-        // Automatic copyright year update
         document.getElementById('current-year').textContent = new Date().getFullYear();
+
+        document.getElementById('studentRegisterForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const btn = document.getElementById('registerBtn');
+            const btnText = btn.querySelector('.btn-text');
+            const errorDiv = document.getElementById('error-message');
+            const successDiv = document.getElementById('success-message');
+            
+            btn.classList.add('btn-loading');
+            btnText.textContent = 'Creating Account...';
+            errorDiv.classList.remove('show');
+            successDiv.classList.remove('show');
+            
+            // Form submission is handled by student-register.js
+            // This just adds loading state
+        });
     </script>
 </body>
 </html>

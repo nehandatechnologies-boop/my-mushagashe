@@ -91,6 +91,12 @@ const updateFee = async (req, res) => {
       receipt_number, payment_date, due_date, status
     } = req.body;
 
+    // Get current fee
+    const currentFee = await Fee.findById(id);
+    if (!currentFee) {
+      return res.status(404).json({ error: 'Fee not found' });
+    }
+
     const updateData = {
       amount, amount_paid, balance, payment_reference, payment_method,
       receipt_number, payment_date, due_date, status

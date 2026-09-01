@@ -72,19 +72,12 @@ function showToast(message, type = 'success') {
     const toast = document.getElementById('toast');
     const toastMessage = document.getElementById('toastMessage');
     
-    // Robust error handling - if elements don't exist, fall back to console
-    if (!toast || !toastMessage) {
-        console.error('Toast elements not found:', { toast: !!toast, toastMessage: !!toastMessage });
-        console.log(`Toast [${type}]:`, message);
-        return;
-    }
-    
     toastMessage.textContent = message;
     toast.style.display = 'block';
     toast.style.background = type === 'error' ? '#EF4444' : '#10B981';
     
     setTimeout(() => {
-        if (toast) toast.style.display = 'none';
+        toast.style.display = 'none';
     }, 3000);
 }
 
@@ -153,9 +146,7 @@ async function loadPageData(page) {
 // Load dashboard statistics
 async function loadDashboardStatistics() {
     try {
-        console.log('Loading dashboard statistics...');
         const stats = await apiRequest('/dashboard/statistics');
-        console.log('Statistics received:', stats);
         
         document.getElementById('totalStudents').textContent = stats.students.total || 0;
         document.getElementById('totalCourses').textContent = stats.courses.total || 0;
@@ -166,9 +157,6 @@ async function loadDashboardStatistics() {
         document.getElementById('suspendedStudents').textContent = stats.students.suspended || 0;
         document.getElementById('maleStudents').textContent = stats.students.male || 0;
         document.getElementById('femaleStudents').textContent = stats.students.female || 0;
-        
-        // Load recent announcements
-        await loadRecentAnnouncements();
         
     } catch (error) {
         console.error('Error loading statistics:', error);
@@ -246,9 +234,7 @@ async function loadStudents() {
         if (filter) params.push(`status=${filter}`);
         if (params.length) endpoint += '?' + params.join('&');
         
-        console.log('Loading students from:', endpoint);
         const students = await apiRequest(endpoint);
-        console.log('Students loaded:', students?.length || 0);
         
         if (!students || students.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7" class="text-center">No students found</td></tr>';
@@ -283,15 +269,6 @@ async function loadStudents() {
 
 // Load courses
 async function loadCourses() {
-    const tbody = document.getElementById('coursesTableBody');
-    if (!tbody) {
-        console.error('Courses table body not found');
-        return;
-    }
-    
-    // Set loading state
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center">Loading courses...</td></tr>';
-    
     try {
         const courseSearch = document.getElementById('courseSearch');
         const search = courseSearch ? courseSearch.value : '';
@@ -299,9 +276,8 @@ async function loadCourses() {
         let endpoint = '/courses/with-count';
         if (search) endpoint += `?search=${encodeURIComponent(search)}`;
         
-        console.log('Loading courses from:', endpoint);
         const courses = await apiRequest(endpoint);
-        console.log('Courses loaded:', courses?.length || 0);
+        const tbody = document.getElementById('coursesTableBody');
         
         if (!courses || courses.length === 0) {
             tbody.innerHTML = '<tr><td colspan="6" class="text-center">No courses found</td></tr>';
@@ -323,22 +299,12 @@ async function loadCourses() {
         `).join('');
     } catch (error) {
         console.error('Error loading courses:', error);
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center">Failed to load courses. Please try again.</td></tr>';
         showToast('Failed to load courses', 'error');
     }
 }
 
 // Load fees
 async function loadFees() {
-    const tbody = document.getElementById('feesTableBody');
-    if (!tbody) {
-        console.error('Fees table body not found');
-        return;
-    }
-    
-    // Set loading state
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center">Loading fees...</td></tr>';
-    
     try {
         const feeSearch = document.getElementById('feeSearch');
         const feeFilter = document.getElementById('feeFilter');
@@ -351,9 +317,8 @@ async function loadFees() {
         if (filter) params.push(`status=${filter}`);
         if (params.length) endpoint += '?' + params.join('&');
         
-        console.log('Loading fees from:', endpoint);
         const fees = await apiRequest(endpoint);
-        console.log('Fees loaded:', fees?.length || 0);
+        const tbody = document.getElementById('feesTableBody');
         
         if (!fees || fees.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7" class="text-center">No fees found</td></tr>';
@@ -384,15 +349,6 @@ async function loadFees() {
 
 // Load results
 async function loadResults() {
-    const tbody = document.getElementById('resultsTableBody');
-    if (!tbody) {
-        console.error('Results table body not found');
-        return;
-    }
-    
-    // Set loading state
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center">Loading results...</td></tr>';
-    
     try {
         const resultSearch = document.getElementById('resultSearch');
         const semesterFilter = document.getElementById('semesterFilter');
@@ -405,9 +361,8 @@ async function loadResults() {
         if (semester) params.push(`semester=${semester}`);
         if (params.length) endpoint += '?' + params.join('&');
         
-        console.log('Loading results from:', endpoint);
         const results = await apiRequest(endpoint);
-        console.log('Results loaded:', results?.length || 0);
+        const tbody = document.getElementById('resultsTableBody');
         
         if (!results || results.length === 0) {
             tbody.innerHTML = '<tr><td colspan="7" class="text-center">No results found</td></tr>';
@@ -443,7 +398,6 @@ async function loadResults() {
         tbody.innerHTML = html;
     } catch (error) {
         console.error('Error loading results:', error);
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center">Failed to load results. Please try again.</td></tr>';
         showToast('Failed to load results', 'error');
     }
 }
@@ -507,19 +461,9 @@ window.showStudentResults = async (studentName, studentNumber) => {
 
 // Load announcements
 async function loadAnnouncements() {
-    const container = document.getElementById('allAnnouncements');
-    if (!container) {
-        console.error('Announcements container not found');
-        return;
-    }
-    
-    // Set loading state
-    container.innerHTML = '<div class="text-center">Loading announcements...</div>';
-    
     try {
-        console.log('Loading announcements from: /announcements');
         const announcements = await apiRequest('/announcements');
-        console.log('Announcements loaded:', announcements?.length || 0);
+        const container = document.getElementById('allAnnouncements');
         
         if (!announcements || announcements.length === 0) {
             container.innerHTML = `
@@ -552,7 +496,6 @@ async function loadAnnouncements() {
         }).join('');
     } catch (error) {
         console.error('Error loading announcements:', error);
-        container.innerHTML = '<div class="text-center">Failed to load announcements. Please try again.</div>';
         showToast('Failed to load announcements', 'error');
     }
 }
@@ -959,15 +902,6 @@ window.deleteCourse = async function(id) {
 
 // Load lecturers
 async function loadLecturers() {
-    const tbody = document.getElementById('lecturersTableBody');
-    if (!tbody) {
-        console.error('Lecturers table body not found');
-        return;
-    }
-    
-    // Set loading state
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center">Loading lecturers...</td></tr>';
-    
     try {
         const lecturerSearch = document.getElementById('lecturerSearch');
         const lecturerFilter = document.getElementById('lecturerFilter');
@@ -980,9 +914,8 @@ async function loadLecturers() {
         if (filter) params.push(`status=${filter}`);
         if (params.length) endpoint += '?' + params.join('&');
         
-        console.log('Loading lecturers from:', endpoint);
         const lecturers = await apiRequest(endpoint);
-        console.log('Lecturers loaded:', lecturers?.length || 0);
+        const tbody = document.getElementById('lecturersTableBody');
         
         if (!lecturers || lecturers.length === 0) {
             tbody.innerHTML = '<tr><td colspan="6" class="text-center">No lecturers found</td></tr>';
@@ -1004,7 +937,6 @@ async function loadLecturers() {
         `).join('');
     } catch (error) {
         console.error('Error loading lecturers:', error);
-        tbody.innerHTML = '<tr><td colspan="6" class="text-center">Failed to load lecturers. Please try again.</td></tr>';
         showToast('Failed to load lecturers', 'error');
     }
 }
@@ -1486,39 +1418,36 @@ if (addResultBtn) {
                 });
             }
             
-            const addResultForm = document.getElementById('addResultForm');
-            if (addResultForm) {
-                addResultForm.addEventListener('submit', async (e) => {
-                    e.preventDefault();
-                    const formData = new FormData(e.target);
-                    const resultData = Object.fromEntries(formData);
-                    
-                    // Collect subject marks
-                    const subjectMarks = [];
-                    document.querySelectorAll('.subject-mark-input').forEach(input => {
-                        if (input.value) {
-                            subjectMarks.push({
-                                subject_id: input.dataset.subjectId,
-                                mark: parseFloat(input.value)
-                            });
-                        }
-                    });
-                    
-                    resultData.subject_results = subjectMarks;
-                    
-                    try {
-                        await apiRequest('/results', {
-                            method: 'POST',
-                            body: JSON.stringify(resultData)
+            document.getElementById('addResultForm').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const resultData = Object.fromEntries(formData);
+                
+                // Collect subject marks
+                const subjectMarks = [];
+                document.querySelectorAll('.subject-mark-input').forEach(input => {
+                    if (input.value) {
+                        subjectMarks.push({
+                            subject_id: input.dataset.subjectId,
+                            mark: parseFloat(input.value)
                         });
-                        showToast('Result added successfully');
-                        hideModal();
-                        loadResults();
-                    } catch (error) {
-                        showToast('Failed to add result', 'error');
                     }
                 });
-            }
+                
+                resultData.subject_results = subjectMarks;
+                
+                try {
+                    await apiRequest('/results', {
+                        method: 'POST',
+                        body: JSON.stringify(resultData)
+                    });
+                    showToast('Result added successfully');
+                    hideModal();
+                    loadResults();
+                } catch (error) {
+                    showToast('Failed to add result', 'error');
+                }
+            });
         } catch (error) {
             console.error('Load data error:', error);
             showToast('Failed to load data', 'error');
@@ -1655,10 +1584,8 @@ async function loadSubjects() {
 }
 
 window.addSubject = async () => {
-    console.log('Add Subject function called');
     try {
         const courses = await apiRequest('/courses');
-        console.log('Courses loaded:', courses);
         
         showModal(`
             <div class="modal-header">
@@ -1707,7 +1634,6 @@ window.addSubject = async () => {
             }
         });
     } catch (error) {
-        console.error('Add subject error:', error);
         showToast('Failed to load courses', 'error');
     }
 };
@@ -1827,30 +1753,27 @@ if (addAnnouncementBtn) {
             </form>
         `);
         
-        const addAnnouncementForm = document.getElementById('addAnnouncementForm');
-        if (addAnnouncementForm) {
-            addAnnouncementForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const data = {
-                    title: formData.get('title'),
-                    message: formData.get('message'),
-                    priority: formData.get('priority')
-                };
-                
-                try {
-                    await apiRequest('/announcements', {
-                        method: 'POST',
-                        body: JSON.stringify(data)
-                    });
-                    showToast('Announcement added successfully');
-                    hideModal();
-                    loadAnnouncements();
-                } catch (error) {
-                    showToast('Failed to add announcement', 'error');
-                }
-            });
-        }
+        document.getElementById('addAnnouncementForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const data = {
+                title: formData.get('title'),
+                message: formData.get('message'),
+                priority: formData.get('priority')
+            };
+            
+            try {
+                await apiRequest('/announcements', {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+                showToast('Announcement added successfully');
+                hideModal();
+                loadAnnouncements();
+            } catch (error) {
+                showToast('Failed to add announcement', 'error');
+            }
+        });
     });
 }
 
@@ -2049,32 +1972,32 @@ document.querySelectorAll('.view-all').forEach(link => {
 const backupDbBtn = document.getElementById('backupDbBtn');
 if (backupDbBtn) {
     backupDbBtn.addEventListener('click', async () => {
-    try {
-        const response = await fetch(`${API_BASE}/auth/backup/database`, {
-            headers: {
-                'Authorization': `Bearer ${token}`
+        try {
+            const response = await fetch(`${API_BASE}/auth/backup/database`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error('Failed to backup database');
             }
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to backup database');
+            
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `mushagashe-db-backup-${new Date().toISOString().split('T')[0]}.db`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+            
+            showToast('Database backed up successfully');
+        } catch (error) {
+            console.error('Backup error:', error);
+            showToast('Failed to backup database', 'error');
         }
-        
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `mushagashe-db-backup-${new Date().toISOString().split('T')[0]}.db`;
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(url);
-        document.body.removeChild(a);
-        
-        showToast('Database backed up successfully');
-    } catch (error) {
-        console.error('Backup error:', error);
-        showToast('Failed to backup database', 'error');
-    }
     });
 }
 
@@ -2217,82 +2140,72 @@ async function loadTemplateInfo() {
 }
 
 // Template upload handler
-const uploadTemplateForm = document.getElementById('uploadTemplateForm');
-if (uploadTemplateForm) {
-    uploadTemplateForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
+document.getElementById('uploadTemplateForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const formData = new FormData(e.target);
+    const file = formData.get('template');
+    
+    if (!file) {
+        showToast('Please select a file', 'error');
+        return;
+    }
+    
+    if (file.size > 10 * 1024 * 1024) {
+        showToast('File size exceeds 10MB limit', 'error');
+        return;
+    }
+    
+    if (file.type !== 'application/pdf') {
+        showToast('Only PDF files are allowed', 'error');
+        return;
+    }
+    
+    try {
+        const currentToken = localStorage.getItem('token');
+        const response = await fetch(`${API_BASE}/templates/upload`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${currentToken}`
+            },
+            body: formData
+        });
         
-        const formData = new FormData(e.target);
-        const file = formData.get('template');
+        const data = await response.json();
         
-        if (!file) {
-            showToast('Please select a file', 'error');
-            return;
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to upload template');
         }
         
-        if (file.size > 10 * 1024 * 1024) {
-            showToast('File size exceeds 10MB limit', 'error');
-            return;
-        }
-        
-        if (file.type !== 'application/pdf') {
-            showToast('Only PDF files are allowed', 'error');
-            return;
-        }
-        
-        try {
-            const currentToken = localStorage.getItem('token');
-            const response = await fetch(`${API_BASE}/templates/upload`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${currentToken}`
-                },
-                body: formData
-            });
-            
-            const data = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to upload template');
-            }
-            
-            showToast('Template uploaded successfully');
-            e.target.reset();
-            loadTemplateInfo();
-        } catch (error) {
-            console.error('Upload error:', error);
-            showToast(error.message || 'Failed to upload template', 'error');
-        }
-    });
-}
+        showToast('Template uploaded successfully');
+        e.target.reset();
+        loadTemplateInfo();
+    } catch (error) {
+        console.error('Upload error:', error);
+        showToast(error.message || 'Failed to upload template', 'error');
+    }
+});
 
 // Template delete handler
-const deleteTemplateBtn = document.getElementById('deleteTemplateBtn');
-if (deleteTemplateBtn) {
-    deleteTemplateBtn.addEventListener('click', async () => {
-        if (!confirm('Are you sure you want to delete the custom template? The default template will be used instead.')) return;
-        
-        try {
-            await apiRequest('/templates/delete', { method: 'DELETE' });
-            showToast('Template deleted successfully');
-            loadTemplateInfo();
-        } catch (error) {
-            console.error('Delete error:', error);
-            showToast('Failed to delete template', 'error');
-        }
-    });
-}
+document.getElementById('deleteTemplateBtn').addEventListener('click', async () => {
+    if (!confirm('Are you sure you want to delete the custom template? The default template will be used instead.')) return;
+    
+    try {
+        await apiRequest('/templates/delete', { method: 'DELETE' });
+        showToast('Template deleted successfully');
+        loadTemplateInfo();
+    } catch (error) {
+        console.error('Delete error:', error);
+        showToast('Failed to delete template', 'error');
+    }
+});
 
 // Check authentication on load
 window.addEventListener('load', () => {
     const currentToken = localStorage.getItem('token');
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
     
-    console.log('Auth check - token:', currentToken ? 'exists' : 'missing');
-    console.log('Auth check - user role:', currentUser.role);
-    
     if (!currentToken || currentUser.role !== 'admin') {
-        console.log('Redirecting to login - not authenticated or not admin');
         window.location.href = 'admin-login.html';
         return;
     }
@@ -2303,9 +2216,8 @@ window.addEventListener('load', () => {
     if (adminName) adminName.textContent = currentUser.full_name;
     if (headerAdminName) headerAdminName.textContent = currentUser.full_name;
 
-    console.log('Loading dashboard statistics...');
-    // Ensure overview page is active and load initial data
-    navigateTo('overview');
+    // Load initial data
+    loadDashboardStatistics();
 });
 
 // Close modal when clicking outside

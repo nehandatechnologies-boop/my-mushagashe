@@ -16,6 +16,11 @@ const createCourse = async (req, res) => {
 
     const result = await Course.create(courseData);
 
+    if (!result) {
+      console.error('Course.create returned null');
+      return res.status(500).json({ error: 'Failed to create course - no result returned' });
+    }
+
     res.status(201).json({
       message: 'Course created successfully',
       id: result.id

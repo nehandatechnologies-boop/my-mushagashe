@@ -153,11 +153,6 @@ const getStudentById = async (req, res) => {
       return res.status(400).json({ error: 'User is not a student' });
     }
 
-    // Lecturer can only view students in their assigned course
-    if (req.user.role === 'lecturer' && student.course_id !== req.user.course_id) {
-      return res.status(403).json({ error: 'Access denied: You can only view students in your assigned course' });
-    }
-
     const { password: _, ...studentWithoutPassword } = student;
 
     res.json(studentWithoutPassword);
@@ -177,15 +172,10 @@ const updateStudent = async (req, res) => {
       intake_year, status, course_id
     } = req.body;
 
-    // Get existing student to check course
-    const existingStudent = await User.findById(id);
-    if (!existingStudent) {
+    // Get current student data
+    const currentStudent = await User.findById(id);
+    if (!currentStudent) {
       return res.status(404).json({ error: 'Student not found' });
-    }
-
-    // Lecturer can only update students in their assigned course
-    if (req.user.role === 'lecturer' && existingStudent.course_id !== req.user.course_id) {
-      return res.status(403).json({ error: 'Access denied: You can only update students in your assigned course' });
     }
 
     const updateData = {
@@ -201,17 +191,13 @@ const updateStudent = async (req, res) => {
       }
     });
 
-    await User.update(id, updateData);
+    const updatedStudent = await User.update(id, updateData);
 
-    const updatedStudent = await User.findById(id);
     const { password: _, ...studentWithoutPassword } = updatedStudent;
 
     res.json(studentWithoutPassword);
   } catch (error) {
     console.error('Update student error:', error);
-    if (error.message.includes('UNIQUE')) {
-      return res.status(400).json({ error: 'Student number or email already exists' });
-    }
     res.status(500).json({ error: 'Failed to update student' });
   }
 };

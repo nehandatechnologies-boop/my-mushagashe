@@ -4,9 +4,22 @@ class Course {
   static async create(courseData) {
     const { course_code, course_name, department, duration, description } = courseData;
 
+    const insertData = {
+      course_code, course_name, department, duration, description
+    };
+
+    // Remove undefined values and convert empty strings to null
+    Object.keys(insertData).forEach(key => {
+      if (insertData[key] === undefined) {
+        delete insertData[key];
+      } else if (insertData[key] === '') {
+        insertData[key] = null;
+      }
+    });
+
     const { data, error } = await supabase
       .from('courses')
-      .insert({ course_code, course_name, department, duration, description })
+      .insert(insertData)
       .select()
       .single();
 
@@ -35,7 +48,7 @@ class Course {
       .eq('course_code', courseCode)
       .single();
 
-    if (error) {
+   if (error) {
       if (error.code === 'PGRST116') return null; // Not found
       throw error;
     }
@@ -53,10 +66,14 @@ class Course {
       query = query.or(`course_name.ilike.%${filters.search}%,course_code.ilike.%${filters.search}%`);
     }
 
-    query = query.order('course_name');
+    query = query.order('created_at', { ascending: false });
 
     if (filters.limit) {
       query = query.limit(filters.limit);
+    }
+
+    if (filters.offset) {
+      query = query.range(filters.offset, filters.offset + (filters.limit || 10) - 1);
     }
 
     const { data, error } = await query;
@@ -68,9 +85,22 @@ class Course {
   static async update(id, courseData) {
     const { course_code, course_name, department, duration, description } = courseData;
 
+    const updateData = {
+      course_code, course_name, department, duration, description
+    };
+
+    // Remove undefined values and convert empty strings to null
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) {
+        delete updateData[key];
+      } else if (updateData[key] === '') {
+        updateData[key] = null;
+      }
+    });
+
     const { data, error } = await supabase
       .from('courses')
-      .update({ course_code, course_name, department, duration, description })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();
@@ -90,33 +120,32 @@ class Course {
   }
 
   static async getStudentCount(courseId) {
-    const { count, error } = await supabase
+    const { data, error } = await supabase
       .from('users')
-      .select('id', { count: 'exact', head: true })
-      .eq('course_id', courseId)
-      .eq('role', 'student');
+      .select('id')
+      .eq('course_id', courseId);
 
     if (error) throw error;
-    return count || 0;
+    return data.length;
   }
 
   static async getAllWithStudentCount() {
     const { data: courses, error } = await supabase
       .from('courses')
       .select('*')
-      .order('course_name');
+      .order('created_at', { ascending: false });
 
     if (error) throw error;
 
-    // Get student counts for each course
-    const coursesWithCounts = await Promise.all(
+    // Get student count for each course
+    const coursesWithCount = await Promise.all(
       courses.map(async (course) => {
         const studentCount = await this.getStudentCount(course.id);
         return { ...course, student_count: studentCount };
       })
     );
 
-    return coursesWithCounts;
+    return coursesWithCount;
   }
 }
 

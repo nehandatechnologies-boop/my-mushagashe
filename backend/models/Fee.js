@@ -1,5 +1,4 @@
 const supabase = require('../config/supabase');
-const PaymentHistory = require('./PaymentHistory');
 
 class Fee {
   static async create(feeData) {
@@ -9,17 +8,16 @@ class Fee {
     } = feeData;
 
     const insertData = {
-      user_id, fee_category, amount,
-      amount_paid: amount_paid || 0,
-      balance: balance || amount,
-      payment_reference, payment_method, receipt_number, payment_date, due_date,
-      status: status || 'unpaid'
+      user_id, fee_category, amount, amount_paid, balance,
+      payment_reference, payment_method, receipt_number, payment_date, due_date, status
     };
 
     // Remove undefined values and convert empty strings to null
     Object.keys(insertData).forEach(key => {
-      if (insertData[key] === undefined || insertData[key] === '') {
+      if (insertData[key] === undefined) {
         delete insertData[key];
+      } else if (insertData[key] === '') {
+        insertData[key] = null;
       }
     });
 
@@ -52,7 +50,7 @@ class Fee {
       throw error;
     }
 
-    // Flatten the nested user data
+    // Flatten the nested data
     if (data && data.users) {
       data.full_name = data.users.full_name;
       data.student_number = data.users.student_number;
@@ -66,43 +64,37 @@ class Fee {
   static async findByUserId(userId) {
     const { data, error } = await supabase
       .from('fees')
-      .select('*')
+      .select(`
+        *,
+        users:user_id (
+          course_id
+        ),
+        users:users!inner (
+          course_id
+        )
+      `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
-
-    // Fetch user data
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('id, full_name, student_number, email, course_id')
-      .eq('id', userId)
-      .single();
-
-    if (!userError && userData && userData.course_id) {
-      // Fetch course data
-      const { data: courseData, error: courseError } = await supabase
-        .from('courses')
-        .select('course_name')
-        .eq('id', userData.course_id)
-        .single();
-
-      if (!courseError && courseData) {
-        // Add course name to each fee
-        return data.map(fee => ({
-          ...fee,
-          course_name: courseData.course_name
-        }));
-      }
-    }
-
     return data;
   }
 
   static async findAll(filters = {}) {
     let query = supabase
       .from('fees')
-      .select('*');
+      .select(`
+        *,
+        users:user_id (
+          full_name,
+          student_number,
+          email,
+          course_id
+        ),
+        courses:users!inner(course_id) (
+          course_name
+        )
+      `);
 
     if (filters.user_id) {
       query = query.eq('user_id', filters.user_id);
@@ -128,72 +120,16 @@ class Fee {
 
     const { data, error } = await query;
 
-    if (error) {
-      console.error('Fee.findAll query error:', error);
-      throw error;
-    }
+    if (error) throw error;
 
-    // If no fees, return empty array
-    if (!data || data.length === 0) {
-      return [];
-    }
-
-    // Fetch user data for each fee
-    const userIds = [...new Set(data.map(f => f.user_id))];
-    let usersData = [];
-    
-    if (userIds.length > 0) {
-      const { data: userData, error: userError } = await supabase
-        .from('users')
-        .select('id, full_name, student_number, email, course_id')
-        .in('id', userIds);
-      
-      if (userError) {
-        console.error('Fee.findAll users query error:', userError);
-        // Continue with empty users data
-      } else {
-        usersData = userData || [];
-      }
-    }
-
-    const usersMap = {};
-    usersData.forEach(user => {
-      usersMap[user.id] = user;
-    });
-
-    // Fetch course data for users who have courses
-    const courseIds = [...new Set(usersData.filter(u => u.course_id).map(u => u.course_id))];
-    let coursesData = [];
-    
-    if (courseIds.length > 0) {
-      const { data: courseData, error: courseError } = await supabase
-        .from('courses')
-        .select('id, course_name')
-        .in('id', courseIds);
-      
-      if (courseError) {
-        console.error('Fee.findAll courses query error:', courseError);
-        // Continue with empty courses data
-      } else {
-        coursesData = courseData || [];
-      }
-    }
-
-    const coursesMap = {};
-    coursesData.forEach(course => {
-      coursesMap[course.id] = course.course_name;
-    });
-
-    // Merge data
+    // Flatten the nested data
     return data.map(fee => {
-      const user = usersMap[fee.user_id];
-      if (user) {
-        fee.full_name = user.full_name;
-        fee.student_number = user.student_number;
-        fee.email = user.email;
-        if (user.course_id && coursesMap[user.course_id]) {
-          fee.course_name = coursesMap[user.course_id];
-        }
+      if (fee.users) {
+        fee.full_name = fee.users.full_name;
+        fee.student_number = fee.users.student_number;
+        fee.email = fee.users.email;
+        fee.course_id = fee.users.course_id;
+        delete fee.users;
       }
       return fee;
     });
@@ -212,8 +148,10 @@ class Fee {
 
     // Remove undefined values and convert empty strings to null
     Object.keys(updateData).forEach(key => {
-      if (updateData[key] === undefined || updateData[key] === '') {
+      if (updateData[key] === undefined) {
         delete updateData[key];
+      } else if (updateData[key] === '') {
+        updateData[key] = null;
       }
     });
 
@@ -257,19 +195,6 @@ class Fee {
       status: newStatus
     });
 
-    // Create payment history entry
-    await PaymentHistory.create({
-      fee_id: id,
-      user_id: fee.user_id,
-      amount_paid: paymentAmount,
-      payment_reference,
-      payment_method,
-      receipt_number,
-      payment_date,
-      recorded_by,
-      notes: `Payment recorded for ${fee.fee_category}`
-    });
-
     return updatedFee;
   }
 
@@ -306,56 +231,41 @@ class Fee {
   static async getOutstandingByUser(userId) {
     const { data, error } = await supabase
       .from('fees')
-      .select('balance')
+      .select('*')
       .eq('user_id', userId)
-      .neq('status', 'paid');
+      .in('status', ['unpaid', 'partial'])
+      .order('due_date', { ascending: true });
 
     if (error) throw error;
-
-    const totalOutstanding = data.reduce((sum, f) => sum + (f.balance || 0), 0);
-    return totalOutstanding;
+    return data;
   }
 
   static async generateReceiptNumber() {
-    const date = new Date();
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-
-    // Get count of receipts today
-    const startOfDay = new Date(date.setHours(0, 0, 0, 0)).toISOString();
-    const { count, error } = await supabase
-      .from('fees')
-      .select('*', { count: 'exact', head: true })
-      .gte('payment_date', startOfDay);
-
-    if (error) throw error;
-
-    const receiptCount = (count || 0) + 1;
-
-    return `RCPT${year}${month}${day}${String(receiptCount).padStart(4, '0')}`;
-  }
-
-  static async hasOutstandingFees(userId) {
     const { data, error } = await supabase
       .from('fees')
-      .select('balance, status')
-      .eq('user_id', userId)
-      .neq('status', 'paid');
+      .select('receipt_number')
+      .not('receipt_number', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1);
 
     if (error) throw error;
 
-    // Check if there are any fees with outstanding balance
-    const hasUnpaid = data.some(fee => fee.balance > 0);
-    return hasUnpaid;
+    if (data.length === 0) {
+      return 'REC-001';
+    }
+
+    const lastReceipt = data[0].receipt_number;
+    const lastNumber = parseInt(lastReceipt.split('-')[1]);
+    const newNumber = lastNumber + 1;
+    return `REC-${String(newNumber).padStart(3, '0')}`;
   }
 
-  static async getOutstandingBalance(userId) {
+  static async checkOutstandingBalance(userId) {
     const { data, error } = await supabase
       .from('fees')
       .select('balance')
       .eq('user_id', userId)
-      .neq('status', 'paid');
+      .in('status', ['unpaid', 'partial']);
 
     if (error) throw error;
 

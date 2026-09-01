@@ -3,296 +3,289 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' https://*.onrender.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' https://fonts.gstatic.com;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' http://localhost:5000 https://*.onrender.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' https://fonts.gstatic.com;">
     <title>Lecturer Dashboard - Mushagashe Vocational Training Centre</title>
-    <link rel="stylesheet" href="../assets/css/styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="../assets/css/design-system.css">
+    <link rel="stylesheet" href="../assets/css/components.css">
+    <link rel="stylesheet" href="../assets/css/app-shell.css">
     <style>
-        .lecturer-dashboard {
-            background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 50%, #60a5fa 100%);
-            min-height: 100vh;
-        }
-        .lecturer-sidebar {
-            background: linear-gradient(180deg, #1e40af 0%, #3b82f6 100%);
-        }
-        .lecturer-sidebar .sidebar-header h2 {
-            color: white;
-            font-size: 1.5rem;
-            margin-bottom: 0.25rem;
-        }
-        .lecturer-sidebar .sidebar-header p {
-            color: rgba(255, 255, 255, 0.8);
-            font-size: 0.9rem;
-        }
-        .lecturer-nav-link {
-            color: rgba(255, 255, 255, 0.9);
-            padding: 1rem 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            text-decoration: none;
-            transition: all 0.3s ease;
-            border-radius: 0.5rem;
-            margin: 0.25rem 1rem;
-        }
-        .lecturer-nav-link:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-        }
-        .lecturer-nav-link.active {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            font-weight: 600;
-        }
-        .lecturer-nav-link svg {
-            flex-shrink: 0;
-        }
-        .lecturer-logout-btn {
-            background: rgba(239, 68, 68, 0.2);
-            color: white;
-            border: 1px solid rgba(239, 68, 68, 0.5);
-            margin: 1rem;
-        }
-        .lecturer-logout-btn:hover {
-            background: rgba(239, 68, 68, 0.3);
-        }
-        .lecturer-top-bar {
-            background: white;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-        }
-        .lecturer-badge {
-            background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
-            color: white;
-            padding: 0.5rem 1rem;
-            border-radius: 1rem;
-            font-size: 0.85rem;
-            font-weight: 600;
-        }
-        .lecturer-section-header {
-            background: white;
-            padding: 1.5rem;
-            border-radius: 0.75rem;
-            margin-bottom: 1.5rem;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .lecturer-section-header h2 {
-            color: #1e40af;
-            margin: 0;
-            font-size: 1.5rem;
-        }
-        .lecturer-add-btn {
-            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-            color: white;
-            border: none;
-        }
-        .lecturer-add-btn:hover {
-            background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
-        }
-        .lecturer-table-container {
-            background: white;
-            border-radius: 0.75rem;
-            padding: 1.5rem;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-        }
-        .lecturer-table thead {
-            background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
-            color: white;
-        }
-        .lecturer-table th {
-            padding: 1rem;
-            text-align: left;
-            font-weight: 600;
-            font-size: 0.9rem;
-        }
-        .lecturer-table td {
-            padding: 1rem;
-            border-bottom: 1px solid #e5e7eb;
-        }
-        .lecturer-table tbody tr:hover {
-            background: #f3f4f6;
-        }
-        .lecturer-edit-btn {
-            background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
-            color: white;
-            border: none;
-            padding: 0.5rem 1rem;
-            border-radius: 0.375rem;
-            font-size: 0.85rem;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        .lecturer-edit-btn:hover {
-            background: linear-gradient(135deg, #2563eb 0%, #3b82f6 100%);
-            transform: translateY(-1px);
-        }
-        .lecturer-content-section {
-            display: none;
-        }
-        .lecturer-content-section.active {
-            display: block;
+        .sidebar-logo {
+            background: linear-gradient(135deg, var(--primary-400), var(--primary-600));
         }
     </style>
 </head>
 <body>
-    <div class="dashboard-container lecturer-dashboard">
-        <aside class="sidebar lecturer-sidebar">
+    <div class="app-shell">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <h2>Lecturer Portal</h2>
-                <p id="lecturer-name">Loading...</p>
+                <div class="sidebar-logo">MV</div>
+                <div class="sidebar-brand">
+                    <h1>Mushagashe VTC</h1>
+                    <p>Lecturer Portal</p>
+                </div>
             </div>
+
             <nav class="sidebar-nav">
-                <a href="#" class="nav-link lecturer-nav-link active" data-section="students">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                        <circle cx="9" cy="7" r="4"></circle>
-                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-                    </svg>
-                    My Students
-                </a>
-                <a href="#" class="nav-link lecturer-nav-link" data-section="results">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                        <polyline points="14 2 14 8 20 8"></polyline>
-                        <line x1="16" y1="13" x2="8" y2="13"></line>
-                        <line x1="16" y1="17" x2="8" y2="17"></line>
-                        <polyline points="10 9 9 9 8 9"></polyline>
-                    </svg>
-                    Results
-                </a>
-                <a href="#" class="nav-link lecturer-nav-link" data-section="subjects">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-                    </svg>
-                    Subjects
-                </a>
+                <div class="nav-section">
+                    <div class="nav-section-title">Main</div>
+                    <a href="#" class="nav-item active" data-page="students">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                        </svg>
+                        <span>My Students</span>
+                    </a>
+                    <a href="#" class="nav-item" data-page="results">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                        </svg>
+                        <span>Results</span>
+                    </a>
+                    <a href="#" class="nav-item" data-page="subjects">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                        </svg>
+                        <span>Subjects</span>
+                    </a>
+                </div>
             </nav>
+
             <div class="sidebar-footer">
-                <button id="logoutBtn" class="btn btn-secondary btn-full lecturer-logout-btn">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                        <polyline points="16 17 21 12 16 7"></polyline>
-                        <line x1="21" y1="12" x2="9" y2="12"></line>
-                    </svg>
-                    Logout
-                </button>
+                <div class="sidebar-user">
+                    <div class="sidebar-user-avatar" id="sidebarAvatar">L</div>
+                    <div class="sidebar-user-info">
+                        <div class="sidebar-user-name" id="sidebarUserName">Lecturer</div>
+                        <div class="sidebar-user-role" id="sidebarCourse">Course</div>
+                    </div>
+                </div>
+                <div class="sidebar-actions">
+                    <button class="sidebar-btn" id="changePasswordBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                        <span>Change Password</span>
+                    </button>
+                    <button class="sidebar-btn" id="logoutBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                            <polyline points="16 17 21 12 16 7"></polyline>
+                            <line x1="21" y1="12" x2="9" y2="12"></line>
+                        </svg>
+                        <span>Logout</span>
+                    </button>
+                </div>
             </div>
         </aside>
 
-        <main class="main-content">
-            <header class="top-bar lecturer-top-bar">
-                <h1 id="page-title">My Students</h1>
-                <div class="user-info">
-                    <span id="user-role-badge" class="badge lecturer-badge">Lecturer</span>
+        <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Header -->
+            <header class="app-header">
+                <div class="header-left">
+                    <button class="menu-toggle" id="menuToggle">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="3" y1="12" x2="21" y2="12"></line>
+                            <line x1="3" y1="6" x2="21" y2="6"></line>
+                            <line x1="3" y1="18" x2="21" y2="18"></line>
+                        </svg>
+                    </button>
+                    <div>
+                        <h1 class="page-title">Lecturer Dashboard</h1>
+                        <p class="page-subtitle">Welcome back, <span id="lecturerName">Lecturer</span></p>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <div class="header-search">
+                        <svg class="header-search-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"></circle>
+                            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                        </svg>
+                        <input type="text" placeholder="Search...">
+                    </div>
+                    <div class="header-actions">
+                        <button class="header-action-btn">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                            </svg>
+                            <span class="badge"></span>
+                        </button>
+                        <div class="header-divider"></div>
+                        <div class="header-profile">
+                            <div class="header-profile-avatar" id="headerAvatar">L</div>
+                            <div class="header-profile-info">
+                                <div class="header-profile-name" id="headerProfileName">Lecturer Name</div>
+                                <div class="header-profile-role">Lecturer</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </header>
 
-            <div id="content-area">
-                <!-- Students Section -->
-                <section id="students-section" class="content-section lecturer-content-section active">
-                    <div class="section-header lecturer-section-header">
-                        <h2>Students in My Course</h2>
+            <!-- Page Content -->
+            <div class="page-content">
+                <!-- Students Page -->
+                <div id="students-page" class="page-section">
+                    <div class="page-header">
+                        <h1>My Students</h1>
+                        <p>View and manage students in your course</p>
                     </div>
-                    <div class="table-container lecturer-table-container">
-                        <table class="data-table lecturer-table">
-                            <thead>
-                                <tr>
-                                    <th>Student Number</th>
-                                    <th>Name</th>
-                                    <th>Email</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody id="students-table-body">
-                                <tr>
-                                    <td colspan="4" class="text-center">Loading students...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div class="dashboard-card">
+                        <div class="table-container">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Student Number</th>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="students-table-body">
+                                    <tr>
+                                        <td colspan="4" class="text-center">Loading students...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </section>
+                </div>
 
-                <!-- Results Section -->
-                <section id="results-section" class="content-section lecturer-content-section">
-                    <div class="section-header lecturer-section-header">
-                        <h2>Student Results</h2>
-                        <button id="addResultBtn" class="btn btn-primary lecturer-add-btn">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <line x1="12" y1="5" x2="12" y2="19"></line>
-                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                            </svg>
-                            Add Result
-                        </button>
+                <!-- Results Page -->
+                <div id="results-page" class="page-section hidden">
+                    <div class="page-header">
+                        <h1>Student Results</h1>
+                        <p>Manage and record student grades</p>
+                        <div class="page-actions">
+                            <button id="addResultBtn" class="btn btn-primary">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                                Add Result
+                            </button>
+                        </div>
                     </div>
-                    <div class="table-container lecturer-table-container">
-                        <table class="data-table lecturer-table">
-                            <thead>
-                                <tr>
-                                    <th>Student</th>
-                                    <th>Course</th>
-                                    <th>Semester</th>
-                                    <th>Year</th>
-                                    <th>Assessment</th>
-                                    <th>Exam</th>
-                                    <th>Final</th>
-                                    <th>Grade</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="results-table-body">
-                                <tr>
-                                    <td colspan="9" class="text-center">Loading results...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div class="dashboard-card">
+                        <div class="table-container">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Student</th>
+                                        <th>Course</th>
+                                        <th>Semester</th>
+                                        <th>Year</th>
+                                        <th>Assessment</th>
+                                        <th>Exam</th>
+                                        <th>Final</th>
+                                        <th>Grade</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="results-table-body">
+                                    <tr>
+                                        <td colspan="9" class="text-center">Loading results...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </section>
+                </div>
 
-                <!-- Subjects Section -->
-                <section id="subjects-section" class="content-section lecturer-content-section">
-                    <div class="section-header lecturer-section-header">
-                        <h2>Subjects in My Course</h2>
-                        <button id="addSubjectBtn" class="btn btn-primary lecturer-add-btn" onclick="window.addSubject()">
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <line x1="12" y1="5" x2="12" y2="19"></line>
-                                <line x1="5" y1="12" x2="19" y2="12"></line>
-                            </svg>
-                            Add Subject
-                        </button>
+                <!-- Subjects Page -->
+                <div id="subjects-page" class="page-section hidden">
+                    <div class="page-header">
+                        <h1>Subjects</h1>
+                        <p>Manage subjects in your course</p>
+                        <div class="page-actions">
+                            <button id="addSubjectBtn" class="btn btn-primary">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                                </svg>
+                                Add Subject
+                            </button>
+                        </div>
                     </div>
-                    <div class="table-container lecturer-table-container">
-                        <table class="data-table lecturer-table">
-                            <thead>
-                                <tr>
-                                    <th>Subject Code</th>
-                                    <th>Subject Name</th>
-                                    <th>Credits</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="subjects-table-body">
-                                <tr>
-                                    <td colspan="4" class="text-center">Loading subjects...</td>
-                                </tr>
-                            </tbody>
-                        </table>
+                    <div class="dashboard-card">
+                        <div class="table-container">
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>Subject Code</th>
+                                        <th>Subject Name</th>
+                                        <th>Credits</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="subjects-table-body">
+                                    <tr>
+                                        <td colspan="4" class="text-center">Loading subjects...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </section>
+                </div>
             </div>
-        </main>
-    </div>
-
-    <div id="modal" class="modal-container" style="display: none;">
-        <div class="modal">
-            <div id="modal-body"></div>
         </div>
     </div>
 
+    <!-- Modal Container -->
+    <div id="modal" class="modal-container" style="display: none;"></div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast-container" style="display: none;"></div>
+
     <script src="../assets/js/lecturer-dashboard.js?v=2"></script>
+    <script>
+        // Sidebar toggle functionality
+        const menuToggle = document.getElementById('menuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const sidebarOverlay = document.getElementById('sidebarOverlay');
+
+        menuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('open');
+            sidebarOverlay.classList.toggle('show');
+        });
+
+        sidebarOverlay.addEventListener('click', () => {
+            sidebar.classList.remove('open');
+            sidebarOverlay.classList.remove('show');
+        });
+
+        // Navigation
+        document.querySelectorAll('.nav-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const page = item.dataset.page;
+                
+                // Update active state
+                document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
+                item.classList.add('active');
+                
+                // Show/hide pages
+                document.querySelectorAll('.page-section').forEach(section => section.classList.add('hidden'));
+                document.getElementById(`${page}-page`).classList.remove('hidden');
+                
+                // Close mobile sidebar
+                if (window.innerWidth <= 1024) {
+                    sidebar.classList.remove('open');
+                    sidebarOverlay.classList.remove('show');
+                }
+            });
+        });
+    </script>
 </body>
 </html>

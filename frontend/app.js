@@ -284,7 +284,7 @@ async function renderDashboard() {
         const [fees, results, updates] = await Promise.all([
             apiRequest('/fees'),
             apiRequest('/results'),
-            apiRequest('/updates')
+            apiRequest('/announcements')
         ]);
         
         const feesData = fees || [];
@@ -388,8 +388,8 @@ async function renderDashboard() {
                 ` : updatesData.map(update => `
                     <div style="border: 1px solid var(--gray-200); border-radius: 12px; padding: 20px; margin-bottom: 16px;">
                         <h4 style="font-weight: 600; color: var(--gray-800); font-size: 18px; margin-bottom: 8px;">${update.title}</h4>
-                        <p style="color: var(--gray-600); margin-bottom: 12px;">${update.content}</p>
-                        <p style="font-size: 14px; color: var(--gray-500);">Posted: ${new Date(update.created_at).toLocaleDateString()}</p>
+                        <p style="color: var(--gray-600); margin-bottom: 12px;">${update.message}</p>
+                        <p style="font-size: 14px; color: var(--gray-500);">Posted: ${new Date(update.created_at).toLocaleString()}</p>
                     </div>
                 `).join('')}
             </div>
@@ -399,8 +399,13 @@ async function renderDashboard() {
         window.currentResults = resultsData;
         
     } catch (error) {
+        console.error('Dashboard load error:', error);
         document.getElementById('dashboard-content').innerHTML = `
-            <div class="error">Failed to load data. Please try again.</div>
+            <div class="error">
+                <p style="font-weight: 600; margin-bottom: 8px;">Failed to load data</p>
+                <p style="font-size: 14px; color: var(--gray-600);">${error.message || 'Please try again later'}</p>
+                <button class="btn btn-primary" onclick="renderDashboard()" style="margin-top: 16px;">Retry</button>
+            </div>
         `;
     }
 }
@@ -487,7 +492,7 @@ async function renderAdminPanel() {
             apiRequest('/students'),
             apiRequest('/fees'),
             apiRequest('/results'),
-            apiRequest('/updates')
+            apiRequest('/announcements')
         ]);
         
         const studentsData = students || [];
@@ -500,8 +505,13 @@ async function renderAdminPanel() {
         renderAdminContent(studentsData, feesData, resultsData, updatesData, totalFees);
         
     } catch (error) {
+        console.error('Admin panel load error:', error);
         document.getElementById('admin-content').innerHTML = `
-            <div class="error">Failed to load data. Please try again.</div>
+            <div class="error">
+                <p style="font-weight: 600; margin-bottom: 8px;">Failed to load data</p>
+                <p style="font-size: 14px; color: var(--gray-600);">${error.message || 'Please try again later'}</p>
+                <button class="btn btn-primary" onclick="renderAdminPanel()" style="margin-top: 16px;">Retry</button>
+            </div>
         `;
     }
 }
@@ -680,7 +690,7 @@ function renderUpdatesTab(updates, container) {
         ` : updates.map(update => `
             <div style="border: 1px solid var(--gray-200); border-radius: 12px; padding: 20px; margin-bottom: 16px;">
                 <h4 style="font-weight: 600; color: var(--gray-800); font-size: 18px; margin-bottom: 8px;">${update.title}</h4>
-                <p style="color: var(--gray-600); margin-bottom: 12px;">${update.content}</p>
+                <p style="color: var(--gray-600); margin-bottom: 12px;">${update.message}</p>
                 <p style="font-size: 14px; color: var(--gray-500);">Posted: ${new Date(update.created_at).toLocaleString()}</p>
             </div>
         `).join('')}
@@ -943,9 +953,9 @@ function showUpdateModal() {
         const content = document.getElementById('new-update-content').value;
         
         try {
-            await apiRequest('/updates', {
+            await apiRequest('/announcements', {
                 method: 'POST',
-                body: JSON.stringify({ title, content })
+                body: JSON.stringify({ title, message: content })
             });
             modal.remove();
             renderAdminPanel();

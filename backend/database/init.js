@@ -105,6 +105,20 @@ function initializeDatabase() {
     )
   `);
 
+  // Subjects table
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS subjects (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      subject_code TEXT UNIQUE NOT NULL,
+      subject_name TEXT NOT NULL,
+      course_id INTEGER,
+      credits INTEGER,
+      lecturer TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (course_id) REFERENCES courses(id)
+    )
+  `);
+
   // Announcements table with priority
   db.exec(`
     CREATE TABLE IF NOT EXISTS announcements (

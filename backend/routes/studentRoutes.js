@@ -61,24 +61,24 @@ router.post('/register', studentController.registerStudent);
 // Create new student (admin only)
 router.post('/', authenticate, adminOnly, studentController.createStudent);
 
-// Get all students (admin and lecturer)
-router.get('/', authenticate, studentController.getAllStudents);
+// Get all students (admin only)
+router.get('/', authenticate, adminOnly, studentController.getAllStudents);
 
-// Lecturer management routes (admin only) - must come before :id routes
+// Lecturer management routes (admin only)
 router.post('/lecturers', authenticate, adminOnly, studentController.createLecturer);
 router.get('/lecturers', authenticate, adminOnly, studentController.getAllLecturers);
 router.get('/lecturers/:id', authenticate, adminOnly, studentController.getLecturerById);
 router.put('/lecturers/:id', authenticate, adminOnly, studentController.updateLecturer);
 router.delete('/lecturers/:id', authenticate, adminOnly, studentController.deleteLecturer);
 
-// Get student by ID (admin and lecturer)
-router.get('/:id', authenticate, studentController.getStudentById);
+// Get student by ID (admin only)
+router.get('/:id', authenticate, adminOnly, studentController.getStudentById);
 
 // Update student (admin only)
-router.put('/:id', authenticate, studentController.updateStudent);
+router.put('/:id', authenticate, adminOnly, studentController.updateStudent);
 
 // Delete student (admin only)
-router.delete('/:id', authenticate, studentController.deleteStudent);
+router.delete('/:id', authenticate, adminOnly, studentController.deleteStudent);
 
 // Suspend student (admin only)
 router.put('/:id/suspend', authenticate, adminOnly, studentController.suspendStudent);

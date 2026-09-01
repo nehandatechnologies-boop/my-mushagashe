@@ -2,9 +2,24 @@ const supabase = require('../config/supabase');
 
 class Subject {
   static async create(subjectData) {
+    const { subject_code, subject_name, course_id, credits, lecturer } = subjectData;
+
+    const insertData = {
+      subject_code, subject_name, course_id, credits, lecturer
+    };
+
+    // Remove undefined values and convert empty strings to null
+    Object.keys(insertData).forEach(key => {
+      if (insertData[key] === undefined) {
+        delete insertData[key];
+      } else if (insertData[key] === '') {
+        insertData[key] = null;
+      }
+    });
+
     const { data, error } = await supabase
       .from('subjects')
-      .insert(subjectData)
+      .insert(insertData)
       .select()
       .single();
 
@@ -81,26 +96,30 @@ class Subject {
   }
 
   static async update(id, updateData) {
-    // Convert empty strings to null
-    Object.keys(updateData).forEach(key => {
-      if (updateData[key] === '') {
-        updateData[key] = null;
+    const { subject_code, subject_name, course_id, credits, lecturer } = updateData;
+
+    const data = {
+      subject_code, subject_name, course_id, credits, lecturer
+    };
+
+    // Remove undefined values and convert empty strings to null
+    Object.keys(data).forEach(key => {
+      if (data[key] === undefined) {
+        delete data[key];
+      } else if (data[key] === '') {
+        data[key] = null;
       }
     });
 
-    const { data, error } = await supabase
+    const { data: result, error } = await supabase
       .from('subjects')
-      .update(updateData)
+      .update(data)
       .eq('id', id)
       .select()
       .single();
 
-    if (error) {
-      if (error.code === 'PGRST116') return null; // Not found
-      throw error;
-    }
-
-    return data;
+    if (error) throw error;
+    return result;
   }
 
   static async delete(id) {

@@ -12,22 +12,22 @@ const validateResult = [
   body('academic_year').notEmpty().withMessage('Academic year is required')
 ];
 
-// Create new result (admin and lecturer)
+// Create new result (admin or lecturer only)
 router.post('/', authenticate, resultController.createResult);
 
-// Import multiple results (admin and lecturer)
-router.post('/import', authenticate, resultController.importResults);
+// Import multiple results (admin only)
+router.post('/import', authenticate, adminOnly, resultController.importResults);
 
-// Get all results (authenticated)
+// Get all results (admin or lecturer only)
 router.get('/', authenticate, resultController.getAllResults);
 
 // Get result statistics (admin only)
 router.get('/statistics', authenticate, adminOnly, resultController.getResultStatistics);
 
-// Get student GPA (student only)
+// Get student GPA (authenticated)
 router.get('/gpa', authenticate, resultController.getStudentGPA);
 
-// Download results as PDF (student only)
+// Download results as PDF (authenticated)
 router.get('/download/pdf', authenticate, resultController.downloadResultsPDF);
 
 // Download single result as PDF (authenticated)
@@ -36,10 +36,10 @@ router.get('/:id/download/pdf', authenticate, resultController.downloadResultPDF
 // Get result by ID (authenticated)
 router.get('/:id', authenticate, resultController.getResultById);
 
-// Update result (admin and lecturer)
+// Update result (admin or lecturer only)
 router.put('/:id', authenticate, resultController.updateResult);
 
-// Delete result (admin and lecturer)
+// Delete result (admin or lecturer only)
 router.delete('/:id', authenticate, resultController.deleteResult);
 
 module.exports = router;

@@ -4,14 +4,22 @@ class Announcement {
   static async create(announcementData) {
     const { title, message, priority, created_by } = announcementData;
 
+    const insertData = {
+      title, message, priority, created_by
+    };
+
+    // Remove undefined values and convert empty strings to null
+    Object.keys(insertData).forEach(key => {
+      if (insertData[key] === undefined) {
+        delete insertData[key];
+      } else if (insertData[key] === '') {
+        insertData[key] = null;
+      }
+    });
+
     const { data, error } = await supabase
       .from('announcements')
-      .insert({ 
-        title, 
-        message, 
-        priority: priority || 'normal', 
-        created_by
-      })
+      .insert(insertData)
       .select()
       .single();
 
@@ -36,7 +44,7 @@ class Announcement {
       throw error;
     }
 
-    // Flatten the nested user data
+    // Flatten the nested data
     if (data && data.users) {
       data.creator_name = data.users.full_name;
       delete data.users;
@@ -81,7 +89,7 @@ class Announcement {
 
     if (error) throw error;
 
-    // Flatten the nested user data
+    // Flatten the nested data
     return data.map(announcement => {
       if (announcement.users) {
         announcement.creator_name = announcement.users.full_name;
@@ -105,7 +113,7 @@ class Announcement {
 
     if (error) throw error;
 
-    // Flatten the nested user data
+    // Flatten the nested data
     return data.map(announcement => {
       if (announcement.users) {
         announcement.creator_name = announcement.users.full_name;
@@ -124,13 +132,12 @@ class Announcement {
           full_name
         )
       `)
-      .in('priority', ['urgent', 'important'])
-      .order('created_at', { ascending: false })
-      .limit(10);
+      .eq('priority', 'urgent')
+      .order('created_at', { ascending: false });
 
     if (error) throw error;
 
-    // Flatten the nested user data
+    // Flatten the nested data
     return data.map(announcement => {
       if (announcement.users) {
         announcement.creator_name = announcement.users.full_name;
@@ -143,13 +150,22 @@ class Announcement {
   static async update(id, announcementData) {
     const { title, message, priority } = announcementData;
 
+    const updateData = {
+      title, message, priority
+    };
+
+    // Remove undefined values and convert empty strings to null
+    Object.keys(updateData).forEach(key => {
+      if (updateData[key] === undefined) {
+        delete updateData[key];
+      } else if (updateData[key] === '') {
+        updateData[key] = null;
+      }
+    });
+
     const { data, error } = await supabase
       .from('announcements')
-      .update({ 
-        title, 
-        message, 
-        priority
-      })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();
@@ -176,9 +192,8 @@ class Announcement {
     if (error) throw error;
 
     const stats = {
-      total: data.length,
+      total_announcements: data.length,
       urgent_count: data.filter(a => a.priority === 'urgent').length,
-      important_count: data.filter(a => a.priority === 'important').length,
       normal_count: data.filter(a => a.priority === 'normal').length,
       low_count: data.filter(a => a.priority === 'low').length
     };

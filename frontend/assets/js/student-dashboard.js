@@ -56,28 +56,49 @@ async function apiRequest(endpoint, options = {}) {
 // Show toast notification
 function showToast(message, type = 'success') {
     const toast = document.getElementById('toast');
-    const toastMessage = document.getElementById('toastMessage');
     
-    toastMessage.textContent = message;
+    // Robust error handling - if element doesn't exist, fall back to console
+    if (!toast) {
+        console.error('Toast element not found');
+        console.log(`Toast [${type}]:`, message);
+        return;
+    }
+    
+    // Set toast content and style
+    toast.textContent = message;
     toast.style.display = 'block';
     toast.style.background = type === 'error' ? '#EF4444' : '#10B981';
+    toast.style.color = 'white';
+    toast.style.padding = '16px';
+    toast.style.borderRadius = '8px';
+    toast.style.position = 'fixed';
+    toast.style.top = '20px';
+    toast.style.right = '20px';
+    toast.style.zIndex = '9999';
+    toast.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.1)';
     
     setTimeout(() => {
-        toast.style.display = 'none';
+        if (toast) toast.style.display = 'none';
     }, 3000);
 }
 
 function hideToast() {
-    document.getElementById('toast').style.display = 'none';
+    const toast = document.getElementById('toast');
+    if (toast) {
+        toast.style.display = 'none';
+    }
 }
 
 // Page navigation
 function navigateTo(page) {
     // Hide all pages
-    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.page-section').forEach(p => p.classList.add('hidden'));
     
     // Show selected page
-    document.getElementById(`${page}-page`).classList.add('active');
+    const targetPage = document.getElementById(`${page}-page`);
+    if (targetPage) {
+        targetPage.classList.remove('hidden');
+    }
     
     // Update nav items
     document.querySelectorAll('.nav-item').forEach(item => {
@@ -119,17 +140,29 @@ async function loadDashboardData() {
         const data = await apiRequest('/dashboard/student');
         console.log('Student dashboard data received:', data);
         
-        // Update user info
+        // Update user info with null checks - only update elements that exist
         if (data.user) {
-            document.getElementById('studentName').textContent = data.user.full_name;
-            document.getElementById('headerStudentName').textContent = data.user.full_name;
-            document.getElementById('studentNumber').textContent = data.user.student_number;
+            const headerStudentName = document.getElementById('headerStudentName');
+            if (headerStudentName) headerStudentName.textContent = data.user.full_name;
+            
+            const sidebarUserName = document.getElementById('sidebarUserName');
+            if (sidebarUserName) sidebarUserName.textContent = data.user.full_name;
+            
+            const sidebarStudentNumber = document.getElementById('sidebarStudentNumber');
+            if (sidebarStudentNumber) sidebarStudentNumber.textContent = data.user.student_number;
+            
+            const headerProfileName = document.getElementById('headerProfileName');
+            if (headerProfileName) headerProfileName.textContent = data.user.full_name;
         }
         
-        // Update stats
-        document.getElementById('courseName').textContent = data.user?.course_name || 'Not assigned';
-        document.getElementById('outstandingBalance').textContent = `$${(data.fees?.outstanding_balance || 0).toFixed(2)}`;
-        document.getElementById('gpa').textContent = (data.results?.gpa || 0).toFixed(2);
+        // Update stats with null checks
+        const courseName = document.getElementById('courseName');
+        const outstandingBalance = document.getElementById('outstandingBalance');
+        const gpa = document.getElementById('gpa');
+        
+        if (courseName) courseName.textContent = data.user?.course_name || 'Not assigned';
+        if (outstandingBalance) outstandingBalance.textContent = `$${(data.fees?.outstanding_balance || 0).toFixed(2)}`;
+        if (gpa) gpa.textContent = (data.results?.gpa || 0).toFixed(2);
         
         // Load announcements
         loadAnnouncementsList(data.announcements || []);
@@ -139,10 +172,6 @@ async function loadDashboardData() {
         
     } catch (error) {
         console.error('Error loading dashboard data:', error);
-        // Set default values on error
-        document.getElementById('courseName').textContent = 'Not assigned';
-        document.getElementById('outstandingBalance').textContent = '$0.00';
-        document.getElementById('gpa').textContent = '0.00';
         showToast('Failed to load dashboard data', 'error');
     }
 }
@@ -150,6 +179,11 @@ async function loadDashboardData() {
 // Load announcements list
 function loadAnnouncementsList(announcements) {
     const container = document.getElementById('announcementsList');
+    
+    if (!container) {
+        console.error('Announcements list container not found');
+        return;
+    }
     
     if (!announcements || announcements.length === 0) {
         container.innerHTML = `
@@ -180,6 +214,11 @@ async function loadRecentResults() {
     try {
         const results = await apiRequest('/results');
         const container = document.getElementById('recentResults');
+        
+        if (!container) {
+            console.error('Recent results container not found');
+            return;
+        }
         
         if (!results || results.length === 0) {
             container.innerHTML = `
@@ -491,15 +530,21 @@ function showChangePasswordModal() {
 
 // Close modal
 function closeModal() {
-    document.getElementById('modalContainer').style.display = 'none';
+    const modalContainer = document.getElementById('modalContainer');
+    if (modalContainer) {
+        modalContainer.style.display = 'none';
+    }
 }
 
 // Logout handler
-document.getElementById('logoutBtn').addEventListener('click', () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    window.location.href = 'index.html';
-});
+const logoutBtn = document.getElementById('logoutBtn');
+if (logoutBtn) {
+    logoutBtn.addEventListener('click', () => {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = 'index.html';
+    });
+}
 
 // Navigation click handlers
 document.querySelectorAll('.nav-item').forEach(item => {
@@ -521,11 +566,18 @@ document.querySelectorAll('.view-all').forEach(link => {
 
 // Check authentication on load
 window.addEventListener('load', () => {
-    if (!token || user.role !== 'student') {
+    const currentToken = localStorage.getItem('token');
+    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    
+    console.log('Auth check - token:', currentToken ? 'exists' : 'missing');
+    console.log('Auth check - user role:', currentUser.role);
+    
+    if (!currentToken || currentUser.role !== 'student') {
+        console.log('Redirecting to login - not authenticated or not student');
         window.location.href = 'student-login.html';
         return;
     }
 
-    // Load initial data
-    loadDashboardData();
+    // Ensure overview page is active and load initial data
+    navigateTo('overview');
 });

@@ -19,7 +19,7 @@ const adminLogin = async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    if (user.role !== 'admin') {
+    if (user.role !== 'admin' && user.role !== 'super_admin') {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
@@ -67,7 +67,7 @@ const lecturerLogin = async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    if (user.role !== 'lecturer') {
+    if (user.role !== 'lecturer' && user.role !== 'instructor') {
       return res.status(403).json({ error: 'Lecturer access required' });
     }
 
@@ -241,7 +241,7 @@ const changePassword = async (req, res) => {
     const hashedPassword = bcrypt.hashSync(new_password, 10);
 
     // Update password
-    await User.updatePassword(userId, hashedPassword);
+    await User.update(userId, { password: hashedPassword });
 
     res.json({ message: 'Password changed successfully' });
   } catch (error) {

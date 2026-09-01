@@ -11,7 +11,7 @@ const securityHeaders = helmet({
       scriptSrc: ["'self'", "'unsafe-inline'"],
       scriptSrcAttr: ["'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:", "https://*.supabase.co"],
-      connectSrc: ["'self'", "https://*.onrender.com", "https://*.supabase.co"],
+      connectSrc: ["'self'", "http://localhost:5000", "https://*.onrender.com", "https://*.supabase.co"],
       fontSrc: ["'self'", "https://fonts.gstatic.com"],
       objectSrc: ["'none'"],
       mediaSrc: ["'self'"],

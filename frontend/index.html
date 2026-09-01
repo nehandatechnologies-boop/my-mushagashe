@@ -3,80 +3,768 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mushagashe Vocational Training Centre Portal</title>
-    <link rel="stylesheet" href="assets/css/styles.css">
+    <title>Mushagashe Vocational Training Centre - Student Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="assets/css/design-system.css">
+    <link rel="stylesheet" href="assets/css/components.css">
+    <style>
+        :root {
+            --mushagashe-purple: #6B21A8;
+            --mushagashe-violet: #7C3AED;
+            --mushagashe-light-purple: #E9D5FF;
+            --mushagashe-gold: #CA8A04;
+            --mushagashe-yellow: #EAB308;
+            --dark-bg: #0a0a0a;
+            --dark-purple: #1a1a2e;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: #ffffff;
+            color: #1a1a1a;
+            min-height: 100vh;
+            line-height: 1.6;
+        }
+
+        /* Header */
+        .site-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: var(--dark-bg);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            height: 80px;
+        }
+
+        .header-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .brand-logo {
+            width: 44px;
+            height: 44px;
+            background: linear-gradient(135deg, var(--mushagashe-purple), var(--mushagashe-violet));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: 800;
+            font-size: 1.1rem;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .brand-text h1 {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #ffffff;
+            line-height: 1.2;
+            letter-spacing: -0.01em;
+        }
+
+        .brand-text p {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.6);
+            font-weight: 500;
+        }
+
+        .header-nav {
+            display: flex;
+            align-items: center;
+            gap: 2.5rem;
+        }
+
+        .nav-link {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: color 0.3s ease;
+            position: relative;
+        }
+
+        .nav-link:hover {
+            color: var(--mushagashe-yellow);
+        }
+
+        .nav-link.active {
+            color: #ffffff;
+        }
+
+        .nav-link.active::after {
+            content: '';
+            position: absolute;
+            bottom: -28px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: var(--mushagashe-gold);
+        }
+
+        .portal-button {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.625rem 1.25rem;
+            background: transparent;
+            color: var(--mushagashe-yellow);
+            text-decoration: none;
+            font-size: 0.875rem;
+            font-weight: 600;
+            border: 1px solid var(--mushagashe-gold);
+            border-radius: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .portal-button:hover {
+            background: rgba(202, 138, 4, 0.1);
+        }
+
+        /* Hero Section */
+        .hero-section {
+            min-height: 600px;
+            position: relative;
+            overflow: hidden;
+            padding-top: 80px;
+        }
+
+        .hero-background {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        .hero-background img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+        }
+
+        .hero-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(10, 10, 10, 0.85) 0%, rgba(26, 26, 46, 0.75) 50%, rgba(10, 10, 10, 0.85) 100%);
+            z-index: 1;
+        }
+
+        .hero-container {
+            position: relative;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 4rem 2rem;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            justify-content: center;
+            min-height: calc(600px - 80px);
+            z-index: 2;
+        }
+
+        .hero-content {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+            max-width: 700px;
+        }
+
+        .welcome-label {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(107, 33, 168, 0.3);
+            border: 1px solid rgba(107, 33, 168, 0.5);
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--mushagashe-light-purple);
+            width: fit-content;
+            letter-spacing: 0.1em;
+            backdrop-filter: blur(10px);
+        }
+
+        .hero-title {
+            font-size: 4rem;
+            font-weight: 800;
+            color: #ffffff;
+            line-height: 1.05;
+            letter-spacing: -0.03em;
+            text-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .hero-title .institution {
+            font-size: 2rem;
+            font-weight: 600;
+            color: var(--mushagashe-yellow);
+            margin-top: 0.5rem;
+            letter-spacing: -0.01em;
+            text-shadow: 0 2px 20px rgba(0, 0, 0, 0.5);
+        }
+
+        .hero-description {
+            font-size: 1.125rem;
+            color: rgba(255, 255, 255, 0.9);
+            line-height: 1.7;
+            max-width: 550px;
+            text-shadow: 0 1px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .hero-description-secondary {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.6;
+            max-width: 500px;
+            text-shadow: 0 1px 10px rgba(0, 0, 0, 0.5);
+        }
+
+        .login-buttons {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.875rem 2rem;
+            background: linear-gradient(135deg, var(--mushagashe-purple), var(--mushagashe-violet));
+            color: white;
+            text-decoration: none;
+            font-size: 0.9375rem;
+            font-weight: 600;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 4px 20px rgba(107, 33, 168, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(107, 33, 168, 0.6);
+        }
+
+        .btn-secondary {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 0.875rem 2rem;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            text-decoration: none;
+            font-size: 0.9375rem;
+            font-weight: 500;
+            border-radius: 10px;
+            transition: all 0.3s ease;
+            border: 1px solid var(--mushagashe-gold);
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+            transform: translateY(-2px);
+        }
+
+        .security-banner {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 1rem 1.5rem;
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 10px;
+            backdrop-filter: blur(15px);
+            margin-top: 1rem;
+            max-width: fit-content;
+        }
+
+        .security-banner svg {
+            width: 20px;
+            height: 20px;
+            color: var(--mushagashe-light-purple);
+        }
+
+        .security-banner-text {
+            font-size: 0.875rem;
+            color: rgba(255, 255, 255, 0.95);
+            font-weight: 500;
+        }
+
+        .security-banner-text strong {
+            color: var(--mushagashe-yellow);
+        }
+
+        /* Features Section */
+        .features-section {
+            padding: 5rem 2rem;
+            background: linear-gradient(180deg, #faf5ff 0%, #ffffff 100%);
+        }
+
+        .features-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 1.5rem;
+        }
+
+        .feature-card {
+            background: #ffffff;
+            border: 1px solid rgba(107, 33, 168, 0.1);
+            border-radius: 16px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+        }
+
+        .feature-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(107, 33, 168, 0.12);
+            border-color: rgba(107, 33, 168, 0.2);
+        }
+
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 1rem;
+            background: linear-gradient(135deg, rgba(107, 33, 168, 0.1), rgba(124, 58, 237, 0.1));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--mushagashe-violet);
+        }
+
+        .feature-title {
+            font-size: 0.9375rem;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 0.5rem;
+        }
+
+        .feature-description {
+            font-size: 0.8125rem;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        /* Footer */
+        .site-footer {
+            background: linear-gradient(135deg, var(--mushagashe-purple) 0%, var(--dark-purple) 100%);
+            padding: 4rem 2rem 2rem;
+            color: #ffffff;
+        }
+
+        .footer-container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .footer-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 3rem;
+            margin-bottom: 3rem;
+        }
+
+        .footer-column h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            color: var(--mushagashe-yellow);
+        }
+
+        .footer-column p {
+            font-size: 0.875rem;
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+
+        .footer-links {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .footer-links a {
+            color: rgba(255, 255, 255, 0.8);
+            text-decoration: none;
+            font-size: 0.875rem;
+            transition: color 0.3s ease;
+        }
+
+        .footer-links a:hover {
+            color: var(--mushagashe-yellow);
+        }
+
+        .footer-bottom {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .footer-bottom p {
+            font-size: 0.8125rem;
+            color: rgba(255, 255, 255, 0.6);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1280px) {
+            .hero-title {
+                font-size: 3.5rem;
+            }
+
+            .features-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 1024px) {
+            .header-nav {
+                display: none;
+            }
+
+            .hero-container {
+                padding: 3rem 2rem;
+                align-items: center;
+                text-align: center;
+            }
+
+            .hero-content {
+                align-items: center;
+                max-width: 600px;
+            }
+
+            .hero-description,
+            .hero-description-secondary {
+                max-width: 600px;
+            }
+
+            .login-buttons {
+                justify-content: center;
+            }
+
+            .security-banner {
+                margin: 1rem auto 0;
+            }
+
+            .features-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            .footer-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header-container {
+                padding: 0 1.5rem;
+            }
+
+            .hero-container {
+                padding: 3rem 1.5rem;
+            }
+
+            .hero-title {
+                font-size: 2.5rem;
+            }
+
+            .hero-title .institution {
+                font-size: 1.5rem;
+            }
+
+            .hero-description {
+                font-size: 1rem;
+            }
+
+            .login-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .btn-primary,
+            .btn-secondary {
+                width: 100%;
+                max-width: 300px;
+            }
+
+            .features-section {
+                padding: 3rem 1.5rem;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .site-footer {
+                padding: 3rem 1.5rem 1.5rem;
+            }
+
+            .footer-grid {
+                grid-template-columns: 1fr;
+                gap: 2rem;
+            }
+
+            .footer-bottom {
+                flex-direction: column;
+                gap: 1rem;
+                text-align: center;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .hero-title {
+                font-size: 2rem;
+            }
+
+            .hero-title .institution {
+                font-size: 1.25rem;
+            }
+
+            .hero-description-secondary {
+                font-size: 0.875rem;
+            }
+        }
+    </style>
 </head>
 <body>
-    <div class="landing-container">
-        <div class="landing-header">
-            <div class="logo">
-                <h1>Mushagashe Vocational Training Centre</h1>
-                <p>Student Information Management System</p>
+    <!-- Header -->
+    <header class="site-header">
+        <div class="header-container">
+            <div class="header-brand">
+                <div class="brand-logo">MV</div>
+                <div class="brand-text">
+                    <h1>MUSHAGASHE VTC</h1>
+                    <p>Skills for Development</p>
+                </div>
             </div>
+            <nav class="header-nav">
+                <a href="#" class="nav-link active">HOME</a>
+                <a href="#" class="nav-link">ABOUT US</a>
+                <a href="#" class="nav-link">PROGRAMMES</a>
+                <a href="#" class="nav-link">STUDENT LIFE</a>
+                <a href="#" class="nav-link">NOTICES</a>
+                <a href="#" class="nav-link">CONTACT</a>
+            </nav>
+            <a href="pages/student-login.html" class="portal-button">
+                PORTAL
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+            </a>
         </div>
+    </header>
 
-        <div class="landing-content">
-            <div class="login-section">
-                <div class="login-box">
-                    <h2>Select Portal</h2>
-                    <p class="subtitle">Choose your portal to access the system</p>
-                    
-                    <div class="portal-buttons">
-                        <a href="pages/student-login.html" class="portal-btn student">
-                            <div class="portal-icon">
-                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-                                    <circle cx="9" cy="7" r="4"></circle>
-                                </svg>
-                            </div>
-                            <div class="portal-text">
-                                <h3>Student Login</h3>
-                                <p>Access academic records, fees, and announcements</p>
-                            </div>
-                        </a>
-                        
-                        <a href="pages/admin-login.html" class="portal-btn admin">
-                            <div class="portal-icon">
-                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                                    <line x1="3" y1="9" x2="21" y2="9"></line>
-                                    <line x1="9" y1="21" x2="9" y2="9"></line>
-                                </svg>
-                            </div>
-                            <div class="portal-text">
-                                <h3>Admin Login</h3>
-                                <p>Manage students, courses, fees, and results</p>
-                            </div>
-                        </a>
-                    </div>
-
-                    <div class="register-section">
-                        <p>New student? <a href="pages/student-register.html" class="register-link">Create your account</a></p>
+    <!-- Hero Section -->
+    <section class="hero-section">
+        <div class="hero-background">
+            <img src="assets/images/mushagashe-vtc-campus.jpg" alt="Mushagashe Vocational Training Centre illuminated sign">
+        </div>
+        <div class="hero-overlay"></div>
+        <div class="hero-container">
+            <div class="hero-content">
+                <div class="welcome-label">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                    </svg>
+                    WELCOME TO
+                </div>
+                <h1 class="hero-title">
+                    MUSHAGASHE
+                    <div class="institution">VOCATIONAL TRAINING CENTRE</div>
+                </h1>
+                <p class="hero-description">
+                    Empowering individuals with practical skills, knowledge and innovation for a better future.
+                </p>
+                <p class="hero-description-secondary">
+                    Access your academic records, results, fees, announcements and more through our secure student portal.
+                </p>
+                <div class="login-buttons">
+                    <a href="pages/student-login.html" class="btn-primary">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="9" cy="7" r="4"></circle>
+                        </svg>
+                        STUDENT LOGIN
+                    </a>
+                    <a href="pages/admin-login.html" class="btn-secondary">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <line x1="3" y1="9" x2="21" y2="9"></line>
+                            <line x1="9" y1="21" x2="9" y2="9"></line>
+                        </svg>
+                        STAFF LOGIN
+                    </a>
+                </div>
+                <div class="security-banner">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    </svg>
+                    <div class="security-banner-text">
+                        <strong>SECURE. RELIABLE. TRUSTED.</strong> Your data is protected with enterprise-grade security.
                     </div>
                 </div>
             </div>
+        </div>
+    </section>
 
-            <div class="info-section">
-                <div class="info-card">
-                    <h3>System Information</h3>
-                    <ul>
-                        <li><strong>Academic Records:</strong> View and manage your academic results and performance</li>
-                        <li><strong>Fee Management:</strong> Track payments, outstanding balances, and fee history</li>
-                        <li><strong>Announcements:</strong> Stay updated with latest news and important notices</li>
-                        <li><strong>Course Information:</strong> Access enrolled course details and schedules</li>
+    <!-- Features Section -->
+    <section class="features-section">
+        <div class="features-container">
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M22 10v6M2 10v6"></path>
+                            <path d="M20 2a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h16z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Academic Records</h3>
+                    <p class="feature-description">View your results, grades and academic progress anytime, anywhere.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="1" x2="12" y2="23"></line>
+                            <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Fees & Payments</h3>
+                    <p class="feature-description">Track your fees, view payment history and manage balances.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                            <polyline points="14 2 14 8 20 8"></polyline>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Documents</h3>
+                    <p class="feature-description">Access official documents, certificates and transcripts.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Announcements</h3>
+                    <p class="feature-description">Stay informed with latest news and institutional updates.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">My Profile</h3>
+                    <p class="feature-description">Manage your personal information and account settings.</p>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="feature-title">Secure & Private</h3>
+                    <p class="feature-description">Your data is protected with enterprise-grade security.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+        <div class="footer-container">
+            <div class="footer-grid">
+                <div class="footer-column">
+                    <h3>MUSHAGASHE VTC</h3>
+                    <p>Skills for Development</p>
+                    <p>Empowering individuals with practical skills, knowledge and innovation for a better future.</p>
+                </div>
+
+                <div class="footer-column">
+                    <h3>QUICK LINKS</h3>
+                    <ul class="footer-links">
+                        <li><a href="#">About Us</a></li>
+                        <li><a href="#">Programmes</a></li>
+                        <li><a href="#">Student Life</a></li>
+                        <li><a href="#">Notices</a></li>
+                        <li><a href="#">Contact Us</a></li>
                     </ul>
                 </div>
+
+                <div class="footer-column">
+                    <h3>STUDENT PORTAL</h3>
+                    <ul class="footer-links">
+                        <li><a href="pages/student-login.html">Student Login</a></li>
+                        <li><a href="pages/admin-login.html">Staff Login</a></li>
+                        <li><a href="#">Forgot Password</a></li>
+                        <li><a href="#">Privacy Policy</a></li>
+                        <li><a href="#">Help & Support</a></li>
+                    </ul>
+                </div>
+
+                <div class="footer-column">
+                    <h3>CONTACT US</h3>
+                    <p>Masvingo, Zimbabwe</p>
+                    <p>Email: mushagashevoctc@gmail.com</p>
+                    <p>Phone: +263 77 5 261 645</p>
+                </div>
+            </div>
+
+            <div class="footer-bottom">
+                <p>&copy; <span id="current-year"></span> Mushagashe Vocational Training Centre. All rights reserved.</p>
+                <p>Designed with ♥ for a brighter future.</p>
             </div>
         </div>
-
-        <footer class="landing-footer">
-            <p>Mushagashe Vocational Training Centre</p>
-            <p>&copy; <span id="current-year"></span> All Rights Reserved</p>
-        </footer>
-    </div>
+    </footer>
 
     <script>
-        // Automatic copyright year update
         document.getElementById('current-year').textContent = new Date().getFullYear();
     </script>
 </body>
