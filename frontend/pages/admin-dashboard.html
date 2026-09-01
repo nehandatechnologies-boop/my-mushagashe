@@ -743,13 +743,10 @@
                 e.preventDefault();
                 const page = item.dataset.page;
                 
-                // Update active state
-                document.querySelectorAll('.nav-item').forEach(nav => nav.classList.remove('active'));
-                item.classList.add('active');
-                
-                // Show/hide pages
-                document.querySelectorAll('.page-section').forEach(section => section.classList.add('hidden'));
-                document.getElementById(`${page}-page`).classList.remove('hidden');
+                // Use the navigateTo function from admin-dashboard.js
+                if (typeof navigateTo === 'function') {
+                    navigateTo(page);
+                }
                 
                 // Close mobile sidebar
                 if (window.innerWidth <= 1024) {
