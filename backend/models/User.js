@@ -187,12 +187,21 @@ class User {
   }
 
   static async delete(id) {
+    console.log('[USER.DELETE] Attempting to delete user ID:', id);
     const { error } = await supabase
       .from('users')
       .delete()
       .eq('id', id);
 
-    if (error) throw error;
+    if (error) {
+      console.error('[USER.DELETE] SUPABASE ERROR:', error);
+      console.error('[USER.DELETE] ERROR CODE:', error.code);
+      console.error('[USER.DELETE] ERROR MESSAGE:', error.message);
+      console.error('[USER.DELETE] ERROR DETAILS:', error.details);
+      console.error('[USER.DELETE] ERROR HINT:', error.hint);
+      throw error;
+    }
+    console.log('[USER.DELETE] Delete successful for ID:', id);
     return true;
   }
 

@@ -206,22 +206,29 @@ const updateStudent = async (req, res) => {
 const deleteStudent = async (req, res) => {
   try {
     const { id } = req.params;
+    console.log('[DELETE STUDENT] Starting deletion for ID:', id);
 
     const student = await User.findById(id);
     if (!student) {
+      console.log('[DELETE STUDENT] Student not found');
       return res.status(404).json({ error: 'Student not found' });
     }
 
     if (student.role !== 'student') {
+      console.log('[DELETE STUDENT] User is not a student, role:', student.role);
       return res.status(400).json({ error: 'User is not a student' });
     }
 
+    console.log('[DELETE STUDENT] Student found, proceeding with deletion');
     await User.delete(id);
+    console.log('[DELETE STUDENT] Deletion successful');
 
     res.json({ message: 'Student deleted successfully' });
   } catch (error) {
-    console.error('Delete student error:', error);
-    res.status(500).json({ error: 'Failed to delete student' });
+    console.error('[DELETE STUDENT] ERROR:', error);
+    console.error('[DELETE STUDENT] ERROR MESSAGE:', error.message);
+    console.error('[DELETE STUDENT] ERROR STACK:', error.stack);
+    res.status(500).json({ error: 'Failed to delete student', details: error.message });
   }
 };
 
