@@ -659,6 +659,7 @@ if (importExcelBtn) {
 const addStudentBtn = document.getElementById('addStudentBtn');
 if (addStudentBtn) {
     addStudentBtn.addEventListener('click', () => {
+        console.log('[CRUD-ADD] BUTTON CLICKED');
         showModal(`
             <div class="modal-header">
                 <h3>Add New Student</h3>
@@ -694,33 +695,50 @@ if (addStudentBtn) {
                 <button type="submit" class="btn btn-primary">Add Student</button>
             </form>
         `);
+        console.log('[CRUD-ADD] MODAL OPENED');
         
         // Load courses for dropdown
         loadCourseDropdown();
         
-        document.getElementById('addStudentForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const studentData = Object.fromEntries(formData);
-            
-            try {
-                await apiRequest('/students', {
-                    method: 'POST',
-                    body: JSON.stringify(studentData)
-                });
-                showToast('Student added successfully');
-                hideModal();
-                loadStudents();
-            } catch (error) {
-                showToast('Failed to add student', 'error');
-            }
-        });
+        const addForm = document.getElementById('addStudentForm');
+        if (addForm) {
+            console.log('[CRUD-ADD] FORM FOUND');
+            addForm.addEventListener('submit', async (e) => {
+                console.log('[CRUD-ADD] FORM SUBMIT');
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const studentData = Object.fromEntries(formData);
+                console.log('[CRUD-ADD] FORM DATA:', studentData);
+                
+                try {
+                    console.log('[CRUD-ADD] API REQUEST STARTING: POST /students');
+                    await apiRequest('/students', {
+                        method: 'POST',
+                        body: JSON.stringify(studentData)
+                    });
+                    console.log('[CRUD-ADD] API REQUEST SUCCESS');
+                    showToast('Student added successfully');
+                    hideModal();
+                    loadStudents();
+                } catch (error) {
+                    console.error('[CRUD-ADD] API REQUEST ERROR:', error);
+                    showToast('Failed to add student', 'error');
+                }
+            });
+        } else {
+            console.error('[CRUD-ADD] FORM NOT FOUND');
+        }
     });
+} else {
+    console.error('[CRUD-ADD] BUTTON NOT FOUND');
 }
 
 window.editStudent = async function(id) {
+    console.log('[CRUD-EDIT] BUTTON CLICKED', id);
     try {
+        console.log('[CRUD-EDIT] FETCHING STUDENT DATA');
         const student = await apiRequest(`/students/${id}`);
+        console.log('[CRUD-EDIT] STUDENT DATA RECEIVED:', student);
         
         showModal(`
             <div class="modal-header">
@@ -763,51 +781,65 @@ window.editStudent = async function(id) {
                 <button type="submit" class="btn btn-primary">Update Student</button>
             </form>
         `);
+        console.log('[CRUD-EDIT] MODAL OPENED');
         
         loadCourseDropdown(student.course_id);
         
-        document.getElementById('editStudentForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const updateData = {
-                full_name: formData.get('full_name'),
-                phone: formData.get('phone'),
-                status: formData.get('status'),
-                course_id: formData.get('course_id')
-            };
-            
-            // Handle profile picture upload
-            const profilePictureFile = formData.get('profilePicture');
-            if (profilePictureFile && profilePictureFile.size > 0) {
-                const profileFormData = new FormData();
-                profileFormData.append('profilePicture', profilePictureFile);
+        const editForm = document.getElementById('editStudentForm');
+        if (editForm) {
+            console.log('[CRUD-EDIT] FORM FOUND');
+            editForm.addEventListener('submit', async (e) => {
+                console.log('[CRUD-EDIT] FORM SUBMIT');
+                e.preventDefault();
+                const formData = new FormData(e.target);
+                const updateData = {
+                    full_name: formData.get('full_name'),
+                    phone: formData.get('phone'),
+                    status: formData.get('status'),
+                    course_id: formData.get('course_id')
+                };
+                console.log('[CRUD-EDIT] UPDATE DATA:', updateData);
+                
+                // Handle profile picture upload
+                const profilePictureFile = formData.get('profilePicture');
+                if (profilePictureFile && profilePictureFile.size > 0) {
+                    console.log('[CRUD-EDIT] UPLOADING PROFILE PICTURE');
+                    const profileFormData = new FormData();
+                    profileFormData.append('profilePicture', profilePictureFile);
+                    
+                    try {
+                        await apiRequest(`/students/${id}/profile-picture`, {
+                            method: 'POST',
+                            body: profileFormData
+                        });
+                        console.log('[CRUD-EDIT] PROFILE PICTURE UPLOADED');
+                    } catch (error) {
+                        console.error('[CRUD-EDIT] PROFILE PICTURE UPLOAD ERROR:', error);
+                        showToast('Failed to upload profile picture', 'error');
+                        return;
+                    }
+                }
                 
                 try {
-                    await apiRequest(`/students/${id}/profile-picture`, {
-                        method: 'POST',
-                        body: profileFormData
+                    console.log('[CRUD-EDIT] API REQUEST STARTING: PUT /students/' + id);
+                    await apiRequest(`/students/${id}`, {
+                        method: 'PUT',
+                        body: JSON.stringify(updateData)
                     });
+                    console.log('[CRUD-EDIT] API REQUEST SUCCESS');
+                    showToast('Student updated successfully');
+                    hideModal();
+                    loadStudents();
                 } catch (error) {
-                    showToast('Failed to upload profile picture', 'error');
-                    return;
+                    console.error('[CRUD-EDIT] API REQUEST ERROR:', error);
+                    showToast('Failed to update student', 'error');
                 }
-            }
-            
-            try {
-                await apiRequest(`/students/${id}`, {
-                    method: 'PUT',
-                    body: JSON.stringify(updateData)
-                });
-                showToast('Student updated successfully');
-                hideModal();
-                loadStudents();
-            } catch (error) {
-                console.error('Update student error:', error);
-                showToast('Failed to update student', 'error');
-            }
-        });
+            });
+        } else {
+            console.error('[CRUD-EDIT] FORM NOT FOUND');
+        }
     } catch (error) {
-        console.error('Load student error:', error);
+        console.error('[CRUD-EDIT] LOAD STUDENT ERROR:', error);
         showToast('Failed to load student data', 'error');
     }
 };
@@ -838,14 +870,21 @@ window.viewProfilePicture = function(imageUrl, studentName) {
 };
 
 window.deleteStudent = async function(id) {
-    if (!confirm('Are you sure you want to delete this student?')) return;
+    console.log('[CRUD-DELETE] BUTTON CLICKED', id);
+    if (!confirm('Are you sure you want to delete this student?')) {
+        console.log('[CRUD-DELETE] CONFIRMATION CANCELLED');
+        return;
+    }
+    console.log('[CRUD-DELETE] CONFIRMED');
     
     try {
+        console.log('[CRUD-DELETE] API REQUEST STARTING: DELETE /students/' + id);
         await apiRequest(`/students/${id}`, { method: 'DELETE' });
+        console.log('[CRUD-DELETE] API REQUEST SUCCESS');
         showToast('Student deleted successfully');
         loadStudents();
     } catch (error) {
-        console.error('Delete student error:', error);
+        console.error('[CRUD-DELETE] API REQUEST ERROR:', error);
         showToast('Failed to delete student: ' + (error.message || 'Unknown error'), 'error');
     }
 };
