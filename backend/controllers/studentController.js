@@ -91,7 +91,7 @@ const createStudent = async (req, res) => {
     const studentData = {
       full_name, email, student_number, password: hashedPassword, role: 'student',
       phone, gender, national_id, date_of_birth, address, guardian_name,
-      guardian_phone, intake_year, course_id
+      guardian_phone, intake_year, course_id, status: 'active'
     };
 
     const result = await User.create(studentData);
