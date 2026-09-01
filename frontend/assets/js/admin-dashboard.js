@@ -2054,7 +2054,7 @@ function showChangePasswordModal() {
                 
                 try {
                     await apiRequest('/auth/change-password', {
-                        method: 'POST',
+                        method: 'PUT',
                         body: JSON.stringify({ current_password: currentPassword, new_password: newPassword })
                     });
                     showToast('Password changed successfully');
