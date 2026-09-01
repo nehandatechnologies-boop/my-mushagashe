@@ -199,13 +199,21 @@ class User {
   static async getStatistics() {
     const { data, error } = await supabase
       .from('users')
-      .select('role, status');
+      .select('role, status, gender');
 
     if (error) throw error;
 
+    const students = data.filter(u => u.role === 'student');
+    
     const stats = {
+      total: students.length,
+      male_count: students.filter(u => u.gender === 'male').length,
+      female_count: students.filter(u => u.gender === 'female').length,
+      active_count: students.filter(u => u.status === 'active').length,
+      suspended_count: students.filter(u => u.status === 'suspended').length,
+      // Keep legacy fields for backward compatibility
       total_users: data.length,
-      total_students: data.filter(u => u.role === 'student').length,
+      total_students: students.length,
       total_lecturers: data.filter(u => u.role === 'lecturer').length,
       total_admins: data.filter(u => u.role === 'admin').length,
       active_users: data.filter(u => u.status === 'active').length,
