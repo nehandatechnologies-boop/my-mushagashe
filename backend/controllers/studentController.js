@@ -219,7 +219,68 @@ const deleteStudent = async (req, res) => {
       return res.status(400).json({ error: 'User is not a student' });
     }
 
-    console.log('[DELETE STUDENT] Student found, proceeding with deletion');
+    console.log('[DELETE STUDENT] Student found, deleting dependent records');
+    
+    // Delete dependent records first to avoid foreign key constraint violations
+    const supabase = require('../config/supabase');
+    
+    // Delete fees associated with this student
+    console.log('[DELETE STUDENT] Deleting fees for student ID:', id);
+    const { error: feesError } = await supabase
+      .from('fees')
+      .delete()
+      .eq('user_id', id);
+    
+    if (feesError) {
+      console.error('[DELETE STUDENT] Error deleting fees:', feesError);
+      // Continue with deletion even if fees deletion fails
+    } else {
+      console.log('[DELETE STUDENT] Fees deleted successfully');
+    }
+    
+    // Delete results associated with this student
+    console.log('[DELETE STUDENT] Deleting results for student ID:', id);
+    const { error: resultsError } = await supabase
+      .from('results')
+      .delete()
+      .eq('user_id', id);
+    
+    if (resultsError) {
+      console.error('[DELETE STUDENT] Error deleting results:', resultsError);
+      // Continue with deletion even if results deletion fails
+    } else {
+      console.log('[DELETE STUDENT] Results deleted successfully');
+    }
+    
+    // Delete announcements created by this student (if any)
+    console.log('[DELETE STUDENT] Deleting announcements for student ID:', id);
+    const { error: announcementsError } = await supabase
+      .from('announcements')
+      .delete()
+      .eq('created_by', id);
+    
+    if (announcementsError) {
+      console.error('[DELETE STUDENT] Error deleting announcements:', announcementsError);
+      // Continue with deletion even if announcements deletion fails
+    } else {
+      console.log('[DELETE STUDENT] Announcements deleted successfully');
+    }
+    
+    // Delete audit logs for this student
+    console.log('[DELETE STUDENT] Deleting audit logs for student ID:', id);
+    const { error: auditLogsError } = await supabase
+      .from('audit_logs')
+      .delete()
+      .eq('user_id', id);
+    
+    if (auditLogsError) {
+      console.error('[DELETE STUDENT] Error deleting audit logs:', auditLogsError);
+      // Continue with deletion even if audit logs deletion fails
+    } else {
+      console.log('[DELETE STUDENT] Audit logs deleted successfully');
+    }
+
+    console.log('[DELETE STUDENT] Dependent records deleted, now deleting student');
     await User.delete(id);
     console.log('[DELETE STUDENT] Deletion successful');
 
