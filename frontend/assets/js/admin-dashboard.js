@@ -2156,6 +2156,14 @@ modalContainer.addEventListener('submit', async (e) => {
     
     e.preventDefault();
     
+    // Disable submit button to prevent double submission
+    const submitBtn = form.querySelector('button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.dataset.originalText = submitBtn.textContent;
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Processing...';
+    }
+    
     console.log(`[DELEGATED] Form submitted: ${formId}`);
     
     switch(formId) {
@@ -2203,6 +2211,12 @@ modalContainer.addEventListener('submit', async (e) => {
             break;
         default:
             console.warn(`[DELEGATED] Unknown form ID: ${formId}`);
+    }
+    
+    // Re-enable submit button after completion
+    if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = submitBtn.dataset.originalText || 'Submit';
     }
 });
 
