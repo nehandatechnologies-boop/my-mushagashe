@@ -2,23 +2,16 @@ const Subject = require('../models/Subject');
 
 // Create new subject
 const createSubject = async (req, res) => {
-  console.log('[BACKEND] Create subject - Request received');
-  console.log('[BACKEND] Request body:', req.body);
-  console.log('[BACKEND] User role:', req.user?.role);
   try {
     const { subject_code, subject_name, course_id, credits } = req.body;
 
-    console.log('[BACKEND] Parsed fields:', { subject_code, subject_name, course_id, credits });
-
     // Validation
     if (!subject_code || !subject_name || !course_id) {
-      console.log('[BACKEND] Validation failed: missing required fields');
       return res.status(400).json({ error: 'Subject code, name, and course ID are required' });
     }
 
     // Lecturers can only create subjects for their assigned course
     if (req.user.role === 'lecturer') {
-      console.log('[BACKEND] Lecturer authorization check');
       if (!req.user.course_id) {
         return res.status(403).json({ error: 'Access denied: You must be assigned to a course to create subjects' });
       }
@@ -34,17 +27,14 @@ const createSubject = async (req, res) => {
       credits: credits ? parseInt(credits) : 1
     };
 
-    console.log('[BACKEND] Calling Subject.create with data:', subjectData);
     const subject = await Subject.create(subjectData);
-    console.log('[BACKEND] Subject.create succeeded, result:', subject);
 
     res.status(201).json({
       message: 'Subject created successfully',
       subject
     });
   } catch (error) {
-    console.error('[BACKEND] Create subject error:', error);
-    console.error('[BACKEND] Error details:', error.message, error.code);
+    console.error('Create subject error:', error);
     if (error.code === '23505') {
       return res.status(400).json({ error: 'Subject code already exists' });
     }

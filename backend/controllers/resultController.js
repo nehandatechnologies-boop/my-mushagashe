@@ -11,27 +11,20 @@ console.log('=== resultController.js loaded with PDF template support ===');
 
 // Create new result
 const createResult = async (req, res) => {
-  console.log('[BACKEND] Create result - Request received');
-  console.log('[BACKEND] Request body:', req.body);
-  console.log('[BACKEND] User role:', req.user?.role);
   try {
     const {
       user_id, course_id, semester, academic_year, assessment_mark,
       exam_mark, final_mark, grade, credits, lecturer, remarks, subject_marks
     } = req.body;
 
-    console.log('[BACKEND] Parsed fields:', { user_id, course_id, semester, academic_year, assessment_mark, exam_mark });
-
     // Validation
     if (!user_id || !course_id || !semester || !academic_year ||
         user_id === '' || course_id === '' || semester === '' || academic_year === '') {
-      console.log('[BACKEND] Validation failed: missing required fields');
       return res.status(400).json({ error: 'User ID, course ID, semester, and academic year are required' });
     }
 
     // Lecturer can only create results for their assigned course
     if (req.user.role === 'lecturer') {
-      console.log('[BACKEND] Lecturer authorization check');
       if (!req.user.course_id) {
         return res.status(403).json({ error: 'Access denied: You must be assigned to a course to create results' });
       }

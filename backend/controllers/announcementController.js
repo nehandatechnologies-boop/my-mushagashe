@@ -2,23 +2,16 @@ const Announcement = require('../models/Announcement');
 
 // Create new announcement
 const createAnnouncement = async (req, res) => {
-  console.log('[BACKEND] Create announcement - Request received');
-  console.log('[BACKEND] Request body:', req.body);
-  console.log('[BACKEND] User ID:', req.user?.id);
   try {
     const { title, message, priority } = req.body;
 
-    console.log('[BACKEND] Parsed fields:', { title, message, priority });
-
     // Validation
     if (!title || !message) {
-      console.log('[BACKEND] Validation failed: missing required fields');
       return res.status(400).json({ error: 'Title and message are required' });
     }
 
     const validPriorities = ['low', 'normal', 'important', 'urgent'];
     if (priority && !validPriorities.includes(priority)) {
-      console.log('[BACKEND] Validation failed: invalid priority');
       return res.status(400).json({ error: 'Invalid priority. Must be: low, normal, important, or urgent' });
     }
 
@@ -29,17 +22,14 @@ const createAnnouncement = async (req, res) => {
       created_by: req.user.id
     };
 
-    console.log('[BACKEND] Calling Announcement.create with data:', announcementData);
     const result = await Announcement.create(announcementData);
-    console.log('[BACKEND] Announcement.create succeeded, result ID:', result.id);
 
     res.status(201).json({
       message: 'Announcement created successfully',
       id: result.id
     });
   } catch (error) {
-    console.error('[BACKEND] Create announcement error:', error);
-    console.error('[BACKEND] Error details:', error.message, error.code);
+    console.error('Create announcement error:', error);
     res.status(500).json({ error: 'Failed to create announcement' });
   }
 };

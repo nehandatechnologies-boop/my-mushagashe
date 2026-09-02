@@ -2,19 +2,14 @@ const Fee = require('../models/Fee');
 
 // Create new fee
 const createFee = async (req, res) => {
-  console.log('[BACKEND] Create fee - Request received');
-  console.log('[BACKEND] Request body:', req.body);
   try {
     const {
       user_id, fee_category, amount, amount_paid, balance,
       payment_reference, payment_method, receipt_number, payment_date, due_date, status
     } = req.body;
 
-    console.log('[BACKEND] Parsed fields:', { user_id, fee_category, amount, due_date });
-
     // Validation
     if (!user_id || !fee_category || !amount) {
-      console.log('[BACKEND] Validation failed: missing required fields');
       return res.status(400).json({ error: 'User ID, fee category, and amount are required' });
     }
 
@@ -23,17 +18,14 @@ const createFee = async (req, res) => {
       payment_reference, payment_method, receipt_number, payment_date, due_date, status
     };
 
-    console.log('[BACKEND] Calling Fee.create with data:', feeData);
     const result = await Fee.create(feeData);
-    console.log('[BACKEND] Fee.create succeeded, result:', result);
 
     res.status(201).json({
       message: 'Fee created successfully',
       id: result.id
     });
   } catch (error) {
-    console.error('[BACKEND] Create fee error:', error);
-    console.error('[BACKEND] Error details:', error.message, error.code);
+    console.error('Create fee error:', error);
     res.status(500).json({ error: 'Failed to create fee' });
   }
 };

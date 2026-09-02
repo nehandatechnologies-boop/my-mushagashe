@@ -69,8 +69,6 @@ const registerStudent = async (req, res) => {
 
 // Create new student
 const createStudent = async (req, res) => {
-  console.log('[BACKEND] Create student - Request received');
-  console.log('[BACKEND] Request body:', req.body);
   try {
     const {
       full_name, email, student_number, password, phone, gender,
@@ -78,21 +76,16 @@ const createStudent = async (req, res) => {
       intake_year, course_id
     } = req.body;
 
-    console.log('[BACKEND] Parsed fields:', { full_name, email, student_number, phone, course_id });
-
     // Validation
     if (!full_name || !student_number || !password) {
-      console.log('[BACKEND] Validation failed: missing required fields');
       return res.status(400).json({ error: 'Full name, student number, and password are required' });
     }
 
     if (password.length < 6) {
-      console.log('[BACKEND] Validation failed: password too short');
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
     // Hash password
-    console.log('[BACKEND] Hashing password');
     const hashedPassword = bcrypt.hashSync(password, 10);
 
     const studentData = {
@@ -101,17 +94,14 @@ const createStudent = async (req, res) => {
       guardian_phone, intake_year, course_id, status: 'active'
     };
 
-    console.log('[BACKEND] Calling User.create with data:', { ...studentData, password: '[HASHED]' });
     const result = await User.create(studentData);
-    console.log('[BACKEND] User.create succeeded, result:', result);
 
     res.status(201).json({
       message: 'Student created successfully',
       id: result.id
     });
   } catch (error) {
-    console.error('[BACKEND] Create student error:', error);
-    console.error('[BACKEND] Error details:', error.message, error.code);
+    console.error('Create student error:', error);
     if (error.message.includes('UNIQUE')) {
       return res.status(400).json({ error: 'Student number or email already exists' });
     }
@@ -188,9 +178,6 @@ const getStudentById = async (req, res) => {
 
 // Update student
 const updateStudent = async (req, res) => {
-  console.log('[BACKEND] Update student - Request received');
-  console.log('[BACKEND] Params:', req.params);
-  console.log('[BACKEND] Request body:', req.body);
   try {
     const { id } = req.params;
     const {
@@ -199,16 +186,11 @@ const updateStudent = async (req, res) => {
       intake_year, status, course_id
     } = req.body;
 
-    console.log('[BACKEND] Parsed update fields:', { full_name, phone, status, course_id });
-
     // Get current student data
-    console.log('[BACKEND] Fetching current student data');
     const currentStudent = await User.findById(id);
     if (!currentStudent) {
-      console.log('[BACKEND] Student not found');
       return res.status(404).json({ error: 'Student not found' });
     }
-    console.log('[BACKEND] Current student found');
 
     const updateData = {
       full_name, email, student_number, phone, gender, national_id,
@@ -223,16 +205,13 @@ const updateStudent = async (req, res) => {
       }
     });
 
-    console.log('[BACKEND] Calling User.update with data:', updateData);
     const updatedStudent = await User.update(id, updateData);
-    console.log('[BACKEND] User.update succeeded');
 
     const { password: _, ...studentWithoutPassword } = updatedStudent;
 
     res.json(studentWithoutPassword);
   } catch (error) {
-    console.error('[BACKEND] Update student error:', error);
-    console.error('[BACKEND] Error details:', error.message, error.code);
+    console.error('Update student error:', error);
     res.status(500).json({ error: 'Failed to update student' });
   }
 };
@@ -241,89 +220,64 @@ const updateStudent = async (req, res) => {
 const deleteStudent = async (req, res) => {
   try {
     const { id } = req.params;
-    console.log('[DELETE STUDENT] Starting deletion for ID:', id);
 
     const student = await User.findById(id);
     if (!student) {
-      console.log('[DELETE STUDENT] Student not found');
       return res.status(404).json({ error: 'Student not found' });
     }
 
     if (student.role !== 'student') {
-      console.log('[DELETE STUDENT] User is not a student, role:', student.role);
       return res.status(400).json({ error: 'User is not a student' });
     }
-
-    console.log('[DELETE STUDENT] Student found, deleting dependent records');
     
     // Delete dependent records first to avoid foreign key constraint violations
     const supabase = require('../config/supabase');
     
     // Delete fees associated with this student
-    console.log('[DELETE STUDENT] Deleting fees for student ID:', id);
     const { error: feesError } = await supabase
       .from('fees')
       .delete()
       .eq('user_id', id);
     
     if (feesError) {
-      console.error('[DELETE STUDENT] Error deleting fees:', feesError);
-      // Continue with deletion even if fees deletion fails
-    } else {
-      console.log('[DELETE STUDENT] Fees deleted successfully');
+      console.error('Error deleting fees:', feesError);
     }
     
     // Delete results associated with this student
-    console.log('[DELETE STUDENT] Deleting results for student ID:', id);
     const { error: resultsError } = await supabase
       .from('results')
       .delete()
       .eq('user_id', id);
     
     if (resultsError) {
-      console.error('[DELETE STUDENT] Error deleting results:', resultsError);
-      // Continue with deletion even if results deletion fails
-    } else {
-      console.log('[DELETE STUDENT] Results deleted successfully');
+      console.error('Error deleting results:', resultsError);
     }
     
     // Delete announcements created by this student (if any)
-    console.log('[DELETE STUDENT] Deleting announcements for student ID:', id);
     const { error: announcementsError } = await supabase
       .from('announcements')
       .delete()
       .eq('created_by', id);
     
     if (announcementsError) {
-      console.error('[DELETE STUDENT] Error deleting announcements:', announcementsError);
-      // Continue with deletion even if announcements deletion fails
-    } else {
-      console.log('[DELETE STUDENT] Announcements deleted successfully');
+      console.error('Error deleting announcements:', announcementsError);
     }
     
     // Delete audit logs for this student
-    console.log('[DELETE STUDENT] Deleting audit logs for student ID:', id);
     const { error: auditLogsError } = await supabase
       .from('audit_logs')
       .delete()
       .eq('user_id', id);
     
     if (auditLogsError) {
-      console.error('[DELETE STUDENT] Error deleting audit logs:', auditLogsError);
-      // Continue with deletion even if audit logs deletion fails
-    } else {
-      console.log('[DELETE STUDENT] Audit logs deleted successfully');
+      console.error('Error deleting audit logs:', auditLogsError);
     }
 
-    console.log('[DELETE STUDENT] Dependent records deleted, now deleting student');
     await User.delete(id);
-    console.log('[DELETE STUDENT] Deletion successful');
 
     res.json({ message: 'Student deleted successfully' });
   } catch (error) {
-    console.error('[DELETE STUDENT] ERROR:', error);
-    console.error('[DELETE STUDENT] ERROR MESSAGE:', error.message);
-    console.error('[DELETE STUDENT] ERROR STACK:', error.stack);
+    console.error('Delete student error:', error);
     res.status(500).json({ error: 'Failed to delete student', details: error.message });
   }
 };

@@ -2,16 +2,11 @@ const Course = require('../models/Course');
 
 // Create new course
 const createCourse = async (req, res) => {
-  console.log('[BACKEND] Create course - Request received');
-  console.log('[BACKEND] Request body:', req.body);
   try {
     const { course_code, course_name, department, duration, description } = req.body;
 
-    console.log('[BACKEND] Parsed fields:', { course_code, course_name, department, duration });
-
     // Validation
     if (!course_code || !course_name) {
-      console.log('[BACKEND] Validation failed: missing required fields');
       return res.status(400).json({ error: 'Course code and course name are required' });
     }
 
@@ -19,12 +14,9 @@ const createCourse = async (req, res) => {
       course_code, course_name, department, duration, description
     };
 
-    console.log('[BACKEND] Calling Course.create with data:', courseData);
     const result = await Course.create(courseData);
-    console.log('[BACKEND] Course.create succeeded, result:', result);
 
     if (!result) {
-      console.error('Course.create returned null');
       return res.status(500).json({ error: 'Failed to create course - no result returned' });
     }
 
@@ -33,8 +25,7 @@ const createCourse = async (req, res) => {
       id: result.id
     });
   } catch (error) {
-    console.error('[BACKEND] Create course error:', error);
-    console.error('[BACKEND] Error details:', error.message, error.code);
+    console.error('Create course error:', error);
     if (error.message.includes('UNIQUE')) {
       return res.status(400).json({ error: 'Course code already exists' });
     }
@@ -81,14 +72,9 @@ const getCourseById = async (req, res) => {
 
 // Update course
 const updateCourse = async (req, res) => {
-  console.log('[BACKEND] Update course - Request received');
-  console.log('[BACKEND] Params:', req.params);
-  console.log('[BACKEND] Request body:', req.body);
   try {
     const { id } = req.params;
     const { course_code, course_name, department, duration, description } = req.body;
-
-    console.log('[BACKEND] Parsed update fields:', { course_code, course_name, department, duration });
 
     const updateData = {
       course_code, course_name, department, duration, description
@@ -101,17 +87,15 @@ const updateCourse = async (req, res) => {
       }
     });
 
-    console.log('[BACKEND] Calling Course.update with data:', updateData);
-    await Course.update(id, updateData);
-    console.log('[BACKEND] Course.update succeeded');
+    const updatedCourse = await Course.update(id, updateData);
 
-    const updatedCourse = await Course.findById(id);
-    console.log('[BACKEND] Updated course fetched:', updatedCourse);
+    if (!updatedCourse) {
+      return res.status(404).json({ error: 'Course not found' });
+    }
 
     res.json(updatedCourse);
   } catch (error) {
-    console.error('[BACKEND] Update course error:', error);
-    console.error('[BACKEND] Error details:', error.message, error.code);
+    console.error('Update course error:', error);
     if (error.message.includes('UNIQUE')) {
       return res.status(400).json({ error: 'Course code already exists' });
     }
