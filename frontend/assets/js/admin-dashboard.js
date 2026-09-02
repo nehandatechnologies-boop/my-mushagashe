@@ -371,13 +371,15 @@ async function loadFees() {
             return;
         }
 
-        tbody.innerHTML = fees.map(fee => `
+        tbody.innerHTML = fees.map(fee => {
+            const balance = fee.balance !== null && fee.balance !== undefined ? fee.balance : (fee.amount - (fee.amount_paid || 0));
+            return `
             <tr>
                 <td>${fee.full_name || 'Unknown'}</td>
                 <td>${fee.fee_category}</td>
                 <td>$${fee.amount.toFixed(2)}</td>
                 <td>$${(fee.amount_paid || 0).toFixed(2)}</td>
-                <td>$${fee.balance.toFixed(2)}</td>
+                <td>$${balance.toFixed(2)}</td>
                 <td><span class="status-badge status-${fee.status}">${fee.status}</span></td>
                 <td>
                     <button class="action-btn edit" onclick="editFee(${fee.id})">Edit</button>
@@ -385,7 +387,8 @@ async function loadFees() {
                     <button class="action-btn delete" onclick="deleteFee(${fee.id})">Delete</button>
                 </td>
             </tr>
-        `).join('');
+            `;
+        }).join('');
         console.log('[FEES] Success: Data rendered');
     } catch (error) {
         console.error('[FEES] Error:', error);
@@ -1177,6 +1180,8 @@ async function editFee(id) {
             </div>`
             : '<p>No payment history</p>';
         
+        const balance = fee.balance !== null && fee.balance !== undefined ? fee.balance : (fee.amount - (fee.amount_paid || 0));
+        
         showModal(`
             <div class="modal-header">
                 <h3>Edit Fee - ${fee.full_name}</h3>
@@ -1186,7 +1191,7 @@ async function editFee(id) {
                 <div class="fee-summary">
                     <p><strong>Total Amount:</strong> $${fee.amount.toFixed(2)}</p>
                     <p><strong>Amount Paid:</strong> $${fee.amount_paid.toFixed(2)}</p>
-                    <p><strong>Balance:</strong> $${fee.balance.toFixed(2)}</p>
+                    <p><strong>Balance:</strong> $${balance.toFixed(2)}</p>
                     <p><strong>Status:</strong> ${fee.status}</p>
                 </div>
                 ${historyHtml}
@@ -1554,6 +1559,14 @@ async function deleteSubject(id) {
 }
 
 window.deleteSubject = deleteSubject;
+
+// Subject CRUD operations
+const addSubjectBtn = document.getElementById('addSubjectBtn');
+if (addSubjectBtn) {
+    addSubjectBtn.addEventListener('click', window.addSubject);
+} else {
+    console.error('Add Subject button not found');
+}
 
 // Load courses for subject filter
 async function loadSubjectCourseFilter() {
