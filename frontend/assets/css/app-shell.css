@@ -421,6 +421,7 @@
 @media (max-width: 1024px) {
   .sidebar {
     transform: translateX(-100%);
+    z-index: var(--z-sidebar-mobile); /* Ensure sidebar is above overlay */
   }
 
   .sidebar.open {

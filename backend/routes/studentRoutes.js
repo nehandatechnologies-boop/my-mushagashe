@@ -59,7 +59,7 @@ const validateStudent = [
 router.post('/register', studentController.registerStudent);
 
 // Create new student (admin only)
-router.post('/', authenticate, adminOnly, studentController.createStudent);
+router.post('/', authenticate, adminOnly, validateStudent, studentController.createStudent);
 
 // Get all students (admin only)
 router.get('/', authenticate, adminOnly, studentController.getAllStudents);

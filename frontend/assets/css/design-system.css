@@ -153,10 +153,11 @@
   --z-sticky: 1020;
   --z-fixed: 1030;
   --z-sidebar-overlay: 1035;
-  --z-modal-backdrop: 1040;
-  --z-modal: 1050;
-  --z-popover: 1060;
-  --z-tooltip: 1070;
+  --z-sidebar-mobile: 1040; /* Mobile sidebar when open */
+  --z-modal-backdrop: 1050;
+  --z-modal: 1060;
+  --z-popover: 1070;
+  --z-tooltip: 1080;
 
   /* Breakpoints */
   --breakpoint-sm: 640px;

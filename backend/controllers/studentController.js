@@ -76,25 +76,45 @@ const createStudent = async (req, res) => {
       intake_year, course_id
     } = req.body;
 
+    // Trim whitespace from inputs
+    const trimmedStudentNumber = student_number?.trim();
+    const trimmedEmail = email?.trim();
+    const trimmedPassword = password?.trim();
+
     // Validation
-    if (!full_name || !student_number || !password) {
+    if (!full_name || !trimmedStudentNumber || !trimmedPassword) {
       return res.status(400).json({ error: 'Full name, student number, and password are required' });
     }
 
-    if (password.length < 6) {
+    if (trimmedPassword.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
+    // Check if student number or email already exists
+    const existingStudent = await User.findByStudentNumber(trimmedStudentNumber);
+    if (existingStudent) {
+      return res.status(400).json({ error: 'Student number already exists' });
+    }
+
+    if (trimmedEmail) {
+      const existingEmail = await User.findByEmail(trimmedEmail);
+      if (existingEmail) {
+        return res.status(400).json({ error: 'Email already exists' });
+      }
+    }
+
     // Hash password
-    const hashedPassword = bcrypt.hashSync(password, 10);
+    const hashedPassword = bcrypt.hashSync(trimmedPassword, 10);
 
     const studentData = {
-      full_name, email, student_number, password: hashedPassword, role: 'student',
+      full_name, email: trimmedEmail, student_number: trimmedStudentNumber, password: hashedPassword, role: 'student',
       phone, gender, national_id, date_of_birth, address, guardian_name,
       guardian_phone, intake_year, course_id, status: 'active'
     };
 
     const result = await User.create(studentData);
+
+    console.log('Student created successfully:', { id: result.id, student_number: trimmedStudentNumber });
 
     res.status(201).json({
       message: 'Student created successfully',
@@ -102,7 +122,7 @@ const createStudent = async (req, res) => {
     });
   } catch (error) {
     console.error('Create student error:', error);
-    if (error.message.includes('UNIQUE')) {
+    if (error.message.includes('UNIQUE') || error.code === '23505') {
       return res.status(400).json({ error: 'Student number or email already exists' });
     }
     res.status(500).json({ error: 'Failed to create student' });
