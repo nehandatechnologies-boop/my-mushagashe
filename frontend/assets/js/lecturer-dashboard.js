@@ -51,8 +51,13 @@ async function apiRequest(endpoint, options = {}) {
 
 function showModal(content) {
     const modal = document.getElementById('modal');
-    const modalBody = document.getElementById('modal-body');
-    modalBody.innerHTML = content;
+    modal.innerHTML = `
+        <div class="modal-backdrop" onclick="hideModal()">
+            <div class="modal" onclick="event.stopPropagation()">
+                ${content}
+            </div>
+        </div>
+    `;
     modal.style.display = 'flex';
 }
 

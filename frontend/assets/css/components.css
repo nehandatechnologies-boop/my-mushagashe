@@ -496,19 +496,18 @@
   background: var(--surface);
   border-radius: var(--radius-2xl);
   box-shadow: var(--shadow-2xl);
-  max-width: 500px;
-  width: 100%;
+  width: min(90vw, 500px);
   max-height: 90vh;
   overflow: hidden;
   animation: slideUp var(--transition-base);
 }
 
 .modal-lg {
-  max-width: 700px;
+  width: min(90vw, 700px);
 }
 
 .modal-xl {
-  max-width: 900px;
+  width: min(90vw, 900px);
 }
 
 .modal-header {
@@ -548,6 +547,15 @@
   padding: var(--space-6);
   overflow-y: auto;
   max-height: calc(90vh - 140px);
+}
+
+.modal-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  max-height: calc(90vh - 140px);
+  overflow-y: auto;
+  padding: var(--space-6);
 }
 
 .modal-footer {

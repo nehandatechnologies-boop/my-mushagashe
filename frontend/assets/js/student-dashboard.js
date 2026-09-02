@@ -472,7 +472,7 @@ document.getElementById('changePasswordBtn').addEventListener('click', () => {
 function showChangePasswordModal() {
     const modalHtml = `
         <div class="modal-backdrop" onclick="closeModal()">
-            <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal" onclick="event.stopPropagation()">
                 <div class="modal-header">
                     <h2>Change Password</h2>
                     <button class="modal-close" onclick="closeModal()">&times;</button>

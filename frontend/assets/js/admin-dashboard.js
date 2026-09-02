@@ -579,8 +579,10 @@ async function loadAnnouncements() {
 function showModal(content) {
     const container = document.getElementById('modalContainer');
     container.innerHTML = `
-        <div class="modal">
-            ${content}
+        <div class="modal-backdrop" onclick="hideModal()">
+            <div class="modal" onclick="event.stopPropagation()">
+                ${content}
+            </div>
         </div>
     `;
     container.style.display = 'flex';
@@ -1412,8 +1414,6 @@ window.deleteResult = async function(id) {
         showToast('Failed to delete result', 'error');
     }
 }
-
-window.deleteResult = deleteResult;
 
 // Subject CRUD operations
 async function loadSubjects() {
