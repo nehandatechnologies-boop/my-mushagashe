@@ -697,37 +697,7 @@ if (addStudentBtn) {
         `);
         console.log('[CRUD-ADD] MODAL OPENED');
         
-        // Load courses for dropdown
         loadCourseDropdown();
-        
-        const addForm = document.getElementById('addStudentForm');
-        if (addForm) {
-            console.log('[CRUD-ADD] FORM FOUND');
-            addForm.addEventListener('submit', async (e) => {
-                console.log('[CRUD-ADD] FORM SUBMIT');
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const studentData = Object.fromEntries(formData);
-                console.log('[CRUD-ADD] FORM DATA:', studentData);
-                
-                try {
-                    console.log('[CRUD-ADD] API REQUEST STARTING: POST /students');
-                    await apiRequest('/students', {
-                        method: 'POST',
-                        body: JSON.stringify(studentData)
-                    });
-                    console.log('[CRUD-ADD] API REQUEST SUCCESS');
-                    showToast('Student added successfully');
-                    hideModal();
-                    loadStudents();
-                } catch (error) {
-                    console.error('[CRUD-ADD] API REQUEST ERROR:', error);
-                    showToast('Failed to add student', 'error');
-                }
-            });
-        } else {
-            console.error('[CRUD-ADD] FORM NOT FOUND');
-        }
     });
 } else {
     console.error('[CRUD-ADD] BUTTON NOT FOUND');
@@ -745,7 +715,7 @@ window.editStudent = async function(id) {
                 <h3>Edit Student</h3>
                 <button class="modal-close" onclick="hideModal()">&times;</button>
             </div>
-            <form id="editStudentForm" class="modal-form">
+            <form id="editStudentForm" class="modal-form" data-student-id="${id}">
                 <div class="form-group">
                     <label>Full Name</label>
                     <input type="text" name="full_name" value="${student.full_name}">
@@ -784,60 +754,6 @@ window.editStudent = async function(id) {
         console.log('[CRUD-EDIT] MODAL OPENED');
         
         loadCourseDropdown(student.course_id);
-        
-        const editForm = document.getElementById('editStudentForm');
-        if (editForm) {
-            console.log('[CRUD-EDIT] FORM FOUND');
-            editForm.addEventListener('submit', async (e) => {
-                console.log('[CRUD-EDIT] FORM SUBMIT');
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const updateData = {
-                    full_name: formData.get('full_name'),
-                    phone: formData.get('phone'),
-                    status: formData.get('status'),
-                    course_id: formData.get('course_id')
-                };
-                console.log('[CRUD-EDIT] UPDATE DATA:', updateData);
-                
-                // Handle profile picture upload
-                const profilePictureFile = formData.get('profilePicture');
-                if (profilePictureFile && profilePictureFile.size > 0) {
-                    console.log('[CRUD-EDIT] UPLOADING PROFILE PICTURE');
-                    const profileFormData = new FormData();
-                    profileFormData.append('profilePicture', profilePictureFile);
-                    
-                    try {
-                        await apiRequest(`/students/${id}/profile-picture`, {
-                            method: 'POST',
-                            body: profileFormData
-                        });
-                        console.log('[CRUD-EDIT] PROFILE PICTURE UPLOADED');
-                    } catch (error) {
-                        console.error('[CRUD-EDIT] PROFILE PICTURE UPLOAD ERROR:', error);
-                        showToast('Failed to upload profile picture', 'error');
-                        return;
-                    }
-                }
-                
-                try {
-                    console.log('[CRUD-EDIT] API REQUEST STARTING: PUT /students/' + id);
-                    await apiRequest(`/students/${id}`, {
-                        method: 'PUT',
-                        body: JSON.stringify(updateData)
-                    });
-                    console.log('[CRUD-EDIT] API REQUEST SUCCESS');
-                    showToast('Student updated successfully');
-                    hideModal();
-                    loadStudents();
-                } catch (error) {
-                    console.error('[CRUD-EDIT] API REQUEST ERROR:', error);
-                    showToast('Failed to update student', 'error');
-                }
-            });
-        } else {
-            console.error('[CRUD-EDIT] FORM NOT FOUND');
-        }
     } catch (error) {
         console.error('[CRUD-EDIT] LOAD STUDENT ERROR:', error);
         showToast('Failed to load student data', 'error');
@@ -893,6 +809,7 @@ window.deleteStudent = async function(id) {
 const addCourseBtn = document.getElementById('addCourseBtn');
 if (addCourseBtn) {
     addCourseBtn.addEventListener('click', () => {
+        console.log('[COURSE-ADD] BUTTON CLICKED');
         showModal(`
             <div class="modal-header">
                 <h3>Add New Course</h3>
@@ -922,37 +839,25 @@ if (addCourseBtn) {
                 <button type="submit" class="btn btn-primary">Add Course</button>
             </form>
         `);
-        
-        document.getElementById('addCourseForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const courseData = Object.fromEntries(formData);
-            
-            try {
-                await apiRequest('/courses', {
-                    method: 'POST',
-                    body: JSON.stringify(courseData)
-                });
-                showToast('Course added successfully');
-                hideModal();
-                loadCourses();
-            } catch (error) {
-                showToast('Failed to add course', 'error');
-            }
-        });
+        console.log('[COURSE-ADD] MODAL OPENED');
     });
+} else {
+    console.error('[COURSE-ADD] BUTTON NOT FOUND');
 }
 
 window.editCourse = async function(id) {
+    console.log('[COURSE-EDIT] BUTTON CLICKED', id);
     try {
+        console.log('[COURSE-EDIT] FETCHING COURSE DATA');
         const course = await apiRequest(`/courses/${id}`);
+        console.log('[COURSE-EDIT] COURSE DATA RECEIVED:', course);
         
         showModal(`
             <div class="modal-header">
                 <h3>Edit Course</h3>
                 <button class="modal-close" onclick="hideModal()">&times;</button>
             </div>
-            <form id="editCourseForm" class="modal-form">
+            <form id="editCourseForm" class="modal-form" data-course-id="${id}">
                 <div class="form-group">
                     <label>Course Code</label>
                     <input type="text" name="course_code" value="${course.course_code}">
@@ -976,40 +881,29 @@ window.editCourse = async function(id) {
                 <button type="submit" class="btn btn-primary">Update Course</button>
             </form>
         `);
-        
-        document.getElementById('editCourseForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const updateData = Object.fromEntries(formData);
-            
-            try {
-                await apiRequest(`/courses/${id}`, {
-                    method: 'PUT',
-                    body: JSON.stringify(updateData)
-                });
-                showToast('Course updated successfully');
-                hideModal();
-                loadCourses();
-            } catch (error) {
-                console.error('Update course error:', error);
-                showToast('Failed to update course: ' + (error.message || 'Unknown error'), 'error');
-            }
-        });
+        console.log('[COURSE-EDIT] MODAL OPENED');
     } catch (error) {
-        console.error('Load course error:', error);
+        console.error('[COURSE-EDIT] LOAD COURSE ERROR:', error);
         showToast('Failed to load course data: ' + (error.message || 'Unknown error'), 'error');
     }
 };
 
 window.deleteCourse = async function(id) {
-    if (!confirm('Are you sure you want to delete this course?')) return;
+    console.log('[COURSE-DELETE] BUTTON CLICKED', id);
+    if (!confirm('Are you sure you want to delete this course?')) {
+        console.log('[COURSE-DELETE] CONFIRMATION CANCELLED');
+        return;
+    }
+    console.log('[COURSE-DELETE] CONFIRMED');
     
     try {
+        console.log('[COURSE-DELETE] API REQUEST STARTING: DELETE /courses/' + id);
         await apiRequest(`/courses/${id}`, { method: 'DELETE' });
+        console.log('[COURSE-DELETE] API REQUEST SUCCESS');
         showToast('Course deleted successfully');
         loadCourses();
     } catch (error) {
-        console.error('Delete course error:', error);
+        console.error('[COURSE-DELETE] API REQUEST ERROR:', error);
         showToast('Failed to delete course: ' + (error.message || 'Unknown error'), 'error');
     }
 };
@@ -1071,8 +965,11 @@ async function loadLecturers() {
 const addLecturerBtn = document.getElementById('addLecturerBtn');
 if (addLecturerBtn) {
     addLecturerBtn.addEventListener('click', async () => {
+        console.log('[LECTURER-ADD] BUTTON CLICKED');
         try {
+            console.log('[LECTURER-ADD] LOADING COURSES');
             const courses = await apiRequest('/courses');
+            console.log('[LECTURER-ADD] COURSES LOADED');
             
             showModal(`
                 <div class="modal-header">
@@ -1114,42 +1011,32 @@ if (addLecturerBtn) {
                     <button type="submit" class="btn btn-primary">Add Lecturer</button>
                 </form>
             `);
-            
-            document.getElementById('addLecturerForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const lecturerData = Object.fromEntries(formData);
-                
-                try {
-                    await apiRequest('/students/lecturers', {
-                        method: 'POST',
-                        body: JSON.stringify(lecturerData)
-                    });
-                    showToast('Lecturer added successfully');
-                    hideModal();
-                    loadLecturers();
-                } catch (error) {
-                    showToast('Failed to add lecturer', 'error');
-                }
-            });
+            console.log('[LECTURER-ADD] MODAL OPENED');
         } catch (error) {
-            console.error('Load courses error:', error);
+            console.error('[LECTURER-ADD] LOAD COURSES ERROR:', error);
             showToast('Failed to load courses', 'error');
         }
     });
+} else {
+    console.error('[LECTURER-ADD] BUTTON NOT FOUND');
 }
 
 async function editLecturer(id) {
+    console.log('[LECTURER-EDIT] BUTTON CLICKED', id);
     try {
+        console.log('[LECTURER-EDIT] FETCHING LECTURER DATA');
         const lecturer = await apiRequest(`/students/lecturers/${id}`);
+        console.log('[LECTURER-EDIT] LECTURER DATA RECEIVED:', lecturer);
+        console.log('[LECTURER-EDIT] LOADING COURSES');
         const courses = await apiRequest('/courses');
+        console.log('[LECTURER-EDIT] COURSES LOADED');
         
         showModal(`
             <div class="modal-header">
                 <h3>Edit Lecturer</h3>
                 <button class="modal-close" onclick="hideModal()">&times;</button>
             </div>
-            <form id="editLecturerForm" class="modal-form">
+            <form id="editLecturerForm" class="modal-form" data-lecturer-id="${id}">
                 <div class="form-group">
                     <label>Full Name</label>
                     <input type="text" name="full_name" value="${lecturer.full_name}">
@@ -1187,25 +1074,9 @@ async function editLecturer(id) {
                 <button type="submit" class="btn btn-primary">Update Lecturer</button>
             </form>
         `);
-        
-        document.getElementById('editLecturerForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const updateData = Object.fromEntries(formData);
-            
-            try {
-                await apiRequest(`/students/lecturers/${id}`, {
-                    method: 'PUT',
-                    body: JSON.stringify(updateData)
-                });
-                showToast('Lecturer updated successfully');
-                hideModal();
-                loadLecturers();
-            } catch (error) {
-                showToast('Failed to update lecturer', 'error');
-            }
-        });
+        console.log('[LECTURER-EDIT] MODAL OPENED');
     } catch (error) {
+        console.error('[LECTURER-EDIT] LOAD LECTURER ERROR:', error);
         showToast('Failed to load lecturer data', 'error');
     }
 }
@@ -1213,10 +1084,17 @@ async function editLecturer(id) {
 window.editLecturer = editLecturer;
 
 async function deleteLecturer(id) {
-    if (!confirm('Are you sure you want to delete this lecturer?')) return;
+    console.log('[LECTURER-DELETE] BUTTON CLICKED', id);
+    if (!confirm('Are you sure you want to delete this lecturer?')) {
+        console.log('[LECTURER-DELETE] CONFIRMATION CANCELLED');
+        return;
+    }
+    console.log('[LECTURER-DELETE] CONFIRMED');
     
     try {
+        console.log('[LECTURER-DELETE] API REQUEST STARTING: DELETE /students/lecturers/' + id);
         await apiRequest(`/students/lecturers/${id}`, { method: 'DELETE' });
+        console.log('[LECTURER-DELETE] API REQUEST SUCCESS');
         showToast('Lecturer deleted successfully');
         loadLecturers();
     } catch (error) {
@@ -1230,8 +1108,11 @@ window.deleteLecturer = deleteLecturer;
 const addFeeBtn = document.getElementById('addFeeBtn');
 if (addFeeBtn) {
     addFeeBtn.addEventListener('click', async () => {
+        console.log('[FEE-ADD] BUTTON CLICKED');
         try {
+            console.log('[FEE-ADD] LOADING STUDENTS');
             const students = await apiRequest('/students');
+            console.log('[FEE-ADD] STUDENTS LOADED');
             
             showModal(`
                 <div class="modal-header">
@@ -1268,37 +1149,24 @@ if (addFeeBtn) {
                     <button type="submit" class="btn btn-primary">Add Fee</button>
                 </form>
             `);
-            
-            document.getElementById('addFeeForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const feeData = Object.fromEntries(formData);
-                
-                try {
-                    await apiRequest('/fees', {
-                        method: 'POST',
-                        body: JSON.stringify(feeData)
-                    });
-                    showToast('Fee added successfully');
-                    hideModal();
-                    loadFees();
-                } catch (error) {
-                    showToast('Failed to add fee', 'error');
-                }
-            });
+            console.log('[FEE-ADD] MODAL OPENED');
         } catch (error) {
+            console.error('[FEE-ADD] LOAD STUDENTS ERROR:', error);
             showToast('Failed to load students', 'error');
         }
     });
+} else {
+    console.error('[FEE-ADD] BUTTON NOT FOUND');
 }
 
 async function recordPayment(id) {
+    console.log('[FEE-PAYMENT] BUTTON CLICKED', id);
     showModal(`
         <div class="modal-header">
             <h3>Record Payment</h3>
             <button class="modal-close" onclick="hideModal()">&times;</button>
         </div>
-        <form id="paymentForm" class="modal-form">
+        <form id="paymentForm" class="modal-form" data-fee-id="${id}">
             <div class="form-group">
                 <label>Amount Paid *</label>
                 <input type="number" name="amount_paid" required min="0" step="0.01">
@@ -1319,31 +1187,20 @@ async function recordPayment(id) {
             <button type="submit" class="btn btn-primary">Record Payment</button>
         </form>
     `);
-    
-    document.getElementById('paymentForm').addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const formData = new FormData(e.target);
-        const paymentData = Object.fromEntries(formData);
-        
-        try {
-            await apiRequest(`/fees/${id}/payment`, {
-                method: 'POST',
-                body: JSON.stringify(paymentData)
-            });
-            showToast('Payment recorded successfully');
-            hideModal();
-            loadFees();
-        } catch (error) {
-            showToast('Failed to record payment', 'error');
-        }
-    });
+    console.log('[FEE-PAYMENT] MODAL OPENED');
 }
 
 async function editFee(id) {
+    console.log('[FEE-EDIT] BUTTON CLICKED', id);
     try {
+        console.log('[FEE-EDIT] FETCHING FEE DATA');
         const fee = await apiRequest(`/fees/${id}`);
+        console.log('[FEE-EDIT] FEE DATA RECEIVED:', fee);
+        console.log('[FEE-EDIT] LOADING STUDENTS');
         const students = await apiRequest('/students');
+        console.log('[FEE-EDIT] LOADING PAYMENT HISTORY');
         const paymentHistory = await apiRequest(`/payment-history/fee/${id}`);
+        console.log('[FEE-EDIT] DATA LOADED');
         
         const historyHtml = paymentHistory.length > 0 
             ? `<div class="payment-history">
@@ -1410,34 +1267,25 @@ async function editFee(id) {
                 </form>
             </div>
         `);
-        
-        document.getElementById('paymentForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const paymentData = Object.fromEntries(formData);
-            
-            try {
-                await apiRequest(`/fees/${id}/payment`, {
-                    method: 'POST',
-                    body: JSON.stringify(paymentData)
-                });
-                showToast('Payment recorded successfully');
-                hideModal();
-                loadFees();
-            } catch (error) {
-                showToast('Failed to record payment', 'error');
-            }
-        });
+        console.log('[FEE-EDIT] MODAL OPENED');
     } catch (error) {
+        console.error('[FEE-EDIT] LOAD FEE ERROR:', error);
         showToast('Failed to load fee details', 'error');
     }
 }
 
 async function deleteFee(id) {
-    if (!confirm('Are you sure you want to delete this fee?')) return;
+    console.log('[FEE-DELETE] BUTTON CLICKED', id);
+    if (!confirm('Are you sure you want to delete this fee?')) {
+        console.log('[FEE-DELETE] CONFIRMATION CANCELLED');
+        return;
+    }
+    console.log('[FEE-DELETE] CONFIRMED');
     
     try {
+        console.log('[FEE-DELETE] API REQUEST STARTING: DELETE /fees/' + id);
         await apiRequest(`/fees/${id}`, { method: 'DELETE' });
+        console.log('[FEE-DELETE] API REQUEST SUCCESS');
         showToast('Fee deleted successfully');
         loadFees();
     } catch (error) {
@@ -1451,9 +1299,12 @@ window.deleteFee = deleteFee;
 const addResultBtn = document.getElementById('addResultBtn');
 if (addResultBtn) {
     addResultBtn.addEventListener('click', async () => {
+        console.log('[RESULT-ADD] BUTTON CLICKED');
         try {
+            console.log('[RESULT-ADD] LOADING STUDENTS AND COURSES');
             const students = await apiRequest('/students');
             const courses = await apiRequest('/courses');
+            console.log('[RESULT-ADD] DATA LOADED');
             
             showModal(`
                 <div class="modal-header">
@@ -1506,93 +1357,72 @@ if (addResultBtn) {
                     <button type="submit" class="btn btn-primary">Add Result</button>
                 </form>
             `);
+            console.log('[RESULT-ADD] MODAL OPENED');
             
-            // Load subjects when course is selected
-            const courseSelect = document.getElementById('courseSelect');
-            if (courseSelect) {
-                courseSelect.addEventListener('change', async (e) => {
-                    const courseId = e.target.value;
-                    if (courseId) {
-                        try {
-                            const subjects = await apiRequest(`/subjects/course/${courseId}`);
-                            const subjectsContainer = document.getElementById('subjectsContainer');
-                            const subjectsList = document.getElementById('subjectsList');
-                            
-                            if (subjects && subjects.length > 0) {
-                                subjectsContainer.style.display = 'block';
-                                subjectsList.innerHTML = subjects.map(subject => `
-                                    <div class="form-group subject-mark-group">
-                                        <label>${subject.subject_name} (${subject.subject_code})</label>
-                                        <input type="number" 
-                                               class="subject-mark-input" 
-                                               data-subject-id="${subject.id}" 
-                                               placeholder="Enter mark (0-100)" 
-                                               min="0" 
-                                               max="100">
-                                    </div>
-                                `).join('');
-                            } else {
-                                subjectsContainer.style.display = 'none';
+            setTimeout(() => {
+                // Load subjects when course is selected
+                const courseSelect = document.getElementById('courseSelect');
+                if (courseSelect) {
+                    courseSelect.addEventListener('change', async (e) => {
+                        const courseId = e.target.value;
+                        if (courseId) {
+                            try {
+                                const subjects = await apiRequest(`/subjects/course/${courseId}`);
+                                const subjectsContainer = document.getElementById('subjectsContainer');
+                                const subjectsList = document.getElementById('subjectsList');
+                                
+                                if (subjects && subjects.length > 0) {
+                                    subjectsContainer.style.display = 'block';
+                                    subjectsList.innerHTML = subjects.map(subject => `
+                                        <div class="form-group subject-mark-group">
+                                            <label>${subject.subject_name} (${subject.subject_code})</label>
+                                            <input type="number" 
+                                                   class="subject-mark-input" 
+                                                   data-subject-id="${subject.id}" 
+                                                   placeholder="Enter mark (0-100)" 
+                                                   min="0" 
+                                                   max="100">
+                                        </div>
+                                    `).join('');
+                                } else {
+                                    subjectsContainer.style.display = 'none';
+                                }
+                            } catch (error) {
+                                console.error('Failed to load subjects:', error);
                             }
-                        } catch (error) {
-                            console.error('Failed to load subjects:', error);
+                        } else {
+                            const subjectsContainer = document.getElementById('subjectsContainer');
+                            if (subjectsContainer) subjectsContainer.style.display = 'none';
                         }
-                    } else {
-                        const subjectsContainer = document.getElementById('subjectsContainer');
-                        if (subjectsContainer) subjectsContainer.style.display = 'none';
-                    }
-                });
-            }
-            
-            document.getElementById('addResultForm').addEventListener('submit', async (e) => {
-                e.preventDefault();
-                const formData = new FormData(e.target);
-                const resultData = Object.fromEntries(formData);
-                
-                // Collect subject marks
-                const subjectMarks = [];
-                document.querySelectorAll('.subject-mark-input').forEach(input => {
-                    if (input.value) {
-                        subjectMarks.push({
-                            subject_id: input.dataset.subjectId,
-                            mark: parseFloat(input.value)
-                        });
-                    }
-                });
-                
-                resultData.subject_results = subjectMarks;
-                
-                try {
-                    await apiRequest('/results', {
-                        method: 'POST',
-                        body: JSON.stringify(resultData)
                     });
-                    showToast('Result added successfully');
-                    hideModal();
-                    loadResults();
-                } catch (error) {
-                    showToast('Failed to add result', 'error');
                 }
-            });
+            }, 100);
         } catch (error) {
-            console.error('Load data error:', error);
+            console.error('[RESULT-ADD] LOAD DATA ERROR:', error);
             showToast('Failed to load data', 'error');
         }
     });
+} else {
+    console.error('[RESULT-ADD] BUTTON NOT FOUND');
 }
 
 async function editResult(id) {
+    console.log('[RESULT-EDIT] BUTTON CLICKED', id);
     try {
+        console.log('[RESULT-EDIT] FETCHING RESULT DATA');
         const result = await apiRequest(`/results/${id}`);
+        console.log('[RESULT-EDIT] RESULT DATA RECEIVED:', result);
+        console.log('[RESULT-EDIT] LOADING STUDENTS AND COURSES');
         const students = await apiRequest('/students');
         const courses = await apiRequest('/courses');
+        console.log('[RESULT-EDIT] DATA LOADED');
         
         showModal(`
             <div class="modal-header">
                 <h3>Edit Result</h3>
                 <button class="modal-close" onclick="hideModal()">&times;</button>
             </div>
-            <form id="editResultForm" class="modal-form">
+            <form id="editResultForm" class="modal-form" data-result-id="${id}">
                 <div class="form-group">
                     <label>Student *</label>
                     <select name="user_id" required>
@@ -1632,39 +1462,29 @@ async function editResult(id) {
                 <button type="submit" class="btn btn-primary">Update Result</button>
             </form>
         `);
-        
-        document.getElementById('editResultForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const updateData = Object.fromEntries(formData);
-            
-            try {
-                await apiRequest(`/results/${id}`, {
-                    method: 'PUT',
-                    body: JSON.stringify(updateData)
-                });
-                showToast('Result updated successfully');
-                hideModal();
-                loadResults();
-            } catch (error) {
-                showToast('Failed to update result: ' + (error.message || 'Unknown error'), 'error');
-            }
-        });
+        console.log('[RESULT-EDIT] MODAL OPENED');
     } catch (error) {
+        console.error('[RESULT-EDIT] LOAD RESULT ERROR:', error);
         showToast('Failed to load result data: ' + (error.message || 'Unknown error'), 'error');
     }
 }
 
-window.editResult = editResult;
-
-async function deleteResult(id) {
-    if (!confirm('Are you sure you want to delete this result?')) return;
+window.deleteResult = async function(id) {
+    console.log('[RESULT-DELETE] BUTTON CLICKED', id);
+    if (!confirm('Are you sure you want to delete this result?')) {
+        console.log('[RESULT-DELETE] CONFIRMATION CANCELLED');
+        return;
+    }
+    console.log('[RESULT-DELETE] CONFIRMED');
     
     try {
+        console.log('[RESULT-DELETE] API REQUEST STARTING: DELETE /results/' + id);
         await apiRequest(`/results/${id}`, { method: 'DELETE' });
+        console.log('[RESULT-DELETE] API REQUEST SUCCESS');
         showToast('Result deleted successfully');
         loadResults();
     } catch (error) {
+        console.error('[RESULT-DELETE] API REQUEST ERROR:', error);
         showToast('Failed to delete result', 'error');
     }
 }
@@ -1724,8 +1544,11 @@ async function loadSubjects() {
 }
 
 window.addSubject = async () => {
+    console.log('[SUBJECT-ADD] BUTTON CLICKED');
     try {
+        console.log('[SUBJECT-ADD] LOADING COURSES');
         const courses = await apiRequest('/courses');
+        console.log('[SUBJECT-ADD] COURSES LOADED');
         
         showModal(`
             <div class="modal-header">
@@ -1755,40 +1578,29 @@ window.addSubject = async () => {
                 <button type="submit" class="btn btn-primary">Add Subject</button>
             </form>
         `);
-        
-        document.getElementById('addSubjectForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const subjectData = Object.fromEntries(formData);
-            
-            try {
-                await apiRequest('/subjects', {
-                    method: 'POST',
-                    body: JSON.stringify(subjectData)
-                });
-                showToast('Subject added successfully');
-                hideModal();
-                loadSubjects();
-            } catch (error) {
-                showToast('Failed to add subject: ' + (error.message || 'Unknown error'), 'error');
-            }
-        });
+        console.log('[SUBJECT-ADD] MODAL OPENED');
     } catch (error) {
+        console.error('[SUBJECT-ADD] LOAD COURSES ERROR:', error);
         showToast('Failed to load courses', 'error');
     }
 };
 
 async function editSubject(id) {
+    console.log('[SUBJECT-EDIT] BUTTON CLICKED', id);
     try {
+        console.log('[SUBJECT-EDIT] FETCHING SUBJECT DATA');
         const subject = await apiRequest(`/subjects/${id}`);
+        console.log('[SUBJECT-EDIT] SUBJECT DATA RECEIVED:', subject);
+        console.log('[SUBJECT-EDIT] LOADING COURSES');
         const courses = await apiRequest('/courses');
+        console.log('[SUBJECT-EDIT] DATA LOADED');
         
         showModal(`
             <div class="modal-header">
                 <h3>Edit Subject</h3>
                 <button class="modal-close" onclick="hideModal()">&times;</button>
             </div>
-            <form id="editSubjectForm" class="modal-form">
+            <form id="editSubjectForm" class="modal-form" data-subject-id="${id}">
                 <div class="form-group">
                     <label>Subject Code *</label>
                     <input type="text" name="subject_code" value="${subject.subject_code}" required>
@@ -1810,25 +1622,9 @@ async function editSubject(id) {
                 <button type="submit" class="btn btn-primary">Update Subject</button>
             </form>
         `);
-        
-        document.getElementById('editSubjectForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const updateData = Object.fromEntries(formData);
-            
-            try {
-                await apiRequest(`/subjects/${id}`, {
-                    method: 'PUT',
-                    body: JSON.stringify(updateData)
-                });
-                showToast('Subject updated successfully');
-                hideModal();
-                loadSubjects();
-            } catch (error) {
-                showToast('Failed to update subject: ' + (error.message || 'Unknown error'), 'error');
-            }
-        });
+        console.log('[SUBJECT-EDIT] MODAL OPENED');
     } catch (error) {
+        console.error('[SUBJECT-EDIT] LOAD SUBJECT ERROR:', error);
         showToast('Failed to load subject data: ' + (error.message || 'Unknown error'), 'error');
     }
 }
@@ -1836,13 +1632,21 @@ async function editSubject(id) {
 window.editSubject = editSubject;
 
 async function deleteSubject(id) {
-    if (!confirm('Are you sure you want to delete this subject? This will also delete all associated subject marks.')) return;
+    console.log('[SUBJECT-DELETE] BUTTON CLICKED', id);
+    if (!confirm('Are you sure you want to delete this subject? This will also delete all associated subject marks.')) {
+        console.log('[SUBJECT-DELETE] CONFIRMATION CANCELLED');
+        return;
+    }
+    console.log('[SUBJECT-DELETE] CONFIRMED');
     
     try {
+        console.log('[SUBJECT-DELETE] API REQUEST STARTING: DELETE /subjects/' + id);
         await apiRequest(`/subjects/${id}`, { method: 'DELETE' });
+        console.log('[SUBJECT-DELETE] API REQUEST SUCCESS');
         showToast('Subject deleted successfully');
         loadSubjects();
     } catch (error) {
+        console.error('[SUBJECT-DELETE] API REQUEST ERROR:', error);
         showToast('Failed to delete subject', 'error');
     }
 }
@@ -1866,6 +1670,7 @@ async function loadSubjectCourseFilter() {
 const addAnnouncementBtn = document.getElementById('addAnnouncementBtn');
 if (addAnnouncementBtn) {
     addAnnouncementBtn.addEventListener('click', () => {
+        console.log('[ANNOUNCEMENT-ADD] BUTTON CLICKED');
         showModal(`
             <div class="modal-header">
                 <h3>Add New Announcement</h3>
@@ -1892,41 +1697,25 @@ if (addAnnouncementBtn) {
                 <button type="submit" class="btn btn-primary">Add Announcement</button>
             </form>
         `);
-        
-        document.getElementById('addAnnouncementForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const data = {
-                title: formData.get('title'),
-                message: formData.get('message'),
-                priority: formData.get('priority')
-            };
-            
-            try {
-                await apiRequest('/announcements', {
-                    method: 'POST',
-                    body: JSON.stringify(data)
-                });
-                showToast('Announcement added successfully');
-                hideModal();
-                loadAnnouncements();
-            } catch (error) {
-                showToast('Failed to add announcement', 'error');
-            }
-        });
+        console.log('[ANNOUNCEMENT-ADD] MODAL OPENED');
     });
+} else {
+    console.error('[ANNOUNCEMENT-ADD] BUTTON NOT FOUND');
 }
 
 async function editAnnouncement(id) {
+    console.log('[ANNOUNCEMENT-EDIT] BUTTON CLICKED', id);
     try {
+        console.log('[ANNOUNCEMENT-EDIT] FETCHING ANNOUNCEMENT DATA');
         const announcement = await apiRequest(`/announcements/${id}`);
+        console.log('[ANNOUNCEMENT-EDIT] ANNOUNCEMENT DATA RECEIVED:', announcement);
         
         showModal(`
             <div class="modal-header">
                 <h3>Edit Announcement</h3>
                 <button class="modal-close" onclick="hideModal()">&times;</button>
             </div>
-            <form id="editAnnouncementForm" class="modal-form">
+            <form id="editAnnouncementForm" class="modal-form" data-announcement-id="${id}">
                 <div class="form-group">
                     <label>Title</label>
                     <input type="text" name="title" value="${announcement.title}">
@@ -1947,29 +1736,9 @@ async function editAnnouncement(id) {
                 <button type="submit" class="btn btn-primary">Update Announcement</button>
             </form>
         `);
-        
-        document.getElementById('editAnnouncementForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const data = {
-                title: formData.get('title'),
-                message: formData.get('message'),
-                priority: formData.get('priority')
-            };
-            
-            try {
-                await apiRequest(`/announcements/${id}`, {
-                    method: 'PUT',
-                    body: JSON.stringify(data)
-                });
-                showToast('Announcement updated successfully');
-                hideModal();
-                loadAnnouncements();
-            } catch (error) {
-                showToast('Failed to update announcement', 'error');
-            }
-        });
+        console.log('[ANNOUNCEMENT-EDIT] MODAL OPENED');
     } catch (error) {
+        console.error('[ANNOUNCEMENT-EDIT] LOAD ANNOUNCEMENT ERROR:', error);
         showToast('Failed to load announcement data', 'error');
     }
 }
@@ -1977,13 +1746,21 @@ async function editAnnouncement(id) {
 window.editAnnouncement = editAnnouncement;
 
 async function deleteAnnouncement(id) {
-    if (!confirm('Are you sure you want to delete this announcement?')) return;
+    console.log('[ANNOUNCEMENT-DELETE] BUTTON CLICKED', id);
+    if (!confirm('Are you sure you want to delete this announcement?')) {
+        console.log('[ANNOUNCEMENT-DELETE] CONFIRMATION CANCELLED');
+        return;
+    }
+    console.log('[ANNOUNCEMENT-DELETE] CONFIRMED');
     
     try {
+        console.log('[ANNOUNCEMENT-DELETE] API REQUEST STARTING: DELETE /announcements/' + id);
         await apiRequest(`/announcements/${id}`, { method: 'DELETE' });
+        console.log('[ANNOUNCEMENT-DELETE] API REQUEST SUCCESS');
         showToast('Announcement deleted successfully');
         loadAnnouncements();
     } catch (error) {
+        console.error('[ANNOUNCEMENT-DELETE] API REQUEST ERROR:', error);
         showToast('Failed to delete announcement', 'error');
     }
 }
@@ -2368,4 +2145,468 @@ if (modalContainer) {
             hideModal();
         }
     });
+}
+
+// DELEGATED FORM SUBMIT HANDLER - Prevents duplicate listeners
+modalContainer.addEventListener('submit', async (e) => {
+    const form = e.target;
+    const formId = form.id;
+    
+    if (!formId) return;
+    
+    e.preventDefault();
+    
+    console.log(`[DELEGATED] Form submitted: ${formId}`);
+    
+    switch(formId) {
+        case 'addStudentForm':
+            await handleAddStudentSubmit(form);
+            break;
+        case 'editStudentForm':
+            await handleEditStudentSubmit(form);
+            break;
+        case 'addCourseForm':
+            await handleAddCourseSubmit(form);
+            break;
+        case 'editCourseForm':
+            await handleEditCourseSubmit(form);
+            break;
+        case 'addLecturerForm':
+            await handleAddLecturerSubmit(form);
+            break;
+        case 'editLecturerForm':
+            await handleEditLecturerSubmit(form);
+            break;
+        case 'addFeeForm':
+            await handleAddFeeSubmit(form);
+            break;
+        case 'paymentForm':
+            await handlePaymentSubmit(form);
+            break;
+        case 'addResultForm':
+            await handleAddResultSubmit(form);
+            break;
+        case 'editResultForm':
+            await handleEditResultSubmit(form);
+            break;
+        case 'addSubjectForm':
+            await handleAddSubjectSubmit(form);
+            break;
+        case 'editSubjectForm':
+            await handleEditSubjectSubmit(form);
+            break;
+        case 'addAnnouncementForm':
+            await handleAddAnnouncementSubmit(form);
+            break;
+        case 'editAnnouncementForm':
+            await handleEditAnnouncementSubmit(form);
+            break;
+        default:
+            console.warn(`[DELEGATED] Unknown form ID: ${formId}`);
+    }
+});
+
+// Form submit handlers
+async function handleAddStudentSubmit(form) {
+    console.log('[STUDENT-ADD] FORM SUBMIT');
+    const formData = new FormData(form);
+    const studentData = Object.fromEntries(formData);
+    console.log('[STUDENT-ADD] FORM DATA:', studentData);
+    
+    try {
+        console.log('[STUDENT-ADD] API REQUEST STARTING: POST /students');
+        await apiRequest('/students', {
+            method: 'POST',
+            body: JSON.stringify(studentData)
+        });
+        console.log('[STUDENT-ADD] API REQUEST SUCCESS');
+        showToast('Student added successfully');
+        hideModal();
+        loadStudents();
+    } catch (error) {
+        console.error('[STUDENT-ADD] API REQUEST ERROR:', error);
+        showToast('Failed to add student', 'error');
+    }
+}
+
+async function handleEditStudentSubmit(form) {
+    console.log('[STUDENT-EDIT] FORM SUBMIT');
+    const formData = new FormData(form);
+    const updateData = {
+        full_name: formData.get('full_name'),
+        phone: formData.get('phone'),
+        status: formData.get('status'),
+        course_id: formData.get('course_id')
+    };
+    console.log('[STUDENT-EDIT] UPDATE DATA:', updateData);
+    
+    const studentId = form.dataset.studentId;
+    if (!studentId) {
+        console.error('[STUDENT-EDIT] Missing student ID');
+        showToast('Missing student ID', 'error');
+        return;
+    }
+    
+    // Handle profile picture upload
+    const profilePictureFile = formData.get('profilePicture');
+    if (profilePictureFile && profilePictureFile.size > 0) {
+        console.log('[STUDENT-EDIT] UPLOADING PROFILE PICTURE');
+        const profileFormData = new FormData();
+        profileFormData.append('profilePicture', profilePictureFile);
+        
+        try {
+            await apiRequest(`/students/${studentId}/profile-picture`, {
+                method: 'POST',
+                body: profileFormData
+            });
+            console.log('[STUDENT-EDIT] PROFILE PICTURE UPLOADED');
+        } catch (error) {
+            console.error('[STUDENT-EDIT] PROFILE PICTURE UPLOAD ERROR:', error);
+            showToast('Failed to upload profile picture', 'error');
+            return;
+        }
+    }
+    
+    try {
+        console.log('[STUDENT-EDIT] API REQUEST STARTING: PUT /students/' + studentId);
+        await apiRequest(`/students/${studentId}`, {
+            method: 'PUT',
+            body: JSON.stringify(updateData)
+        });
+        console.log('[STUDENT-EDIT] API REQUEST SUCCESS');
+        showToast('Student updated successfully');
+        hideModal();
+        loadStudents();
+    } catch (error) {
+        console.error('[STUDENT-EDIT] API REQUEST ERROR:', error);
+        showToast('Failed to update student', 'error');
+    }
+}
+
+async function handleAddCourseSubmit(form) {
+    console.log('[COURSE-ADD] FORM SUBMIT');
+    const formData = new FormData(form);
+    const courseData = Object.fromEntries(formData);
+    console.log('[COURSE-ADD] FORM DATA:', courseData);
+    
+    try {
+        console.log('[COURSE-ADD] API REQUEST STARTING: POST /courses');
+        await apiRequest('/courses', {
+            method: 'POST',
+            body: JSON.stringify(courseData)
+        });
+        console.log('[COURSE-ADD] API REQUEST SUCCESS');
+        showToast('Course added successfully');
+        hideModal();
+        loadCourses();
+    } catch (error) {
+        console.error('[COURSE-ADD] API REQUEST ERROR:', error);
+        showToast('Failed to add course', 'error');
+    }
+}
+
+async function handleEditCourseSubmit(form) {
+    console.log('[COURSE-EDIT] FORM SUBMIT');
+    const formData = new FormData(form);
+    const updateData = Object.fromEntries(formData);
+    console.log('[COURSE-EDIT] UPDATE DATA:', updateData);
+    
+    const courseId = form.dataset.courseId;
+    if (!courseId) {
+        console.error('[COURSE-EDIT] Missing course ID');
+        showToast('Missing course ID', 'error');
+        return;
+    }
+    
+    try {
+        console.log('[COURSE-EDIT] API REQUEST STARTING: PUT /courses/' + courseId);
+        await apiRequest(`/courses/${courseId}`, {
+            method: 'PUT',
+            body: JSON.stringify(updateData)
+        });
+        console.log('[COURSE-EDIT] API REQUEST SUCCESS');
+        showToast('Course updated successfully');
+        hideModal();
+        loadCourses();
+    } catch (error) {
+        console.error('[COURSE-EDIT] API REQUEST ERROR:', error);
+        showToast('Failed to update course', 'error');
+    }
+}
+
+async function handleAddLecturerSubmit(form) {
+    console.log('[LECTURER-ADD] FORM SUBMIT');
+    const formData = new FormData(form);
+    const lecturerData = Object.fromEntries(formData);
+    console.log('[LECTURER-ADD] FORM DATA:', lecturerData);
+    
+    try {
+        console.log('[LECTURER-ADD] API REQUEST STARTING: POST /students/lecturers');
+        await apiRequest('/students/lecturers', {
+            method: 'POST',
+            body: JSON.stringify(lecturerData)
+        });
+        console.log('[LECTURER-ADD] API REQUEST SUCCESS');
+        showToast('Lecturer added successfully');
+        hideModal();
+        loadLecturers();
+    } catch (error) {
+        console.error('[LECTURER-ADD] API REQUEST ERROR:', error);
+        showToast('Failed to add lecturer', 'error');
+    }
+}
+
+async function handleEditLecturerSubmit(form) {
+    console.log('[LECTURER-EDIT] FORM SUBMIT');
+    const formData = new FormData(form);
+    const updateData = Object.fromEntries(formData);
+    console.log('[LECTURER-EDIT] UPDATE DATA:', updateData);
+    
+    const lecturerId = form.dataset.lecturerId;
+    if (!lecturerId) {
+        console.error('[LECTURER-EDIT] Missing lecturer ID');
+        showToast('Missing lecturer ID', 'error');
+        return;
+    }
+    
+    try {
+        console.log('[LECTURER-EDIT] API REQUEST STARTING: PUT /students/lecturers/' + lecturerId);
+        await apiRequest(`/students/lecturers/${lecturerId}`, {
+            method: 'PUT',
+            body: JSON.stringify(updateData)
+        });
+        console.log('[LECTURER-EDIT] API REQUEST SUCCESS');
+        showToast('Lecturer updated successfully');
+        hideModal();
+        loadLecturers();
+    } catch (error) {
+        console.error('[LECTURER-EDIT] API REQUEST ERROR:', error);
+        showToast('Failed to update lecturer', 'error');
+    }
+}
+
+async function handleAddFeeSubmit(form) {
+    console.log('[FEE-ADD] FORM SUBMIT');
+    const formData = new FormData(form);
+    const feeData = Object.fromEntries(formData);
+    console.log('[FEE-ADD] FORM DATA:', feeData);
+    
+    try {
+        console.log('[FEE-ADD] API REQUEST STARTING: POST /fees');
+        await apiRequest('/fees', {
+            method: 'POST',
+            body: JSON.stringify(feeData)
+        });
+        console.log('[FEE-ADD] API REQUEST SUCCESS');
+        showToast('Fee added successfully');
+        hideModal();
+        loadFees();
+    } catch (error) {
+        console.error('[FEE-ADD] API REQUEST ERROR:', error);
+        showToast('Failed to add fee', 'error');
+    }
+}
+
+async function handlePaymentSubmit(form) {
+    console.log('[FEE-PAYMENT] FORM SUBMIT');
+    const formData = new FormData(form);
+    const paymentData = Object.fromEntries(formData);
+    console.log('[FEE-PAYMENT] PAYMENT DATA:', paymentData);
+    
+    const feeId = form.dataset.feeId;
+    if (!feeId) {
+        console.error('[FEE-PAYMENT] Missing fee ID');
+        showToast('Missing fee ID', 'error');
+        return;
+    }
+    
+    try {
+        console.log('[FEE-PAYMENT] API REQUEST STARTING: POST /fees/' + feeId + '/payment');
+        await apiRequest(`/fees/${feeId}/payment`, {
+            method: 'POST',
+            body: JSON.stringify(paymentData)
+        });
+        console.log('[FEE-PAYMENT] API REQUEST SUCCESS');
+        showToast('Payment recorded successfully');
+        hideModal();
+        loadFees();
+    } catch (error) {
+        console.error('[FEE-PAYMENT] API REQUEST ERROR:', error);
+        showToast('Failed to record payment', 'error');
+    }
+}
+
+async function handleAddResultSubmit(form) {
+    console.log('[RESULT-ADD] FORM SUBMIT');
+    const formData = new FormData(form);
+    const resultData = Object.fromEntries(formData);
+    console.log('[RESULT-ADD] FORM DATA:', resultData);
+    
+    // Collect subject marks
+    const subjectMarks = [];
+    document.querySelectorAll('.subject-mark-input').forEach(input => {
+        if (input.value) {
+            subjectMarks.push({
+                subject_id: input.dataset.subjectId,
+                mark: parseFloat(input.value)
+            });
+        }
+    });
+    
+    resultData.subject_results = subjectMarks;
+    console.log('[RESULT-ADD] SUBJECT MARKS:', subjectMarks);
+    
+    try {
+        console.log('[RESULT-ADD] API REQUEST STARTING: POST /results');
+        await apiRequest('/results', {
+            method: 'POST',
+            body: JSON.stringify(resultData)
+        });
+        console.log('[RESULT-ADD] API REQUEST SUCCESS');
+        showToast('Result added successfully');
+        hideModal();
+        loadResults();
+    } catch (error) {
+        console.error('[RESULT-ADD] API REQUEST ERROR:', error);
+        showToast('Failed to add result', 'error');
+    }
+}
+
+async function handleEditResultSubmit(form) {
+    console.log('[RESULT-EDIT] FORM SUBMIT');
+    const formData = new FormData(form);
+    const updateData = Object.fromEntries(formData);
+    console.log('[RESULT-EDIT] UPDATE DATA:', updateData);
+    
+    const resultId = form.dataset.resultId;
+    if (!resultId) {
+        console.error('[RESULT-EDIT] Missing result ID');
+        showToast('Missing result ID', 'error');
+        return;
+    }
+    
+    try {
+        console.log('[RESULT-EDIT] API REQUEST STARTING: PUT /results/' + resultId);
+        await apiRequest(`/results/${resultId}`, {
+            method: 'PUT',
+            body: JSON.stringify(updateData)
+        });
+        console.log('[RESULT-EDIT] API REQUEST SUCCESS');
+        showToast('Result updated successfully');
+        hideModal();
+        loadResults();
+    } catch (error) {
+        console.error('[RESULT-EDIT] API REQUEST ERROR:', error);
+        showToast('Failed to update result', 'error');
+    }
+}
+
+async function handleAddSubjectSubmit(form) {
+    console.log('[SUBJECT-ADD] FORM SUBMIT');
+    const formData = new FormData(form);
+    const subjectData = Object.fromEntries(formData);
+    console.log('[SUBJECT-ADD] FORM DATA:', subjectData);
+    
+    try {
+        console.log('[SUBJECT-ADD] API REQUEST STARTING: POST /subjects');
+        await apiRequest('/subjects', {
+            method: 'POST',
+            body: JSON.stringify(subjectData)
+        });
+        console.log('[SUBJECT-ADD] API REQUEST SUCCESS');
+        showToast('Subject added successfully');
+        hideModal();
+        loadSubjects();
+    } catch (error) {
+        console.error('[SUBJECT-ADD] API REQUEST ERROR:', error);
+        showToast('Failed to add subject', 'error');
+    }
+}
+
+async function handleEditSubjectSubmit(form) {
+    console.log('[SUBJECT-EDIT] FORM SUBMIT');
+    const formData = new FormData(form);
+    const updateData = Object.fromEntries(formData);
+    console.log('[SUBJECT-EDIT] UPDATE DATA:', updateData);
+    
+    const subjectId = form.dataset.subjectId;
+    if (!subjectId) {
+        console.error('[SUBJECT-EDIT] Missing subject ID');
+        showToast('Missing subject ID', 'error');
+        return;
+    }
+    
+    try {
+        console.log('[SUBJECT-EDIT] API REQUEST STARTING: PUT /subjects/' + subjectId);
+        await apiRequest(`/subjects/${subjectId}`, {
+            method: 'PUT',
+            body: JSON.stringify(updateData)
+        });
+        console.log('[SUBJECT-EDIT] API REQUEST SUCCESS');
+        showToast('Subject updated successfully');
+        hideModal();
+        loadSubjects();
+    } catch (error) {
+        console.error('[SUBJECT-EDIT] API REQUEST ERROR:', error);
+        showToast('Failed to update subject', 'error');
+    }
+}
+
+async function handleAddAnnouncementSubmit(form) {
+    console.log('[ANNOUNCEMENT-ADD] FORM SUBMIT');
+    const formData = new FormData(form);
+    const data = {
+        title: formData.get('title'),
+        message: formData.get('message'),
+        priority: formData.get('priority')
+    };
+    console.log('[ANNOUNCEMENT-ADD] FORM DATA:', data);
+    
+    try {
+        console.log('[ANNOUNCEMENT-ADD] API REQUEST STARTING: POST /announcements');
+        await apiRequest('/announcements', {
+            method: 'POST',
+            body: JSON.stringify(data)
+        });
+        console.log('[ANNOUNCEMENT-ADD] API REQUEST SUCCESS');
+        showToast('Announcement added successfully');
+        hideModal();
+        loadAnnouncements();
+    } catch (error) {
+        console.error('[ANNOUNCEMENT-ADD] API REQUEST ERROR:', error);
+        showToast('Failed to add announcement', 'error');
+    }
+}
+
+async function handleEditAnnouncementSubmit(form) {
+    console.log('[ANNOUNCEMENT-EDIT] FORM SUBMIT');
+    const formData = new FormData(form);
+    const data = {
+        title: formData.get('title'),
+        message: formData.get('message'),
+        priority: formData.get('priority')
+    };
+    console.log('[ANNOUNCEMENT-EDIT] UPDATE DATA:', data);
+    
+    const announcementId = form.dataset.announcementId;
+    if (!announcementId) {
+        console.error('[ANNOUNCEMENT-EDIT] Missing announcement ID');
+        showToast('Missing announcement ID', 'error');
+        return;
+    }
+    
+    try {
+        console.log('[ANNOUNCEMENT-EDIT] API REQUEST STARTING: PUT /announcements/' + announcementId);
+        await apiRequest(`/announcements/${announcementId}`, {
+            method: 'PUT',
+            body: JSON.stringify(data)
+        });
+        console.log('[ANNOUNCEMENT-EDIT] API REQUEST SUCCESS');
+        showToast('Announcement updated successfully');
+        hideModal();
+        loadAnnouncements();
+    } catch (error) {
+        console.error('[ANNOUNCEMENT-EDIT] API REQUEST ERROR:', error);
+        showToast('Failed to update announcement', 'error');
+    }
 }

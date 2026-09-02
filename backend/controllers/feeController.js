@@ -2,14 +2,19 @@ const Fee = require('../models/Fee');
 
 // Create new fee
 const createFee = async (req, res) => {
+  console.log('[BACKEND] Create fee - Request received');
+  console.log('[BACKEND] Request body:', req.body);
   try {
     const {
       user_id, fee_category, amount, amount_paid, balance,
       payment_reference, payment_method, receipt_number, payment_date, due_date, status
     } = req.body;
 
+    console.log('[BACKEND] Parsed fields:', { user_id, fee_category, amount, due_date });
+
     // Validation
     if (!user_id || !fee_category || !amount) {
+      console.log('[BACKEND] Validation failed: missing required fields');
       return res.status(400).json({ error: 'User ID, fee category, and amount are required' });
     }
 
@@ -18,14 +23,17 @@ const createFee = async (req, res) => {
       payment_reference, payment_method, receipt_number, payment_date, due_date, status
     };
 
+    console.log('[BACKEND] Calling Fee.create with data:', feeData);
     const result = await Fee.create(feeData);
+    console.log('[BACKEND] Fee.create succeeded, result:', result);
 
     res.status(201).json({
       message: 'Fee created successfully',
       id: result.id
     });
   } catch (error) {
-    console.error('Create fee error:', error);
+    console.error('[BACKEND] Create fee error:', error);
+    console.error('[BACKEND] Error details:', error.message, error.code);
     res.status(500).json({ error: 'Failed to create fee' });
   }
 };
@@ -122,14 +130,20 @@ const updateFee = async (req, res) => {
 
 // Record payment
 const recordPayment = async (req, res) => {
+  console.log('[BACKEND] Record payment - Request received');
+  console.log('[BACKEND] Params:', req.params);
+  console.log('[BACKEND] Request body:', req.body);
   try {
     const { id } = req.params;
     const {
       amount_paid, payment_reference, payment_method, receipt_number, payment_date
     } = req.body;
 
+    console.log('[BACKEND] Parsed payment fields:', { amount_paid, payment_method, payment_reference });
+
     // Validation
     if (!amount_paid || amount_paid <= 0) {
+      console.log('[BACKEND] Validation failed: invalid payment amount');
       return res.status(400).json({ error: 'Payment amount must be greater than 0' });
     }
 
@@ -144,16 +158,21 @@ const recordPayment = async (req, res) => {
 
     // Generate receipt number if not provided
     if (!receipt_number) {
+      console.log('[BACKEND] Generating receipt number');
       paymentData.receipt_number = await Fee.generateReceiptNumber();
     }
 
+    console.log('[BACKEND] Calling Fee.recordPayment with data:', paymentData);
     await Fee.recordPayment(id, paymentData);
+    console.log('[BACKEND] Fee.recordPayment succeeded');
 
     const updatedFee = await Fee.findById(id);
+    console.log('[BACKEND] Updated fee fetched:', updatedFee);
 
     res.json(updatedFee);
   } catch (error) {
-    console.error('Record payment error:', error);
+    console.error('[BACKEND] Record payment error:', error);
+    console.error('[BACKEND] Error details:', error.message, error.code);
     res.status(500).json({ error: 'Failed to record payment' });
   }
 };

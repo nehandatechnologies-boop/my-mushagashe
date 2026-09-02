@@ -69,6 +69,8 @@ const registerStudent = async (req, res) => {
 
 // Create new student
 const createStudent = async (req, res) => {
+  console.log('[BACKEND] Create student - Request received');
+  console.log('[BACKEND] Request body:', req.body);
   try {
     const {
       full_name, email, student_number, password, phone, gender,
@@ -76,16 +78,21 @@ const createStudent = async (req, res) => {
       intake_year, course_id
     } = req.body;
 
+    console.log('[BACKEND] Parsed fields:', { full_name, email, student_number, phone, course_id });
+
     // Validation
     if (!full_name || !student_number || !password) {
+      console.log('[BACKEND] Validation failed: missing required fields');
       return res.status(400).json({ error: 'Full name, student number, and password are required' });
     }
 
     if (password.length < 6) {
+      console.log('[BACKEND] Validation failed: password too short');
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
     // Hash password
+    console.log('[BACKEND] Hashing password');
     const hashedPassword = bcrypt.hashSync(password, 10);
 
     const studentData = {
@@ -94,14 +101,17 @@ const createStudent = async (req, res) => {
       guardian_phone, intake_year, course_id, status: 'active'
     };
 
+    console.log('[BACKEND] Calling User.create with data:', { ...studentData, password: '[HASHED]' });
     const result = await User.create(studentData);
+    console.log('[BACKEND] User.create succeeded, result:', result);
 
     res.status(201).json({
       message: 'Student created successfully',
       id: result.id
     });
   } catch (error) {
-    console.error('Create student error:', error);
+    console.error('[BACKEND] Create student error:', error);
+    console.error('[BACKEND] Error details:', error.message, error.code);
     if (error.message.includes('UNIQUE')) {
       return res.status(400).json({ error: 'Student number or email already exists' });
     }
@@ -132,7 +142,21 @@ const getAllStudents = async (req, res) => {
 
     const students = await User.findAll(filters);
 
-    res.json(students);
+    // Remove sensitive fields from response
+    const safeStudents = students.map(student => {
+      const { 
+        password, 
+        mfa_secret, 
+        password_history, 
+        last_login_ip, 
+        failed_login_attempts, 
+        account_locked_until,
+        ...safeStudent 
+      } = student;
+      return safeStudent;
+    });
+
+    res.json(safeStudents);
   } catch (error) {
     console.error('Get students error:', error);
     res.status(500).json({ error: 'Failed to fetch students' });
@@ -164,6 +188,9 @@ const getStudentById = async (req, res) => {
 
 // Update student
 const updateStudent = async (req, res) => {
+  console.log('[BACKEND] Update student - Request received');
+  console.log('[BACKEND] Params:', req.params);
+  console.log('[BACKEND] Request body:', req.body);
   try {
     const { id } = req.params;
     const {
@@ -172,11 +199,16 @@ const updateStudent = async (req, res) => {
       intake_year, status, course_id
     } = req.body;
 
+    console.log('[BACKEND] Parsed update fields:', { full_name, phone, status, course_id });
+
     // Get current student data
+    console.log('[BACKEND] Fetching current student data');
     const currentStudent = await User.findById(id);
     if (!currentStudent) {
+      console.log('[BACKEND] Student not found');
       return res.status(404).json({ error: 'Student not found' });
     }
+    console.log('[BACKEND] Current student found');
 
     const updateData = {
       full_name, email, student_number, phone, gender, national_id,
@@ -191,13 +223,16 @@ const updateStudent = async (req, res) => {
       }
     });
 
+    console.log('[BACKEND] Calling User.update with data:', updateData);
     const updatedStudent = await User.update(id, updateData);
+    console.log('[BACKEND] User.update succeeded');
 
     const { password: _, ...studentWithoutPassword } = updatedStudent;
 
     res.json(studentWithoutPassword);
   } catch (error) {
-    console.error('Update student error:', error);
+    console.error('[BACKEND] Update student error:', error);
+    console.error('[BACKEND] Error details:', error.message, error.code);
     res.status(500).json({ error: 'Failed to update student' });
   }
 };

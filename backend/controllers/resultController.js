@@ -11,20 +11,27 @@ console.log('=== resultController.js loaded with PDF template support ===');
 
 // Create new result
 const createResult = async (req, res) => {
+  console.log('[BACKEND] Create result - Request received');
+  console.log('[BACKEND] Request body:', req.body);
+  console.log('[BACKEND] User role:', req.user?.role);
   try {
     const {
       user_id, course_id, semester, academic_year, assessment_mark,
       exam_mark, final_mark, grade, credits, lecturer, remarks, subject_marks
     } = req.body;
 
+    console.log('[BACKEND] Parsed fields:', { user_id, course_id, semester, academic_year, assessment_mark, exam_mark });
+
     // Validation
     if (!user_id || !course_id || !semester || !academic_year ||
         user_id === '' || course_id === '' || semester === '' || academic_year === '') {
+      console.log('[BACKEND] Validation failed: missing required fields');
       return res.status(400).json({ error: 'User ID, course ID, semester, and academic year are required' });
     }
 
     // Lecturer can only create results for their assigned course
     if (req.user.role === 'lecturer') {
+      console.log('[BACKEND] Lecturer authorization check');
       if (!req.user.course_id) {
         return res.status(403).json({ error: 'Access denied: You must be assigned to a course to create results' });
       }
@@ -61,19 +68,19 @@ const createResult = async (req, res) => {
       remarks
     };
 
-    console.log('=== CREATE RESULT DEBUG ===');
-    console.log('Result data:', resultData);
-    console.log('Subject marks received:', subject_marks);
-    console.log('Subject marks type:', typeof subject_marks);
-    console.log('Subject marks is array:', Array.isArray(subject_marks));
+    console.log('[BACKEND] Calling Result.create with data:', resultData);
+    console.log('[BACKEND] Subject marks received:', subject_marks);
+    console.log('[BACKEND] Subject marks type:', typeof subject_marks);
+    console.log('[BACKEND] Subject marks is array:', Array.isArray(subject_marks));
 
     const result = await Result.create(resultData);
+    console.log('[BACKEND] Result.create succeeded, result ID:', result.id);
 
     // Create subject results if provided
     if (subject_marks && Array.isArray(subject_marks) && subject_marks.length > 0) {
-      console.log('Creating subject results...');
+      console.log('[BACKEND] Creating subject results...');
       for (const sm of subject_marks) {
-        console.log('Processing subject mark:', sm);
+        console.log('[BACKEND] Processing subject mark:', sm);
         if (sm.subject_id && sm.mark !== undefined) {
           const subjectResultData = {
             result_id: result.id,
@@ -82,12 +89,12 @@ const createResult = async (req, res) => {
             grade: SubjectResult.calculateGrade(parseFloat(sm.mark)),
             remarks: sm.remarks || null
           };
-          console.log('Creating subject result:', subjectResultData);
+          console.log('[BACKEND] Creating subject result:', subjectResultData);
           await SubjectResult.create(subjectResultData);
         }
       }
     } else {
-      console.log('No subject marks provided to create');
+      console.log('[BACKEND] No subject marks provided to create');
     }
 
     res.status(201).json({
@@ -95,7 +102,8 @@ const createResult = async (req, res) => {
       id: result.id
     });
   } catch (error) {
-    console.error('Create result error:', error);
+    console.error('[BACKEND] Create result error:', error);
+    console.error('[BACKEND] Error details:', error.message, error.code);
     res.status(500).json({ error: 'Failed to create result', details: error.message });
   }
 };
@@ -188,6 +196,10 @@ const getResultById = async (req, res) => {
 
 // Update result
 const updateResult = async (req, res) => {
+  console.log('[BACKEND] Update result - Request received');
+  console.log('[BACKEND] Params:', req.params);
+  console.log('[BACKEND] Request body:', req.body);
+  console.log('[BACKEND] User role:', req.user?.role);
   try {
     const { id } = req.params;
     const {
@@ -195,16 +207,20 @@ const updateResult = async (req, res) => {
       final_mark, grade, credits, lecturer, remarks, subject_marks
     } = req.body;
 
-    console.log('Update result request:', { id, body: req.body, user: req.user });
+    console.log('[BACKEND] Parsed update fields:', { course_id, semester, academic_year, assessment_mark, exam_mark });
 
     // Get current result
+    console.log('[BACKEND] Fetching current result');
     const currentResult = await Result.findById(id);
     if (!currentResult) {
+      console.log('[BACKEND] Result not found');
       return res.status(404).json({ error: 'Result not found' });
     }
+    console.log('[BACKEND] Current result found');
 
     // Lecturer can only update results for their assigned course
     if (req.user.role === 'lecturer') {
+      console.log('[BACKEND] Lecturer authorization check');
       if (!req.user.course_id) {
         return res.status(403).json({ error: 'Access denied: You must be assigned to a course to update results' });
       }
@@ -212,7 +228,6 @@ const updateResult = async (req, res) => {
         return res.status(403).json({ error: 'Access denied: You can only update results for your assigned course' });
       }
     }
-
 
     const updateData = {
       course_id, semester, academic_year, assessment_mark, exam_mark,
@@ -228,11 +243,14 @@ const updateResult = async (req, res) => {
       }
     });
 
+    console.log('[BACKEND] Calling Result.update with data:', updateData);
     const updatedResult = await Result.update(id, updateData);
+    console.log('[BACKEND] Result.update succeeded');
 
     res.json(updatedResult);
   } catch (error) {
-    console.error('Update result error:', error);
+    console.error('[BACKEND] Update result error:', error);
+    console.error('[BACKEND] Error details:', error.message, error.code);
     res.status(500).json({ error: 'Failed to update result' });
   }
 };

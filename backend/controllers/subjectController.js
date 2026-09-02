@@ -2,16 +2,23 @@ const Subject = require('../models/Subject');
 
 // Create new subject
 const createSubject = async (req, res) => {
+  console.log('[BACKEND] Create subject - Request received');
+  console.log('[BACKEND] Request body:', req.body);
+  console.log('[BACKEND] User role:', req.user?.role);
   try {
     const { subject_code, subject_name, course_id, credits } = req.body;
 
+    console.log('[BACKEND] Parsed fields:', { subject_code, subject_name, course_id, credits });
+
     // Validation
     if (!subject_code || !subject_name || !course_id) {
+      console.log('[BACKEND] Validation failed: missing required fields');
       return res.status(400).json({ error: 'Subject code, name, and course ID are required' });
     }
 
     // Lecturers can only create subjects for their assigned course
     if (req.user.role === 'lecturer') {
+      console.log('[BACKEND] Lecturer authorization check');
       if (!req.user.course_id) {
         return res.status(403).json({ error: 'Access denied: You must be assigned to a course to create subjects' });
       }
@@ -27,14 +34,17 @@ const createSubject = async (req, res) => {
       credits: credits ? parseInt(credits) : 1
     };
 
+    console.log('[BACKEND] Calling Subject.create with data:', subjectData);
     const subject = await Subject.create(subjectData);
+    console.log('[BACKEND] Subject.create succeeded, result:', subject);
 
     res.status(201).json({
       message: 'Subject created successfully',
       subject
     });
   } catch (error) {
-    console.error('Create subject error:', error);
+    console.error('[BACKEND] Create subject error:', error);
+    console.error('[BACKEND] Error details:', error.message, error.code);
     if (error.code === '23505') {
       return res.status(400).json({ error: 'Subject code already exists' });
     }
@@ -99,18 +109,28 @@ const getSubjectsByCourseId = async (req, res) => {
 
 // Update subject
 const updateSubject = async (req, res) => {
+  console.log('[BACKEND] Update subject - Request received');
+  console.log('[BACKEND] Params:', req.params);
+  console.log('[BACKEND] Request body:', req.body);
+  console.log('[BACKEND] User role:', req.user?.role);
   try {
     const { id } = req.params;
     const { subject_code, subject_name, course_id, credits } = req.body;
 
+    console.log('[BACKEND] Parsed update fields:', { subject_code, subject_name, course_id, credits });
+
     // Get existing subject to check course
+    console.log('[BACKEND] Fetching existing subject');
     const existingSubject = await Subject.findById(id);
     if (!existingSubject) {
+      console.log('[BACKEND] Subject not found');
       return res.status(404).json({ error: 'Subject not found' });
     }
+    console.log('[BACKEND] Existing subject found');
 
     // Lecturers can only update subjects for their assigned course
     if (req.user.role === 'lecturer') {
+      console.log('[BACKEND] Lecturer authorization check');
       if (!req.user.course_id) {
         return res.status(403).json({ error: 'Access denied: You must be assigned to a course to update subjects' });
       }
@@ -129,7 +149,9 @@ const updateSubject = async (req, res) => {
     if (course_id !== undefined && req.user.role === 'admin') updateData.course_id = parseInt(course_id);
     if (credits !== undefined) updateData.credits = parseInt(credits);
 
+    console.log('[BACKEND] Calling Subject.update with data:', updateData);
     const subject = await Subject.update(id, updateData);
+    console.log('[BACKEND] Subject.update succeeded');
 
     if (!subject) {
       return res.status(404).json({ error: 'Subject not found' });
@@ -140,7 +162,8 @@ const updateSubject = async (req, res) => {
       subject
     });
   } catch (error) {
-    console.error('Update subject error:', error);
+    console.error('[BACKEND] Update subject error:', error);
+    console.error('[BACKEND] Error details:', error.message, error.code);
     if (error.code === '23505') {
       return res.status(400).json({ error: 'Subject code already exists' });
     }
