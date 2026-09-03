@@ -1285,7 +1285,7 @@ async function editFee(id) {
                 ${historyHtml}
                 <hr>
                 <h4>Record New Payment</h4>
-                <form id="paymentForm" class="modal-form">
+                <form id="paymentForm" class="modal-form" data-fee-id="${id}">
                     <div class="form-group">
                         <label>Amount Paid *</label>
                         <input type="number" name="amount_paid" required min="0" step="0.01">
