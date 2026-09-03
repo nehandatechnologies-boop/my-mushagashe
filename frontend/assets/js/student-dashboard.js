@@ -331,9 +331,14 @@ document.getElementById('downloadPDFBtn').addEventListener('click', async () => 
             
             // Handle outstanding fees error specifically
             if (response.status === 403 && error.outstanding_balance !== undefined) {
-                showToast(error.message || 'Outstanding fees must be paid before downloading results', 'error');
-                // Optionally show a more detailed message or redirect to fees page
+                showToast(error.message || 'You have outstanding fees. Please clear your fees before downloading your results.', 'error');
                 console.error('Outstanding balance:', error.outstanding_balance);
+                return;
+            }
+            
+            // Handle no results found
+            if (response.status === 404) {
+                showToast('No results found for the selected term and year', 'error');
                 return;
             }
             

@@ -402,7 +402,7 @@ const downloadResultPDF = async (req, res) => {
 
     // Check fee status for students - block PDF download if outstanding balance > 0
     if (req.user.role === 'student') {
-      const outstandingBalance = await Fee.getOutstandingBalance(student.id);
+      const outstandingBalance = await Fee.checkOutstandingBalance(student.id);
       console.log('Student outstanding balance:', outstandingBalance);
       
       if (outstandingBalance > 0) {
@@ -447,7 +447,7 @@ const downloadResultsPDF = async (req, res) => {
     }
 
     // Check fee status - block PDF download if outstanding balance > 0
-    const outstandingBalance = await Fee.getOutstandingBalance(userId);
+    const outstandingBalance = await Fee.checkOutstandingBalance(userId);
     console.log('Student outstanding balance:', outstandingBalance);
     
     if (outstandingBalance > 0) {
