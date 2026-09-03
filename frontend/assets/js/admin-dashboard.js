@@ -747,6 +747,11 @@ window.editStudent = async function(id) {
                     }
                     <input type="file" name="profilePicture" accept="image/*">
                 </div>
+                <div class="form-group">
+                    <label>Password Management</label>
+                    <button type="button" class="btn btn-warning" onclick="resetStudentPassword(${student.id})">Reset Password</button>
+                    <small style="display: block; margin-top: 5px; color: #666;">This will generate a new temporary password for the student.</small>
+                </div>
                 <button type="submit" class="btn btn-primary">Update Student</button>
             </form>
         `);
@@ -769,6 +774,84 @@ window.deleteProfilePicture = async function(id) {
     } catch (error) {
         console.error('Delete profile picture error:', error);
         showToast('Failed to remove profile picture', 'error');
+    }
+};
+
+window.resetStudentPassword = async function(id) {
+    if (!confirm('Are you sure you want to reset this student\'s password? A new temporary password will be generated.')) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/students/${id}/reset-password`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ new_password: null }) // Let backend generate password
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to reset password');
+        }
+        
+        // Show the temporary password in a modal
+        showModal(`
+            <div class="modal-header">
+                <h3>Password Reset Successful</h3>
+                <button class="modal-close" onclick="hideModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 15px;">A new temporary password has been generated for this student.</p>
+                <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <strong>Temporary Password:</strong> <span style="font-family: monospace; font-size: 1.2em; color: #1e40af;">${data.temporary_password || 'Please check backend response'}</span>
+                </div>
+                <p style="color: #666; font-size: 0.9em;">Please provide this password to the student. They should change it after logging in.</p>
+            </div>
+        `);
+    } catch (error) {
+        console.error('Reset password error:', error);
+        showToast('Failed to reset password: ' + (error.message || 'Unknown error'), 'error');
+    }
+};
+
+window.resetLecturerPassword = async function(id) {
+    if (!confirm('Are you sure you want to reset this lecturer\'s password? A new temporary password will be generated.')) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/students/lecturers/${id}/reset-password`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ new_password: null }) // Let backend generate password
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to reset password');
+        }
+        
+        // Show the temporary password in a modal
+        showModal(`
+            <div class="modal-header">
+                <h3>Password Reset Successful</h3>
+                <button class="modal-close" onclick="hideModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 15px;">A new temporary password has been generated for this lecturer.</p>
+                <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <strong>Temporary Password:</strong> <span style="font-family: monospace; font-size: 1.2em; color: #1e40af;">${data.temporary_password || 'Please check backend response'}</span>
+                </div>
+                <p style="color: #666; font-size: 0.9em;">Please provide this password to the lecturer. They should change it after logging in.</p>
+            </div>
+        `);
+    } catch (error) {
+        console.error('Reset password error:', error);
+        showToast('Failed to reset password: ' + (error.message || 'Unknown error'), 'error');
     }
 };
 
@@ -1038,6 +1121,11 @@ async function editLecturer(id) {
                         <option value="active" ${lecturer.status === 'active' ? 'selected' : ''}>Active</option>
                         <option value="suspended" ${lecturer.status === 'suspended' ? 'selected' : ''}>Suspended</option>
                     </select>
+                </div>
+                <div class="form-group">
+                    <label>Password Management</label>
+                    <button type="button" class="btn btn-warning" onclick="resetLecturerPassword(${lecturer.id})">Reset Password</button>
+                    <small style="display: block; margin-top: 5px; color: #666;">This will generate a new temporary password for the lecturer.</small>
                 </div>
                 <button type="submit" class="btn btn-primary">Update Lecturer</button>
             </form>

@@ -336,17 +336,60 @@ const resetPassword = async (req, res) => {
     const { id } = req.params;
     const { new_password } = req.body;
 
-    if (!new_password || new_password.length < 6) {
-      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    // If no password provided, generate a temporary one
+    const passwordToSet = new_password || Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4);
+
+    if (passwordToSet.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    const hashedPassword = bcrypt.hashSync(new_password, 10);
+    const hashedPassword = bcrypt.hashSync(passwordToSet, 10);
 
     await User.updatePassword(id, hashedPassword);
 
-    res.json({ message: 'Password reset successfully' });
+    // If we generated a temporary password, return it
+    if (!new_password) {
+      res.json({ 
+        message: 'Password reset successfully',
+        temporary_password: passwordToSet
+      });
+    } else {
+      res.json({ message: 'Password reset successfully' });
+    }
   } catch (error) {
     console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
+};
+
+// Reset lecturer password
+const resetLecturerPassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { new_password } = req.body;
+
+    // If no password provided, generate a temporary one
+    const passwordToSet = new_password || Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4);
+
+    if (passwordToSet.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    const hashedPassword = bcrypt.hashSync(passwordToSet, 10);
+
+    await User.updatePassword(id, hashedPassword);
+
+    // If we generated a temporary password, return it
+    if (!new_password) {
+      res.json({ 
+        message: 'Password reset successfully',
+        temporary_password: passwordToSet
+      });
+    } else {
+      res.json({ message: 'Password reset successfully' });
+    }
+  } catch (error) {
+    console.error('Reset lecturer password error:', error);
     res.status(500).json({ error: 'Failed to reset password' });
   }
 };
@@ -723,6 +766,7 @@ module.exports = {
   suspendStudent,
   activateStudent,
   resetPassword,
+  resetLecturerPassword,
   assignCourse,
   getStudentStatistics,
   createLecturer,

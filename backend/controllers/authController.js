@@ -246,11 +246,109 @@ const changePassword = async (req, res) => {
   }
 };
 
+// Request password reset (student)
+const requestStudentPasswordReset = async (req, res) => {
+  try {
+    const { student_number } = req.body;
+
+    if (!student_number) {
+      return res.status(400).json({ error: 'Student number is required' });
+    }
+
+    const trimmedStudentNumber = student_number.trim();
+
+    // Find student by student number
+    const user = await User.findByStudentNumber(trimmedStudentNumber);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'Student not found' });
+    }
+
+    if (user.role !== 'student') {
+      return res.status(400).json({ error: 'User is not a student' });
+    }
+
+    if (user.status !== 'active') {
+      return res.status(403).json({ error: 'Account is not active. Please contact administration.' });
+    }
+
+    // Generate temporary password
+    const temporaryPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4);
+    
+    // Hash temporary password
+    const hashedPassword = bcrypt.hashSync(temporaryPassword, 10);
+
+    // Update password
+    await User.update(user.id, { password: hashedPassword });
+
+    // NOTE: In production with email infrastructure, send this temporary password via email
+    // For now, return it in the response (not ideal but functional without email)
+    res.json({
+      message: 'Password reset successful',
+      temporary_password: temporaryPassword,
+      note: 'Please change your password after logging in. In production, this would be sent via email.'
+    });
+  } catch (error) {
+    console.error('Student password reset error:', error);
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
+};
+
+// Request password reset (lecturer)
+const requestLecturerPasswordReset = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const trimmedEmail = email.trim();
+
+    // Find lecturer by email
+    const user = await User.findByEmail(trimmedEmail);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'Lecturer not found' });
+    }
+
+    if (user.role !== 'lecturer' && user.role !== 'instructor') {
+      return res.status(400).json({ error: 'User is not a lecturer' });
+    }
+
+    if (user.status !== 'active') {
+      return res.status(403).json({ error: 'Account is not active. Please contact administration.' });
+    }
+
+    // Generate temporary password
+    const temporaryPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4);
+    
+    // Hash temporary password
+    const hashedPassword = bcrypt.hashSync(temporaryPassword, 10);
+
+    // Update password
+    await User.update(user.id, { password: hashedPassword });
+
+    // NOTE: In production with email infrastructure, send this temporary password via email
+    // For now, return it in the response (not ideal but functional without email)
+    res.json({
+      message: 'Password reset successful',
+      temporary_password: temporaryPassword,
+      note: 'Please change your password after logging in. In production, this would be sent via email.'
+    });
+  } catch (error) {
+    console.error('Lecturer password reset error:', error);
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
+};
+
 module.exports = {
   adminLogin,
   lecturerLogin,
   studentLogin,
   getProfile,
   updateProfile,
-  changePassword
+  changePassword,
+  requestStudentPasswordReset,
+  requestLecturerPasswordReset
 };

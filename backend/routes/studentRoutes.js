@@ -70,6 +70,7 @@ router.get('/lecturers', authenticate, adminOnly, studentController.getAllLectur
 router.get('/lecturers/:id', authenticate, adminOnly, studentController.getLecturerById);
 router.put('/lecturers/:id', authenticate, adminOnly, studentController.updateLecturer);
 router.delete('/lecturers/:id', authenticate, adminOnly, studentController.deleteLecturer);
+router.put('/lecturers/:id/reset-password', authenticate, adminOnly, studentController.resetLecturerPassword);
 
 // Get student by ID (admin only)
 router.get('/:id', authenticate, adminOnly, studentController.getStudentById);

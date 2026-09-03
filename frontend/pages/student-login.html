@@ -324,7 +324,7 @@
                                 <input type="checkbox" name="remember">
                                 <span>Remember me</span>
                             </label>
-                            <a href="#" class="forgot-link">Forgot password?</a>
+                            <a href="#" class="forgot-link" onclick="showForgotPasswordModal(event)">Forgot password?</a>
                         </div>
 
                         <button type="submit" class="btn btn-primary btn-full" id="loginBtn">
@@ -342,11 +342,108 @@
             </div>
         </main>
 
+        <!-- Forgot Password Modal -->
+        <div id="forgotPasswordModal" class="modal" style="display: none;">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Reset Password</h2>
+                    <button class="modal-close" onclick="closeForgotPasswordModal()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p class="modal-description">Enter your student number to receive a temporary password.</p>
+                    <form id="forgotPasswordForm">
+                        <div class="form-group">
+                            <label for="reset_student_number">Student Number</label>
+                            <input type="text" id="reset_student_number" name="student_number" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-full">Send Temporary Password</button>
+                    </form>
+                    <div id="reset-message" class="reset-message"></div>
+                </div>
+            </div>
+        </div>
+
         <footer class="login-footer">
             <p class="footer-text">Mushagashe Vocational Training Centre</p>
             <p class="footer-text">&copy; <span id="current-year"></span> All Rights Reserved</p>
         </footer>
     </div>
+
+    <style>
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            max-width: 400px;
+            width: 90%;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+            color: #1a1a1a;
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 2rem;
+            cursor: pointer;
+            color: #666;
+            padding: 0;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: #1a1a1a;
+        }
+
+        .modal-description {
+            color: #666;
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        .reset-message {
+            margin-top: 1rem;
+            padding: 1rem;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .reset-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .reset-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
 
     <script>
         function togglePassword(inputId) {
@@ -363,6 +460,17 @@
             }
         }
 
+        function showForgotPasswordModal(event) {
+            event.preventDefault();
+            document.getElementById('forgotPasswordModal').style.display = 'flex';
+            document.getElementById('reset-message').style.display = 'none';
+            document.getElementById('reset_student_number').value = '';
+        }
+
+        function closeForgotPasswordModal() {
+            document.getElementById('forgotPasswordModal').style.display = 'none';
+        }
+
         document.getElementById('current-year').textContent = new Date().getFullYear();
 
         // Load remembered student number on page load
@@ -375,6 +483,45 @@
                     studentNumberInput.value = rememberedStudentNumber;
                     rememberCheckbox.checked = true;
                 }
+            }
+        });
+
+        // Forgot Password Form Handler
+        document.getElementById('forgotPasswordForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const studentNumber = document.getElementById('reset_student_number').value;
+            const resetMessage = document.getElementById('reset-message');
+            
+            try {
+                const response = await fetch('/api/auth/student/reset-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ student_number: studentNumber })
+                });
+                
+                const data = await response.json();
+                
+                resetMessage.style.display = 'block';
+                resetMessage.className = 'reset-message';
+                
+                if (response.ok) {
+                    resetMessage.classList.add('success');
+                    resetMessage.innerHTML = `
+                        <strong>Password Reset Successful!</strong><br>
+                        Your temporary password is: <strong>${data.temporary_password}</strong><br>
+                        <small>${data.note}</small>
+                    `;
+                } else {
+                    resetMessage.classList.add('error');
+                    resetMessage.textContent = data.error || 'Failed to reset password';
+                }
+            } catch (error) {
+                resetMessage.style.display = 'block';
+                resetMessage.className = 'reset-message error';
+                resetMessage.textContent = 'Network error. Please try again.';
             }
         });
 

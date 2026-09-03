@@ -30,4 +30,10 @@ router.put('/profile', authenticate, authController.updateProfile);
 // Change password (authenticated)
 router.put('/change-password', authenticate, authController.changePassword);
 
+// Request password reset (student)
+router.post('/student/reset-password', authRateLimiter, authController.requestStudentPasswordReset);
+
+// Request password reset (lecturer)
+router.post('/lecturer/reset-password', authRateLimiter, authController.requestLecturerPasswordReset);
+
 module.exports = router;
