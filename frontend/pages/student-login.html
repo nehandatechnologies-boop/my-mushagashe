@@ -365,6 +365,19 @@
 
         document.getElementById('current-year').textContent = new Date().getFullYear();
 
+        // Load remembered student number on page load
+        window.addEventListener('load', function() {
+            const rememberedStudentNumber = localStorage.getItem('remembered_student_number');
+            if (rememberedStudentNumber) {
+                const studentNumberInput = document.getElementById('student_number');
+                const rememberCheckbox = document.querySelector('input[name="remember"]');
+                if (studentNumberInput && rememberCheckbox) {
+                    studentNumberInput.value = rememberedStudentNumber;
+                    rememberCheckbox.checked = true;
+                }
+            }
+        });
+
         document.getElementById('studentLoginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
@@ -374,6 +387,8 @@
             
             const studentNumber = document.getElementById('student_number').value;
             const password = document.getElementById('password').value;
+            const rememberCheckbox = document.querySelector('input[name="remember"]');
+            const rememberMe = rememberCheckbox ? rememberCheckbox.checked : false;
             
             btn.classList.add('btn-loading');
             btnText.textContent = 'Signing in...';
@@ -393,6 +408,14 @@
                 if (response.ok) {
                     localStorage.setItem('token', data.token);
                     localStorage.setItem('user', JSON.stringify(data.user));
+                    
+                    // Handle Remember Me
+                    if (rememberMe) {
+                        localStorage.setItem('remembered_student_number', studentNumber);
+                    } else {
+                        localStorage.removeItem('remembered_student_number');
+                    }
+                    
                     window.location.href = 'student-dashboard.html';
                 } else {
                     errorDiv.textContent = data.error || 'Login failed. Please try again.';

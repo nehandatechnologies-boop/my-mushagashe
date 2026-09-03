@@ -406,6 +406,19 @@
 
         document.getElementById('current-year').textContent = new Date().getFullYear();
 
+        // Load remembered email on page load
+        window.addEventListener('load', function() {
+            const rememberedEmail = localStorage.getItem('remembered_lecturer_email');
+            if (rememberedEmail) {
+                const emailInput = document.getElementById('email');
+                const rememberCheckbox = document.querySelector('input[name="remember"]');
+                if (emailInput && rememberCheckbox) {
+                    emailInput.value = rememberedEmail;
+                    rememberCheckbox.checked = true;
+                }
+            }
+        });
+
         document.getElementById('lecturerLoginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
@@ -415,6 +428,8 @@
             
             const email = document.getElementById('email').value;
             const password = document.getElementById('password').value;
+            const rememberCheckbox = document.querySelector('input[name="remember"]');
+            const rememberMe = rememberCheckbox ? rememberCheckbox.checked : false;
             
             btn.classList.add('btn-loading');
             btnText.textContent = 'Signing in...';
@@ -434,6 +449,14 @@
                 if (response.ok) {
                     localStorage.setItem('token', data.token);
                     localStorage.setItem('user', JSON.stringify(data.user));
+                    
+                    // Handle Remember Me
+                    if (rememberMe) {
+                        localStorage.setItem('remembered_lecturer_email', email);
+                    } else {
+                        localStorage.removeItem('remembered_lecturer_email');
+                    }
+                    
                     window.location.href = 'lecturer-dashboard.html';
                 } else {
                     errorDiv.textContent = data.error || 'Login failed. Please try again.';
