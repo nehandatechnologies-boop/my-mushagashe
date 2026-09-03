@@ -161,7 +161,16 @@ async function loadDashboardData() {
         const gpa = document.getElementById('gpa');
         
         if (courseName) courseName.textContent = data.user?.course_name || 'Not assigned';
-        if (outstandingBalance) outstandingBalance.textContent = `$${(data.fees?.outstanding_balance || 0).toFixed(2)}`;
+        if (outstandingBalance) {
+            const balanceValue = data.fees?.outstanding_balance;
+            let balanceNumber = 0;
+            if (Array.isArray(balanceValue)) {
+                balanceNumber = balanceValue.reduce((sum, fee) => sum + (Number(fee.balance) || 0), 0);
+            } else {
+                balanceNumber = Number(balanceValue) || 0;
+            }
+            outstandingBalance.textContent = `$${balanceNumber.toFixed(2)}`;
+        }
         if (gpa) gpa.textContent = (data.results?.gpa || 0).toFixed(2);
         
         // Load announcements
