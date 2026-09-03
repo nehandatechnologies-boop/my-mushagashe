@@ -1,4 +1,5 @@
 const supabase = require('../config/supabase');
+const PaymentHistory = require('./PaymentHistory');
 
 class Fee {
   static async create(feeData) {
@@ -176,6 +177,18 @@ class Fee {
     const newAmountPaid = (fee.amount_paid || 0) + paymentAmount;
     const newBalance = fee.amount - newAmountPaid;
     const newStatus = newBalance <= 0 ? 'paid' : 'partial';
+
+    // Create payment history record
+    await PaymentHistory.create({
+      fee_id: id,
+      user_id: fee.user_id,
+      amount_paid: paymentAmount,
+      payment_reference,
+      payment_method,
+      receipt_number,
+      payment_date: payment_date || new Date().toISOString(),
+      recorded_by
+    });
 
     // Update the fee record
     const updatedFee = await this.update(id, {
