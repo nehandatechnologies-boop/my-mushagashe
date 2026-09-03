@@ -19,8 +19,8 @@ const validatePayment = [
 // Create new fee (admin only)
 router.post('/', authenticate, adminOnly, feeController.createFee);
 
-// Get all fees (admin only)
-router.get('/', authenticate, adminOnly, feeController.getAllFees);
+// Get all fees (authenticated - controller handles role-based filtering)
+router.get('/', authenticate, feeController.getAllFees);
 
 // Get fee statistics (admin only)
 router.get('/statistics', authenticate, adminOnly, feeController.getFeeStatistics);

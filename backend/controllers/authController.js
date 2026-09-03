@@ -208,8 +208,11 @@ const updateProfile = async (req, res) => {
 // Change password
 const changePassword = async (req, res) => {
   try {
+    console.log('[CHANGE-PASSWORD] Change password request - User ID:', req.user?.id, 'Role:', req.user?.role);
     const userId = req.user.id;
     const { current_password, new_password } = req.body;
+
+    console.log('[CHANGE-PASSWORD] Passwords provided:', { current_password: !!current_password, new_password: !!new_password });
 
     if (!current_password || !new_password) {
       return res.status(400).json({ error: 'Current password and new password are required' });
@@ -220,28 +223,41 @@ const changePassword = async (req, res) => {
     }
 
     // Get current user
+    console.log('[CHANGE-PASSWORD] Fetching user from database...');
     const user = await User.findById(userId);
+    console.log('[CHANGE-PASSWORD] User found:', user ? 'yes' : 'no');
     
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    console.log('[CHANGE-PASSWORD] User ID from DB:', user.id);
+    console.log('[CHANGE-PASSWORD] User has password field:', !!user.password);
+
     // Verify current password
+    console.log('[CHANGE-PASSWORD] Verifying current password...');
     const isPasswordValid = bcrypt.compareSync(current_password, user.password);
+    console.log('[CHANGE-PASSWORD] Password valid:', isPasswordValid);
     
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Current password is incorrect' });
     }
 
     // Hash new password
+    console.log('[CHANGE-PASSWORD] Hashing new password...');
     const hashedPassword = bcrypt.hashSync(new_password, 10);
 
     // Update password
+    console.log('[CHANGE-PASSWORD] Updating password in database...');
     await User.update(userId, { password: hashedPassword });
+    console.log('[CHANGE-PASSWORD] Password updated successfully');
 
     res.json({ message: 'Password changed successfully' });
   } catch (error) {
-    console.error('Change password error:', error);
+    console.error('[CHANGE-PASSWORD] Change password error:', error);
+    console.error('[CHANGE-PASSWORD] Error message:', error.message);
+    console.error('[CHANGE-PASSWORD] Error code:', error.code);
+    console.error('[CHANGE-PASSWORD] Error stack:', error.stack);
     res.status(500).json({ error: 'Failed to change password' });
   }
 };

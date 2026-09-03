@@ -68,9 +68,6 @@ class Fee {
         *,
         users:user_id (
           course_id
-        ),
-        users:users!inner (
-          course_id
         )
       `)
       .eq('user_id', userId)
@@ -90,9 +87,6 @@ class Fee {
           student_number,
           email,
           course_id
-        ),
-        courses:users!inner(course_id) (
-          course_name
         )
       `);
 

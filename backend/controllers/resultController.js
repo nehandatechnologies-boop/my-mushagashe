@@ -104,6 +104,7 @@ const createResult = async (req, res) => {
 // Get all results with filters
 const getAllResults = async (req, res) => {
   try {
+    console.log('[RESULTS] Get all results - User ID:', req.user?.id, 'Role:', req.user?.role);
     const {
       user_id, course_id, semester, academic_year, grade, search, limit = 50, offset = 0
     } = req.query;
@@ -119,14 +120,18 @@ const getAllResults = async (req, res) => {
       offset: parseInt(offset)
     };
 
+    console.log('[RESULTS] Filters:', filters);
+
     // If student, only show their own results
     if (req.user.role === 'student') {
+      console.log('[RESULTS] Student role detected, filtering by user ID');
       filters.user_id = req.user.id;
 
       // Check if student has outstanding fees
-      const hasOutstanding = await Fee.hasOutstandingFees(req.user.id);
-      if (hasOutstanding) {
-        const outstandingBalance = await Fee.getOutstandingBalance(req.user.id);
+      console.log('[RESULTS] Checking outstanding fees...');
+      const outstandingBalance = await Fee.checkOutstandingBalance(req.user.id);
+      console.log('[RESULTS] Outstanding balance:', outstandingBalance);
+      if (outstandingBalance > 0) {
         return res.status(403).json({ 
           error: 'Outstanding fees must be paid before viewing results',
           outstanding_balance: outstandingBalance
@@ -136,14 +141,20 @@ const getAllResults = async (req, res) => {
 
     // If lecturer, only show results for their assigned course
     if (req.user.role === 'lecturer') {
+      console.log('[RESULTS] Lecturer role detected, filtering by course ID');
       filters.course_id = req.user.course_id;
     }
 
+    console.log('[RESULTS] Fetching results...');
     const results = await Result.findAll(filters);
+    console.log('[RESULTS] Results count:', results?.length);
 
     res.json(results);
   } catch (error) {
-    console.error('Get results error:', error);
+    console.error('[RESULTS] Get results error:', error);
+    console.error('[RESULTS] Error message:', error.message);
+    console.error('[RESULTS] Error code:', error.code);
+    console.error('[RESULTS] Error stack:', error.stack);
     res.status(500).json({ error: 'Failed to fetch results' });
   }
 };

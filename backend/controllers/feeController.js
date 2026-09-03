@@ -33,6 +33,7 @@ const createFee = async (req, res) => {
 // Get all fees with filters
 const getAllFees = async (req, res) => {
   try {
+    console.log('[FEES] Get all fees - User ID:', req.user?.id, 'Role:', req.user?.role);
     const {
       user_id, fee_category, status, search, limit = 50, offset = 0
     } = req.query;
@@ -46,16 +47,24 @@ const getAllFees = async (req, res) => {
       offset: parseInt(offset)
     };
 
+    console.log('[FEES] Filters:', filters);
+
     // If student, only show their own fees
     if (req.user.role === 'student') {
+      console.log('[FEES] Student role detected, filtering by user ID');
       filters.user_id = req.user.id;
     }
 
+    console.log('[FEES] Fetching fees...');
     const fees = await Fee.findAll(filters);
+    console.log('[FEES] Fees count:', fees?.length);
 
     res.json(fees);
   } catch (error) {
-    console.error('Get fees error:', error);
+    console.error('[FEES] Get fees error:', error);
+    console.error('[FEES] Error message:', error.message);
+    console.error('[FEES] Error code:', error.code);
+    console.error('[FEES] Error stack:', error.stack);
     res.status(500).json({ error: 'Failed to fetch fees' });
   }
 };
