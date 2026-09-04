@@ -2555,3 +2555,130 @@ async function handleEditAnnouncementSubmit(form) {
         showToast('Failed to update announcement', 'error');
     }
 }
+
+// Notification functionality
+async function loadUnreadCount() {
+    try {
+        const response = await apiRequest('/announcements/unread/count');
+        updateNotificationBadge(response.unread_count);
+    } catch (error) {
+        console.error('Failed to load unread count:', error);
+    }
+}
+
+function updateNotificationBadge(count) {
+    const notificationBadge = document.getElementById('notificationBadge');
+    if (notificationBadge) {
+        if (count > 0) {
+            notificationBadge.textContent = count;
+            notificationBadge.style.display = 'flex';
+        } else {
+            notificationBadge.style.display = 'none';
+        }
+    }
+}
+
+async function loadAnnouncementsWithReadStatus() {
+    try {
+        const announcements = await apiRequest('/announcements/with-status');
+        displayNotifications(announcements);
+    } catch (error) {
+        console.error('Failed to load notifications:', error);
+    }
+}
+
+function displayNotifications(announcements) {
+    const notificationPanel = document.getElementById('notificationPanel');
+    if (!notificationPanel) return;
+
+    if (announcements.length === 0) {
+        notificationPanel.innerHTML = '<div class="notification-empty">No announcements</div>';
+        return;
+    }
+
+    notificationPanel.innerHTML = announcements.map(announcement => `
+        <div class="notification-item ${announcement.is_read ? 'read' : 'unread'}" data-announcement-id="${announcement.id}">
+            <div class="notification-header">
+                <span class="notification-title">${announcement.title}</span>
+                <span class="notification-priority priority-${announcement.priority}">${announcement.priority}</span>
+            </div>
+            <div class="notification-message">${announcement.message}</div>
+            <div class="notification-footer">
+                <span class="notification-date">${new Date(announcement.created_at).toLocaleDateString()}</span>
+                <span class="notification-creator">${announcement.creator_name || 'Admin'}</span>
+            </div>
+        </div>
+    `).join('');
+
+    // Add click handlers for marking as read
+    notificationPanel.querySelectorAll('.notification-item.unread').forEach(item => {
+        item.addEventListener('click', async () => {
+            const announcementId = item.dataset.announcementId;
+            await markAnnouncementAsRead(announcementId);
+            item.classList.remove('unread');
+            item.classList.add('read');
+            loadUnreadCount();
+        });
+    });
+}
+
+async function markAnnouncementAsRead(announcementId) {
+    try {
+        await apiRequest(`/announcements/${announcementId}/read`, {
+            method: 'POST'
+        });
+    } catch (error) {
+        console.error('Failed to mark announcement as read:', error);
+    }
+}
+
+// Toggle notification panel
+function toggleNotificationPanel() {
+    const notificationPanel = document.getElementById('notificationPanel');
+    if (notificationPanel) {
+        const isVisible = notificationPanel.style.display === 'block';
+        notificationPanel.style.display = isVisible ? 'none' : 'block';
+        
+        if (!isVisible) {
+            loadAnnouncementsWithReadStatus();
+        }
+    }
+}
+
+// Initialize notification bell
+function initializeNotifications() {
+    const notificationBell = document.getElementById('notificationBell');
+    if (notificationBell) {
+        notificationBell.addEventListener('click', toggleNotificationPanel);
+    }
+    
+    loadUnreadCount();
+    
+    // Refresh unread count every 30 seconds
+    setInterval(loadUnreadCount, 30000);
+}
+
+// Theme functionality
+function initializeTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateThemeToggle(savedTheme);
+}
+
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateThemeToggle(newTheme);
+}
+
+function updateThemeToggle(theme) {
+    const themeToggle = document.getElementById('themeToggle');
+    if (themeToggle) {
+        themeToggle.textContent = theme === 'light' ? '🌙' : '☀️';
+        themeToggle.addEventListener('click', toggleTheme);
+    }
+}
+

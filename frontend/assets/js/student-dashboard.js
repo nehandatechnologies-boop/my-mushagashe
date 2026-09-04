@@ -560,6 +560,221 @@ if (logoutBtn) {
     });
 }
 
+// Change profile picture
+const profileAvatar = document.getElementById('profileAvatar');
+if (profileAvatar) {
+    profileAvatar.addEventListener('click', () => {
+        const currentUser = JSON.parse(localStorage.getItem('user'));
+        const modalHtml = `
+            <div class="modal-overlay" id="modalOverlay" onclick="closeModal()"></div>
+            <div class="modal">
+                <div class="modal-header">
+                    <h3>Change Profile Picture</h3>
+                    <button class="modal-close" onclick="closeModal()">&times;</button>
+                </div>
+                <form id="profilePictureForm" class="modal-form">
+                    <div class="form-group">
+                        <label>Profile Picture</label>
+                        <input type="file" name="profilePicture" accept="image/jpeg,image/jpg,image/png,image/gif" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Upload</button>
+                </form>
+            </div>
+        `;
+        
+        document.getElementById('modalContainer').innerHTML = modalHtml;
+        document.getElementById('modalContainer').style.display = 'flex';
+        
+        document.getElementById('profilePictureForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const file = formData.get('profilePicture');
+
+            if (!file) {
+                showToast('Please select a file', 'error');
+                return;
+            }
+
+            try {
+                const uploadFormData = new FormData();
+                uploadFormData.append('profilePicture', file);
+
+                const response = await fetch(`${API_BASE}/auth/profile-picture`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${localStorage.getItem('token')}`
+                    },
+                    body: uploadFormData
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Upload failed');
+                }
+
+                const result = await response.json();
+                
+                // Update user in localStorage
+                currentUser.profile_picture_url = result.profile_picture_url;
+                localStorage.setItem('user', JSON.stringify(currentUser));
+
+                // Update UI
+                updateProfilePicture(result.profile_picture_url);
+                
+                showToast('Profile picture updated successfully');
+                closeModal();
+            } catch (error) {
+                showToast(error.message || 'Failed to upload profile picture', 'error');
+            }
+        });
+    });
+}
+
+function updateProfilePicture(url) {
+    const profileAvatar = document.getElementById('profileAvatar');
+    
+    if (url && profileAvatar) {
+        profileAvatar.style.backgroundImage = `url(${url})`;
+        profileAvatar.style.backgroundSize = 'cover';
+        profileAvatar.style.backgroundPosition = 'center';
+        profileAvatar.textContent = '';
+    }
+}
+
+// Initialize profile picture on load
+function initializeProfilePicture() {
+    const currentUser = JSON.parse(localStorage.getItem('user'));
+    if (currentUser && currentUser.profile_picture_url) {
+        updateProfilePicture(currentUser.profile_picture_url);
+    }
+}
+
+// Notification functionality
+async function loadUnreadCount() {
+    try {
+        const response = await apiRequest('/announcements/unread/count');
+        updateNotificationBadge(response.unread_count);
+    } catch (error) {
+        console.error('Failed to load unread count:', error);
+    }
+}
+
+function updateNotificationBadge(count) {
+    const notificationBadge = document.getElementById('notificationBadge');
+    if (notificationBadge) {
+        if (count > 0) {
+            notificationBadge.textContent = count;
+            notificationBadge.style.display = 'flex';
+        } else {
+            notificationBadge.style.display = 'none';
+        }
+    }
+}
+
+async function loadAnnouncementsWithReadStatus() {
+    try {
+        const announcements = await apiRequest('/announcements/with-status');
+        displayNotifications(announcements);
+    } catch (error) {
+        console.error('Failed to load notifications:', error);
+    }
+}
+
+function displayNotifications(announcements) {
+    const notificationPanel = document.getElementById('notificationPanel');
+    if (!notificationPanel) return;
+
+    if (announcements.length === 0) {
+        notificationPanel.innerHTML = '<div class="notification-empty">No announcements</div>';
+        return;
+    }
+
+    notificationPanel.innerHTML = announcements.map(announcement => `
+        <div class="notification-item ${announcement.is_read ? 'read' : 'unread'}" data-announcement-id="${announcement.id}">
+            <div class="notification-header">
+                <span class="notification-title">${announcement.title}</span>
+                <span class="notification-priority priority-${announcement.priority}">${announcement.priority}</span>
+            </div>
+            <div class="notification-message">${announcement.message}</div>
+            <div class="notification-footer">
+                <span class="notification-date">${new Date(announcement.created_at).toLocaleDateString()}</span>
+                <span class="notification-creator">${announcement.creator_name || 'Admin'}</span>
+            </div>
+        </div>
+    `).join('');
+
+    // Add click handlers for marking as read
+    notificationPanel.querySelectorAll('.notification-item.unread').forEach(item => {
+        item.addEventListener('click', async () => {
+            const announcementId = item.dataset.announcementId;
+            await markAnnouncementAsRead(announcementId);
+            item.classList.remove('unread');
+            item.classList.add('read');
+            loadUnreadCount();
+        });
+    });
+}
+
+async function markAnnouncementAsRead(announcementId) {
+    try {
+        await apiRequest(`/announcements/${announcementId}/read`, {
+            method: 'POST'
+        });
+    } catch (error) {
+        console.error('Failed to mark announcement as read:', error);
+    }
+}
+
+// Toggle notification panel
+function toggleNotificationPanel() {
+    const notificationPanel = document.getElementById('notificationPanel');
+    if (notificationPanel) {
+        const isVisible = notificationPanel.style.display === 'block';
+        notificationPanel.style.display = isVisible ? 'none' : 'block';
+        
+        if (!isVisible) {
+            loadAnnouncementsWithReadStatus();
+        }
+    }
+}
+
+// Initialize notification bell
+function initializeNotifications() {
+    const notificationBell = document.getElementById('notificationBell');
+    if (notificationBell) {
+        notificationBell.addEventListener('click', toggleNotificationPanel);
+    }
+    
+    loadUnreadCount();
+    
+    // Refresh unread count every 30 seconds
+    setInterval(loadUnreadCount, 30000);
+}
+
+// Theme functionality
+function initializeTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateThemeToggle(savedTheme);
+}
+
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateThemeToggle(newTheme);
+}
+
+function updateThemeToggle(theme) {
+    const themeToggle = document.getElementById('themeToggle');
+    if (themeToggle) {
+        themeToggle.textContent = theme === 'light' ? '🌙' : '☀️';
+        themeToggle.addEventListener('click', toggleTheme);
+    }
+}
+
 // Navigation click handlers
 document.querySelectorAll('.nav-item').forEach(item => {
     item.addEventListener('click', (e) => {
@@ -591,6 +806,15 @@ window.addEventListener('load', () => {
         window.location.href = 'student-login.html';
         return;
     }
+
+    // Initialize profile picture
+    initializeProfilePicture();
+    
+    // Initialize notifications
+    initializeNotifications();
+    
+    // Initialize theme
+    initializeTheme();
 
     // Ensure overview page is active and load initial data
     navigateTo('overview');

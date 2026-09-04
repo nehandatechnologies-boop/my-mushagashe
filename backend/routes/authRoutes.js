@@ -2,8 +2,31 @@ const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
 const authController = require('../controllers/authController');
+const studentController = require('../controllers/studentController');
 const { authenticate, adminOnly } = require('../middleware/auth');
 const { authRateLimiter } = require('../middleware/security');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Configure multer for profile picture uploads (memory storage for Supabase upload)
+const profilePictureUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024 // 5MB limit
+  },
+  fileFilter: function (req, file, cb) {
+    const allowedTypes = /jpeg|jpg|png|gif/;
+    const extname = allowedTypes.test(file.originalname.toLowerCase());
+    const mimetype = allowedTypes.test(file.mimetype);
+
+    if (extname && mimetype) {
+      return cb(null, true);
+    } else {
+      cb(new Error('Only images are allowed (jpeg, jpg, png, gif)'));
+    }
+  }
+});
 
 // Validation middleware
 const validateLogin = [
@@ -35,5 +58,11 @@ router.post('/student/reset-password', authRateLimiter, authController.requestSt
 
 // Request password reset (lecturer)
 router.post('/lecturer/reset-password', authRateLimiter, authController.requestLecturerPasswordReset);
+
+// Upload own profile picture (authenticated)
+router.post('/profile-picture', authenticate, profilePictureUpload.single('profilePicture'), studentController.uploadProfilePicture);
+
+// Delete own profile picture (authenticated)
+router.delete('/profile-picture', authenticate, studentController.deleteProfilePicture);
 
 module.exports = router;

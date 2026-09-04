@@ -93,31 +93,27 @@ async function loadLecturerInfo() {
     if (lecturerNameEl) {
         lecturerNameEl.textContent = user.full_name;
     }
+    initializeProfilePicture();
+    initializeNotifications();
+    initializeTheme();
     return user;
 }
 
 // Navigation
-document.querySelectorAll('.nav-link').forEach(link => {
+document.querySelectorAll('.nav-item').forEach(link => {
     link.addEventListener('click', (e) => {
         e.preventDefault();
-        const section = link.dataset.section;
+        const page = link.dataset.page;
         
-        document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(l => l.classList.remove('active'));
         link.classList.add('active');
         
-        document.querySelectorAll('.content-section').forEach(s => s.classList.remove('active'));
-        document.getElementById(`${section}-section`).classList.add('active');
+        document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
+        document.getElementById(`${page}-page`).classList.remove('hidden');
         
-        const titles = {
-            'students': 'My Students',
-            'results': 'Results',
-            'subjects': 'Subjects'
-        };
-        document.getElementById('page-title').textContent = titles[section] || section;
-        
-        if (section === 'students') loadStudents();
-        if (section === 'results') loadResults();
-        if (section === 'subjects') loadSubjects();
+        if (page === 'students') loadStudents();
+        if (page === 'results') loadResults();
+        if (page === 'subjects') loadSubjects();
     });
 });
 
@@ -533,6 +529,271 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
     localStorage.removeItem('user');
     window.location.href = 'lecturer-login.html';
 });
+
+// Change password
+document.getElementById('changePasswordBtn').addEventListener('click', () => {
+    showModal(`
+        <div class="modal-header">
+            <h3>Change Password</h3>
+            <button class="modal-close" onclick="hideModal()">&times;</button>
+        </div>
+        <form id="changePasswordForm" class="modal-form">
+            <div class="form-group">
+                <label>Current Password *</label>
+                <input type="password" name="current_password" required>
+            </div>
+            <div class="form-group">
+                <label>New Password *</label>
+                <input type="password" name="new_password" required minlength="6">
+            </div>
+            <div class="form-group">
+                <label>Confirm New Password *</label>
+                <input type="password" name="confirm_password" required minlength="6">
+            </div>
+            <button type="submit" class="btn btn-primary">Change Password</button>
+        </form>
+    `);
+
+    document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const data = Object.fromEntries(formData);
+
+        if (data.new_password !== data.confirm_password) {
+            showToast('Passwords do not match', 'error');
+            return;
+        }
+
+        try {
+            await apiRequest('/auth/change-password', {
+                method: 'PUT',
+                body: JSON.stringify({
+                    current_password: data.current_password,
+                    new_password: data.new_password
+                })
+            });
+            showToast('Password changed successfully');
+            hideModal();
+        } catch (error) {
+            showToast(error.message || 'Failed to change password', 'error');
+        }
+    });
+});
+
+// Change profile picture
+document.getElementById('sidebarAvatar').addEventListener('click', () => {
+    const user = JSON.parse(localStorage.getItem('user'));
+    showModal(`
+        <div class="modal-header">
+            <h3>Change Profile Picture</h3>
+            <button class="modal-close" onclick="hideModal()">&times;</button>
+        </div>
+        <form id="profilePictureForm" class="modal-form">
+            <div class="form-group">
+                <label>Profile Picture</label>
+                <input type="file" name="profilePicture" accept="image/jpeg,image/jpg,image/png,image/gif" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Upload</button>
+        </form>
+    `);
+
+    document.getElementById('profilePictureForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const file = formData.get('profilePicture');
+
+        if (!file) {
+            showToast('Please select a file', 'error');
+            return;
+        }
+
+        try {
+            const uploadFormData = new FormData();
+            uploadFormData.append('profilePicture', file);
+
+            const response = await fetch(`${API_BASE}/auth/profile-picture`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('token')}`
+                },
+                body: uploadFormData
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Upload failed');
+            }
+
+            const result = await response.json();
+            
+            // Update user in localStorage
+            user.profile_picture_url = result.profile_picture_url;
+            localStorage.setItem('user', JSON.stringify(user));
+
+            // Update UI
+            updateProfilePicture(result.profile_picture_url);
+            
+            showToast('Profile picture updated successfully');
+            hideModal();
+        } catch (error) {
+            showToast(error.message || 'Failed to upload profile picture', 'error');
+        }
+    });
+});
+
+function updateProfilePicture(url) {
+    const sidebarAvatar = document.getElementById('sidebarAvatar');
+    const headerAvatar = document.getElementById('headerAvatar');
+    
+    if (url) {
+        if (sidebarAvatar) {
+            sidebarAvatar.style.backgroundImage = `url(${url})`;
+            sidebarAvatar.style.backgroundSize = 'cover';
+            sidebarAvatar.style.backgroundPosition = 'center';
+            sidebarAvatar.textContent = '';
+        }
+        if (headerAvatar) {
+            headerAvatar.style.backgroundImage = `url(${url})`;
+            headerAvatar.style.backgroundSize = 'cover';
+            headerAvatar.style.backgroundPosition = 'center';
+            headerAvatar.textContent = '';
+        }
+    }
+}
+
+// Initialize profile picture on load
+function initializeProfilePicture() {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (user && user.profile_picture_url) {
+        updateProfilePicture(user.profile_picture_url);
+    }
+}
+
+// Notification functionality
+async function loadUnreadCount() {
+    try {
+        const response = await apiRequest('/announcements/unread/count');
+        updateNotificationBadge(response.unread_count);
+    } catch (error) {
+        console.error('Failed to load unread count:', error);
+    }
+}
+
+function updateNotificationBadge(count) {
+    const notificationBadge = document.getElementById('notificationBadge');
+    if (notificationBadge) {
+        if (count > 0) {
+            notificationBadge.textContent = count;
+            notificationBadge.style.display = 'flex';
+        } else {
+            notificationBadge.style.display = 'none';
+        }
+    }
+}
+
+async function loadAnnouncementsWithReadStatus() {
+    try {
+        const announcements = await apiRequest('/announcements/with-status');
+        displayNotifications(announcements);
+    } catch (error) {
+        console.error('Failed to load notifications:', error);
+    }
+}
+
+function displayNotifications(announcements) {
+    const notificationPanel = document.getElementById('notificationPanel');
+    if (!notificationPanel) return;
+
+    if (announcements.length === 0) {
+        notificationPanel.innerHTML = '<div class="notification-empty">No announcements</div>';
+        return;
+    }
+
+    notificationPanel.innerHTML = announcements.map(announcement => `
+        <div class="notification-item ${announcement.is_read ? 'read' : 'unread'}" data-announcement-id="${announcement.id}">
+            <div class="notification-header">
+                <span class="notification-title">${announcement.title}</span>
+                <span class="notification-priority priority-${announcement.priority}">${announcement.priority}</span>
+            </div>
+            <div class="notification-message">${announcement.message}</div>
+            <div class="notification-footer">
+                <span class="notification-date">${new Date(announcement.created_at).toLocaleDateString()}</span>
+                <span class="notification-creator">${announcement.creator_name || 'Admin'}</span>
+            </div>
+        </div>
+    `).join('');
+
+    // Add click handlers for marking as read
+    notificationPanel.querySelectorAll('.notification-item.unread').forEach(item => {
+        item.addEventListener('click', async () => {
+            const announcementId = item.dataset.announcementId;
+            await markAnnouncementAsRead(announcementId);
+            item.classList.remove('unread');
+            item.classList.add('read');
+            loadUnreadCount();
+        });
+    });
+}
+
+async function markAnnouncementAsRead(announcementId) {
+    try {
+        await apiRequest(`/announcements/${announcementId}/read`, {
+            method: 'POST'
+        });
+    } catch (error) {
+        console.error('Failed to mark announcement as read:', error);
+    }
+}
+
+// Toggle notification panel
+function toggleNotificationPanel() {
+    const notificationPanel = document.getElementById('notificationPanel');
+    if (notificationPanel) {
+        const isVisible = notificationPanel.style.display === 'block';
+        notificationPanel.style.display = isVisible ? 'none' : 'block';
+        
+        if (!isVisible) {
+            loadAnnouncementsWithReadStatus();
+        }
+    }
+}
+
+// Initialize notification bell
+function initializeNotifications() {
+    const notificationBell = document.getElementById('notificationBell');
+    if (notificationBell) {
+        notificationBell.addEventListener('click', toggleNotificationPanel);
+    }
+    
+    loadUnreadCount();
+    
+    // Refresh unread count every 30 seconds
+    setInterval(loadUnreadCount, 30000);
+}
+
+// Theme functionality
+function initializeTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateThemeToggle(savedTheme);
+}
+
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme') || 'light';
+    const newTheme = currentTheme === 'light' ? 'dark' : 'light';
+    
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateThemeToggle(newTheme);
+}
+
+function updateThemeToggle(theme) {
+    const themeToggle = document.getElementById('themeToggle');
+    if (themeToggle) {
+        themeToggle.textContent = theme === 'light' ? '🌙' : '☀️';
+        themeToggle.addEventListener('click', toggleTheme);
+    }
+}
 
 // Load subjects for lecturer's course
 async function loadSubjects() {

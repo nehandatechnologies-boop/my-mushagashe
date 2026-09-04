@@ -35,4 +35,13 @@ router.put('/:id', authenticate, adminOnly, validateAnnouncement, announcementCo
 // Delete announcement (admin only)
 router.delete('/:id', authenticate, adminOnly, announcementController.deleteAnnouncement);
 
+// Mark announcement as read (authenticated)
+router.post('/:announcementId/read', authenticate, announcementController.markAnnouncementAsRead);
+
+// Get unread announcement count (authenticated)
+router.get('/unread/count', authenticate, announcementController.getUnreadCount);
+
+// Get announcements with read status (authenticated)
+router.get('/with-status', authenticate, announcementController.getAnnouncementsWithReadStatus);
+
 module.exports = router;

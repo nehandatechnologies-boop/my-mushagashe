@@ -1,4 +1,5 @@
 const Announcement = require('../models/Announcement');
+const AnnouncementReads = require('../models/AnnouncementReads');
 
 // Create new announcement
 const createAnnouncement = async (req, res) => {
@@ -173,6 +174,59 @@ const getAnnouncementStatistics = async (req, res) => {
   }
 };
 
+// Mark announcement as read
+const markAnnouncementAsRead = async (req, res) => {
+  try {
+    const { announcementId } = req.params;
+    const userId = req.user.id;
+
+    await AnnouncementReads.markAsRead(userId, announcementId);
+
+    res.json({ message: 'Announcement marked as read' });
+  } catch (error) {
+    console.error('Mark announcement as read error:', error);
+    res.status(500).json({ error: 'Failed to mark announcement as read' });
+  }
+};
+
+// Get unread announcement count
+const getUnreadCount = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const unreadCount = await AnnouncementReads.getUnreadCount(userId);
+    res.json({ unread_count: unreadCount });
+  } catch (error) {
+    console.error('Get unread count error:', error);
+    res.status(500).json({ error: 'Failed to get unread count' });
+  }
+};
+
+// Get announcements with read status
+const getAnnouncementsWithReadStatus = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { limit = 50, offset = 0 } = req.query;
+
+    const announcements = await Announcement.findAll({
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
+
+    const readAnnouncements = await AnnouncementReads.getReadAnnouncements(userId);
+    const readIds = new Set(readAnnouncements.map(r => r.announcement_id));
+
+    const announcementsWithStatus = announcements.map(announcement => ({
+      ...announcement,
+      is_read: readIds.has(announcement.id)
+    }));
+
+    res.json(announcementsWithStatus);
+  } catch (error) {
+    console.error('Get announcements with read status error:', error);
+    res.status(500).json({ error: 'Failed to fetch announcements' });
+  }
+};
+
 module.exports = {
   createAnnouncement,
   getAllAnnouncements,
@@ -181,5 +235,8 @@ module.exports = {
   getAnnouncementById,
   updateAnnouncement,
   deleteAnnouncement,
-  getAnnouncementStatistics
+  getAnnouncementStatistics,
+  markAnnouncementAsRead,
+  getUnreadCount,
+  getAnnouncementsWithReadStatus
 };

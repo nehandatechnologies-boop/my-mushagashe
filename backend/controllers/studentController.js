@@ -662,12 +662,18 @@ const importStudentsFromExcel = async (req, res) => {
   }
 };
 
-// Upload profile picture (admin only)
+// Upload profile picture (admin or self)
 const uploadProfilePicture = async (req, res) => {
   try {
-    const { id } = req.params;
+    // For self-upload, use authenticated user's ID
+    const id = req.params.id || req.user.id;
 
-    console.log('Profile picture upload request:', { id, file: req.file ? req.file.originalname : 'No file' });
+    console.log('Profile picture upload request:', { id, userId: req.user.id, role: req.user.role, file: req.file ? req.file.originalname : 'No file' });
+
+    // Security check: non-admin users can only upload their own picture
+    if (req.user.role !== 'admin' && req.user.id !== parseInt(id)) {
+      return res.status(403).json({ error: 'You can only upload your own profile picture' });
+    }
 
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
@@ -707,7 +713,7 @@ const uploadProfilePicture = async (req, res) => {
     const result = await User.update(id, { profile_picture_url: publicUrl });
 
     if (!result) {
-      return res.status(404).json({ error: 'Student not found' });
+      return res.status(404).json({ error: 'User not found' });
     }
 
     res.json({
@@ -720,16 +726,23 @@ const uploadProfilePicture = async (req, res) => {
   }
 };
 
-// Delete profile picture (admin only)
+// Delete profile picture (admin or self)
 const deleteProfilePicture = async (req, res) => {
   try {
-    const { id } = req.params;
+    // For self-delete, use authenticated user's ID
+    const id = req.params.id || req.user.id;
+
+    // Security check: non-admin users can only delete their own picture
+    if (req.user.role !== 'admin' && req.user.id !== parseInt(id)) {
+      return res.status(403).json({ error: 'You can only delete your own profile picture' });
+    }
+
     const supabase = require('../config/supabase');
 
     // Get current user data to find the profile picture URL
     const user = await User.findById(id);
     if (!user) {
-      return res.status(404).json({ error: 'Student not found' });
+      return res.status(404).json({ error: 'User not found' });
     }
 
     // Delete the file from Supabase Storage if it exists
