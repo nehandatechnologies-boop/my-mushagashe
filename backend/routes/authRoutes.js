@@ -68,4 +68,16 @@ router.post('/profile-picture', authenticate, profilePictureUpload.single('profi
 // Delete own profile picture (authenticated)
 router.delete('/profile-picture', authenticate, studentController.deleteProfilePicture);
 
+// Email verification
+router.get('/verify-email', authController.verifyEmail);
+
+// Resend verification email (authenticated)
+router.post('/resend-verification', authenticate, authRateLimiter, authController.resendVerificationEmail);
+
+// Request password reset (generic)
+router.post('/forgot-password', authRateLimiter, authController.requestPasswordReset);
+
+// Reset password with token
+router.post('/reset-password', authController.resetPassword);
+
 module.exports = router;

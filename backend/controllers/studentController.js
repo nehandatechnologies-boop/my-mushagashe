@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const Fee = require('../models/Fee');
 const XLSX = require('xlsx');
+const { generateToken, sendVerificationEmail } = require('../config/email');
 
 // Public student registration
 const registerStudent = async (req, res) => {
@@ -42,21 +43,46 @@ const registerStudent = async (req, res) => {
     // Hash password
     const hashedPassword = bcrypt.hashSync(trimmedPassword, 10);
 
+    // Generate verification token if email provided
+    let verificationToken = null;
+    let verificationTokenExpires = null;
+    let emailVerified = true; // Default to true if no email provided
+
+    if (trimmedEmail) {
+      verificationToken = generateToken();
+      verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+      emailVerified = false;
+    }
+
     const studentData = {
       full_name, email: trimmedEmail, student_number: trimmedStudentNumber, 
       password: hashedPassword, role: 'student',
       phone, gender, national_id, date_of_birth, address, guardian_name,
-      guardian_phone, intake_year, status: 'active'
+      guardian_phone, intake_year, status: 'active',
+      email_verified: emailVerified,
+      verification_token: verificationToken,
+      verification_token_expires: verificationTokenExpires
     };
 
     const result = await User.create(studentData);
 
     console.log('Student registered successfully:', { id: result.id, student_number: trimmedStudentNumber });
 
+    // Send verification email if email provided
+    if (trimmedEmail && verificationToken) {
+      const emailSent = await sendVerificationEmail(trimmedEmail, verificationToken);
+      if (!emailSent) {
+        console.warn('Verification email could not be sent, but registration succeeded');
+      }
+    }
+
     res.status(201).json({
-      message: 'Student registered successfully',
+      message: trimmedEmail 
+        ? 'Student registered successfully. Please check your email to verify your account.'
+        : 'Student registered successfully.',
       id: result.id,
-      student_number: trimmedStudentNumber
+      student_number: trimmedStudentNumber,
+      requires_verification: !!trimmedEmail
     });
   } catch (error) {
     console.error('Register student error:', error);

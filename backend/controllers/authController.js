@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const { generateToken } = require('../middleware/auth');
+const { generateToken: generateEmailToken, sendVerificationEmail, sendPasswordResetEmail } = require('../config/email');
 
 // Admin login
 const adminLogin = async (req, res) => {
@@ -129,6 +130,15 @@ const studentLogin = async (req, res) => {
 
     if (user.status !== 'active') {
       return res.status(403).json({ error: 'Account is not active' });
+    }
+
+    // Check email verification if email exists
+    if (user.email && !user.email_verified) {
+      return res.status(403).json({ 
+        error: 'Your email address has not been verified yet. Please check your email and click the verification link.',
+        requires_verification: true,
+        email: user.email
+      });
     }
 
     // Verify password
@@ -377,6 +387,187 @@ const requestLecturerPasswordReset = async (req, res) => {
   }
 };
 
+// Verify email
+const verifyEmail = async (req, res) => {
+  try {
+    const { token } = req.query;
+
+    if (!token) {
+      return res.status(400).json({ error: 'Verification token is required' });
+    }
+
+    // Find user by verification token
+    const { data: users } = await require('../config/supabase')
+      .from('users')
+      .select('*')
+      .eq('verification_token', token)
+      .single();
+
+    if (!users) {
+      return res.status(400).json({ error: 'Invalid verification token' });
+    }
+
+    // Check if token is expired
+    if (users.verification_token_expires && new Date(users.verification_token_expires) < new Date()) {
+      return res.status(400).json({ error: 'Verification token has expired' });
+    }
+
+    // Mark email as verified and clear token
+    await require('../config/supabase')
+      .from('users')
+      .update({ 
+        email_verified: true,
+        verification_token: null,
+        verification_token_expires: null
+      })
+      .eq('id', users.id);
+
+    res.json({ message: 'Email verified successfully. You can now log in.' });
+  } catch (error) {
+    console.error('Verify email error:', error);
+    res.status(500).json({ error: 'Failed to verify email' });
+  }
+};
+
+// Resend verification email
+const resendVerificationEmail = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (!user.email) {
+      return res.status(400).json({ error: 'No email address associated with this account' });
+    }
+
+    if (user.email_verified) {
+      return res.status(400).json({ error: 'Email is already verified' });
+    }
+
+    // Generate new verification token
+    const verificationToken = generateEmailToken();
+    const verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+
+    // Update user with new token
+    await User.update(user.id, {
+      verification_token: verificationToken,
+      verification_token_expires: verificationTokenExpires
+    });
+
+    // Send verification email
+    const emailSent = await sendVerificationEmail(user.email, verificationToken);
+
+    if (emailSent) {
+      res.json({ message: 'Verification email sent successfully' });
+    } else {
+      res.status(500).json({ error: 'Failed to send verification email' });
+    }
+  } catch (error) {
+    console.error('Resend verification email error:', error);
+    res.status(500).json({ error: 'Failed to resend verification email' });
+  }
+};
+
+// Request password reset (generic)
+const requestPasswordReset = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    const trimmedEmail = email.trim();
+
+    // Find user by email (don't reveal if email exists or not)
+    const user = await User.findByEmail(trimmedEmail);
+    
+    if (!user) {
+      // Return generic message for security
+      return res.json({ message: 'If an account exists for that email address, a password reset link has been sent.' });
+    }
+
+    if (user.status !== 'active') {
+      return res.json({ message: 'If an account exists for that email address, a password reset link has been sent.' });
+    }
+
+    // Generate reset token
+    const resetToken = generateEmailToken();
+    const resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+
+    // Update user with reset token
+    await User.update(user.id, {
+      reset_password_token: resetToken,
+      reset_password_expires: resetTokenExpires
+    });
+
+    // Send password reset email
+    await sendPasswordResetEmail(trimmedEmail, resetToken);
+
+    // Always return generic message for security
+    res.json({ message: 'If an account exists for that email address, a password reset link has been sent.' });
+  } catch (error) {
+    console.error('Request password reset error:', error);
+    // Still return generic message for security
+    res.json({ message: 'If an account exists for that email address, a password reset link has been sent.' });
+  }
+};
+
+// Reset password with token
+const resetPassword = async (req, res) => {
+  try {
+    const { token, new_password, confirm_password } = req.body;
+
+    if (!token || !new_password || !confirm_password) {
+      return res.status(400).json({ error: 'Token, new password, and confirm password are required' });
+    }
+
+    if (new_password !== confirm_password) {
+      return res.status(400).json({ error: 'Passwords do not match' });
+    }
+
+    if (new_password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    // Find user by reset token
+    const { data: users } = await require('../config/supabase')
+      .from('users')
+      .select('*')
+      .eq('reset_password_token', token)
+      .single();
+
+    if (!users) {
+      return res.status(400).json({ error: 'Invalid or expired reset token' });
+    }
+
+    // Check if token is expired
+    if (users.reset_password_expires && new Date(users.reset_password_expires) < new Date()) {
+      return res.status(400).json({ error: 'Reset token has expired' });
+    }
+
+    // Hash new password
+    const hashedPassword = bcrypt.hashSync(new_password, 10);
+
+    // Update password and clear reset token
+    await require('../config/supabase')
+      .from('users')
+      .update({ 
+        password: hashedPassword,
+        reset_password_token: null,
+        reset_password_expires: null
+      })
+      .eq('id', users.id);
+
+    res.json({ message: 'Password reset successfully. You can now log in with your new password.' });
+  } catch (error) {
+    console.error('Reset password error:', error);
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
+};
+
 module.exports = {
   adminLogin,
   lecturerLogin,
@@ -386,5 +577,9 @@ module.exports = {
   updateProfile,
   changePassword,
   requestStudentPasswordReset,
-  requestLecturerPasswordReset
+  requestLecturerPasswordReset,
+  verifyEmail,
+  resendVerificationEmail,
+  requestPasswordReset,
+  resetPassword
 };

@@ -26,22 +26,13 @@ router.get('/urgent', announcementController.getUrgentAnnouncements);
 // Get announcement statistics (admin only)
 router.get('/statistics', authenticate, adminOnly, announcementController.getAnnouncementStatistics);
 
-// Get announcement by ID (authenticated)
-router.get('/:id', authenticate, announcementController.getAnnouncementById);
-
-// Update announcement (admin only)
-router.put('/:id', authenticate, adminOnly, validateAnnouncement, announcementController.updateAnnouncement);
-
-// Delete announcement (admin only)
-router.delete('/:id', authenticate, adminOnly, announcementController.deleteAnnouncement);
-
-// Mark announcement as read (authenticated)
-router.post('/:announcementId/read', authenticate, announcementController.markAnnouncementAsRead);
-
 // Get unread announcement count (authenticated)
 router.get('/unread/count', authenticate, announcementController.getUnreadCount);
 
 // Get announcements with read status (authenticated)
 router.get('/with-status', authenticate, announcementController.getAnnouncementsWithReadStatus);
+
+// Get announcement by ID (authenticated)
+router.get('/:id', authenticate, announcementController.getAnnouncementById);
 
 module.exports = router;

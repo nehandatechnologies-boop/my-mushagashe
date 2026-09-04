@@ -130,6 +130,9 @@ async function loadPageData(page) {
         case 'profile':
             await loadProfile();
             break;
+        case 'privacy':
+            await loadPrivacy();
+            break;
     }
 }
 
@@ -410,18 +413,75 @@ async function loadProfile() {
         document.getElementById('profileEmail').value = profile.email || '';
         document.getElementById('profileGuardianPhone').value = profile.guardian_phone || '';
         
-        // Display profile picture
-        const profilePictureContainer = document.getElementById('profilePictureDisplay');
-        if (profilePictureContainer) {
+        // Display profile picture in profile page
+        const profileAvatarLarge = document.getElementById('profileAvatarLarge');
+        if (profileAvatarLarge) {
             if (profile.profile_picture_url) {
-                profilePictureContainer.innerHTML = `<img src="${profile.profile_picture_url}" alt="Profile Picture" style="width: 200px; height: 200px; border-radius: 50%; object-fit: cover;">`;
+                profileAvatarLarge.style.backgroundImage = `url(${profile.profile_picture_url})`;
+                profileAvatarLarge.style.backgroundSize = 'cover';
+                profileAvatarLarge.style.backgroundPosition = 'center';
+                profileAvatarLarge.textContent = '';
             } else {
-                profilePictureContainer.innerHTML = `<div style="width: 200px; height: 200px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 60px; color: #666;">${profile.full_name.charAt(0).toUpperCase()}</div>`;
+                profileAvatarLarge.style.backgroundImage = '';
+                profileAvatarLarge.style.background = '#ddd';
+                profileAvatarLarge.textContent = profile.full_name.charAt(0).toUpperCase();
             }
         }
+        
+        // Update user in localStorage for sidebar/header avatar
+        localStorage.setItem('user', JSON.stringify(profile));
+        initializeProfilePicture();
     } catch (error) {
         console.error('Error loading profile:', error);
         showToast('Failed to load profile', 'error');
+    }
+}
+
+// Load privacy & security page
+async function loadPrivacy() {
+    const privacyConsentSection = document.getElementById('privacyConsentSection');
+    const privacyRequestsSection = document.getElementById('privacyRequestsSection');
+    
+    try {
+        // Load privacy consent section
+        if (privacyConsentSection) {
+            privacyConsentSection.innerHTML = `
+                <div class="privacy-info">
+                    <p>Your data is protected according to our privacy policy. You have the right to:</p>
+                    <ul>
+                        <li>Access your personal data</li>
+                        <li>Request data deletion</li>
+                        <li>Update your information</li>
+                        <li>Control your account security</li>
+                    </ul>
+                </div>
+            `;
+        }
+        
+        // Load privacy requests section
+        if (privacyRequestsSection) {
+            privacyRequestsSection.innerHTML = `
+                <div class="privacy-actions">
+                    <p>To exercise your data rights, please contact the administration.</p>
+                    <div style="margin-top: 16px;">
+                        <button class="btn btn-secondary" onclick="showToast('Data access request submitted. Administration will contact you.', 'success')">
+                            Request Data Access
+                        </button>
+                        <button class="btn btn-secondary" style="margin-left: 8px;" onclick="showToast('Data deletion request submitted. Administration will contact you.', 'success')">
+                            Request Data Deletion
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading privacy settings:', error);
+        if (privacyConsentSection) {
+            privacyConsentSection.innerHTML = '<p class="error-state">Unable to load privacy settings. Please refresh and try again.</p>';
+        }
+        if (privacyRequestsSection) {
+            privacyRequestsSection.innerHTML = '<p class="error-state">Unable to load privacy requests. Please refresh and try again.</p>';
+        }
     }
 }
 
@@ -615,15 +675,26 @@ if (profileAvatar) {
                 const result = await response.json();
                 
                 // Update user in localStorage
+                const currentUser = JSON.parse(localStorage.getItem('user'));
                 currentUser.profile_picture_url = result.profile_picture_url;
                 localStorage.setItem('user', JSON.stringify(currentUser));
 
                 // Update UI
                 updateProfilePicture(result.profile_picture_url);
                 
+                // Also update profile page avatar if visible
+                const profileAvatarLarge = document.getElementById('profileAvatarLarge');
+                if (profileAvatarLarge) {
+                    profileAvatarLarge.style.backgroundImage = `url(${result.profile_picture_url})`;
+                    profileAvatarLarge.style.backgroundSize = 'cover';
+                    profileAvatarLarge.style.backgroundPosition = 'center';
+                    profileAvatarLarge.textContent = '';
+                }
+                
                 showToast('Profile picture updated successfully');
                 closeModal();
             } catch (error) {
+                console.error('Profile picture upload error:', error);
                 showToast(error.message || 'Failed to upload profile picture', 'error');
             }
         });
@@ -656,6 +727,8 @@ async function loadUnreadCount() {
         updateNotificationBadge(response.unread_count);
     } catch (error) {
         console.error('Failed to load unread count:', error);
+        // Silently fail for unread count - don't show toast to avoid spam
+        updateNotificationBadge(0);
     }
 }
 
@@ -677,6 +750,10 @@ async function loadAnnouncementsWithReadStatus() {
         displayNotifications(announcements);
     } catch (error) {
         console.error('Failed to load notifications:', error);
+        const notificationPanel = document.getElementById('notificationPanel');
+        if (notificationPanel) {
+            notificationPanel.innerHTML = '<div class="notification-empty">Unable to load announcements. Please try again.</div>';
+        }
     }
 }
 

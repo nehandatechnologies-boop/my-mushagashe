@@ -41,14 +41,17 @@
         .logo-icon {
             width: 40px;
             height: 40px;
-            background: linear-gradient(135deg, var(--primary-600), var(--primary-800));
             border-radius: var(--radius-lg);
+            overflow: hidden;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: var(--text-inverse);
-            font-weight: var(--font-bold);
-            font-size: var(--text-base);
+        }
+
+        .logo-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
         }
 
         .logo-text h1 {
@@ -255,7 +258,9 @@
         <header class="login-header">
             <div class="header-content">
                 <div class="logo-section">
-                    <div class="logo-icon">MV</div>
+                    <div class="logo-icon">
+                        <img src="../assets/images/mushagashe-logo.jpg" alt="Mushagashe VTC Logo">
+                    </div>
                     <div class="logo-text">
                         <h1>Mushagashe VTC</h1>
                         <p>Student Information Portal</p>
@@ -565,7 +570,14 @@
                     
                     window.location.href = 'student-dashboard.html';
                 } else {
-                    errorDiv.textContent = data.error || 'Login failed. Please try again.';
+                    if (data.requires_verification) {
+                        errorDiv.innerHTML = `
+                            ${data.error}<br>
+                            <a href="#" onclick="resendVerification('${data.email}')" style="color: var(--primary-600);">Resend verification email</a>
+                        `;
+                    } else {
+                        errorDiv.textContent = data.error || 'Login failed. Please try again.';
+                    }
                     errorDiv.classList.add('show');
                 }
             } catch (error) {
@@ -576,6 +588,34 @@
                 btnText.textContent = 'Sign In';
             }
         });
+
+        async function resendVerification(email) {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                alert('Please log in to resend verification email');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/auth/resend-verification', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    alert('Verification email sent successfully. Please check your email.');
+                } else {
+                    alert(data.error || 'Failed to resend verification email');
+                }
+            } catch (error) {
+                alert('Network error. Please try again.');
+            }
+        }
     </script>
 </body>
 </html>

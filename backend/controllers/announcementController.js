@@ -193,10 +193,13 @@ const markAnnouncementAsRead = async (req, res) => {
 const getUnreadCount = async (req, res) => {
   try {
     const userId = req.user.id;
+    console.log('[DEBUG] getUnreadCount - userId:', userId);
     const unreadCount = await AnnouncementReads.getUnreadCount(userId);
+    console.log('[DEBUG] getUnreadCount - unreadCount:', unreadCount);
     res.json({ unread_count: unreadCount });
   } catch (error) {
-    console.error('Get unread count error:', error);
+    console.error('[DEBUG] Get unread count error:', error);
+    console.error('[DEBUG] Error details:', error.message, error.code);
     res.status(500).json({ error: 'Failed to get unread count' });
   }
 };
@@ -205,14 +208,17 @@ const getUnreadCount = async (req, res) => {
 const getAnnouncementsWithReadStatus = async (req, res) => {
   try {
     const userId = req.user.id;
+    console.log('[DEBUG] getAnnouncementsWithReadStatus - userId:', userId);
     const { limit = 50, offset = 0 } = req.query;
 
     const announcements = await Announcement.findAll({
       limit: parseInt(limit),
       offset: parseInt(offset)
     });
+    console.log('[DEBUG] getAnnouncementsWithReadStatus - announcements fetched:', announcements?.length);
 
     const readAnnouncements = await AnnouncementReads.getReadAnnouncements(userId);
+    console.log('[DEBUG] getAnnouncementsWithReadStatus - readAnnouncements:', readAnnouncements);
     const readIds = new Set(readAnnouncements.map(r => r.announcement_id));
 
     const announcementsWithStatus = announcements.map(announcement => ({
@@ -222,7 +228,8 @@ const getAnnouncementsWithReadStatus = async (req, res) => {
 
     res.json(announcementsWithStatus);
   } catch (error) {
-    console.error('Get announcements with read status error:', error);
+    console.error('[DEBUG] Get announcements with read status error:', error);
+    console.error('[DEBUG] Error details:', error.message, error.code);
     res.status(500).json({ error: 'Failed to fetch announcements' });
   }
 };
