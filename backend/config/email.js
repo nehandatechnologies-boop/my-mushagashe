@@ -9,6 +9,13 @@ const EMAIL_PASS = process.env.EMAIL_PASS;
 const EMAIL_FROM = process.env.EMAIL_FROM || EMAIL_USER;
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5500';
 
+// Detect if running in production
+const isProduction = process.env.NODE_ENV === 'production' || process.env.RENDER === 'true';
+
+// Use production URL if in production environment
+const PRODUCTION_URL = 'https://my-mushagashe.onrender.com';
+const effectiveFrontendUrl = isProduction ? PRODUCTION_URL : FRONTEND_URL;
+
 // Create transporter
 const createTransporter = () => {
   if (!EMAIL_USER || !EMAIL_PASS) {
@@ -36,11 +43,11 @@ const generateToken = () => {
 const sendVerificationEmail = async (email, token) => {
   const transporter = createTransporter();
   if (!transporter) {
-    console.log('Email service not configured. Verification link:', `${FRONTEND_URL}/verify-email?token=${token}`);
+    console.log('Email service not configured. Verification link:', `${effectiveFrontendUrl}/verify-email?token=${token}`);
     return false;
   }
 
-  const verificationUrl = `${FRONTEND_URL}/verify-email?token=${token}`;
+  const verificationUrl = `${effectiveFrontendUrl}/verify-email?token=${token}`;
 
   const mailOptions = {
     from: `"Mushagashe VTC" <${EMAIL_FROM}>`,
@@ -96,11 +103,11 @@ const sendVerificationEmail = async (email, token) => {
 const sendPasswordResetEmail = async (email, token) => {
   const transporter = createTransporter();
   if (!transporter) {
-    console.log('Email service not configured. Reset link:', `${FRONTEND_URL}/reset-password?token=${token}`);
+    console.log('Email service not configured. Reset link:', `${effectiveFrontendUrl}/reset-password?token=${token}`);
     return false;
   }
 
-  const resetUrl = `${FRONTEND_URL}/reset-password?token=${token}`;
+  const resetUrl = `${effectiveFrontendUrl}/reset-password?token=${token}`;
 
   const mailOptions = {
     from: `"Mushagashe VTC" <${EMAIL_FROM}>`,
