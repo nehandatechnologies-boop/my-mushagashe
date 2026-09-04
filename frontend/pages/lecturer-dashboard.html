@@ -70,6 +70,24 @@
                         <span>Subjects</span>
                     </a>
                 </div>
+
+                <div class="nav-section">
+                    <div class="nav-section-title">Account</div>
+                    <a href="#" class="nav-item" data-page="profile">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                            <circle cx="12" cy="7" r="4"></circle>
+                        </svg>
+                        <span>Profile</span>
+                    </a>
+                    <a href="#" class="nav-item" data-page="privacy">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        </svg>
+                        <span>Privacy & Security</span>
+                    </a>
+                </div>
             </nav>
 
             <div class="sidebar-footer">
@@ -259,6 +277,86 @@
                                     </tr>
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Profile Page -->
+                <div id="profile-page" class="page-section hidden">
+                    <div class="page-header">
+                        <h1>My Profile</h1>
+                        <p>Manage your personal information and account settings</p>
+                    </div>
+                    <div class="dashboard-card">
+                        <div class="profile-avatar-display">
+                            <div class="profile-avatar-large" id="profileAvatarLarge">L</div>
+                        </div>
+                        <form id="profileForm">
+                            <div class="form-grid">
+                                <div class="form-group">
+                                    <label class="form-label">Full Name</label>
+                                    <input type="text" id="profileFullName" class="input" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Email</label>
+                                    <input type="email" id="profileEmail" class="input" readonly>
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Phone</label>
+                                    <input type="tel" id="profilePhone" class="input">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Course</label>
+                                    <input type="text" id="profileCourse" class="input" readonly>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Update Profile</button>
+                        </form>
+                    </div>
+
+                    <div class="dashboard-card" style="margin-top: var(--space-6);">
+                        <div class="card-header">
+                            <h3>Change Password</h3>
+                        </div>
+                        <form id="passwordForm">
+                            <input type="text" id="username" name="username" autocomplete="username" style="display: none;">
+                            <div class="form-group">
+                                <label class="form-label required">Current Password</label>
+                                <input type="password" id="currentPassword" class="input" required autocomplete="current-password">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label required">New Password</label>
+                                <input type="password" id="newPassword" class="input" required minlength="6" autocomplete="new-password">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label required">Confirm New Password</label>
+                                <input type="password" id="confirmPassword" class="input" required minlength="6" autocomplete="new-password">
+                            </div>
+                            <button type="submit" class="btn btn-secondary">Change Password</button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Privacy Page -->
+                <div id="privacy-page" class="page-section hidden">
+                    <div class="page-header">
+                        <h1>Privacy & Security</h1>
+                        <p>Manage your data protection preferences and privacy settings</p>
+                    </div>
+                    <div class="dashboard-card">
+                        <div class="card-header">
+                            <h3>Privacy Consent</h3>
+                        </div>
+                        <div id="privacyConsentSection">
+                            <div class="loading-state">Loading privacy settings...</div>
+                        </div>
+                    </div>
+                    <div class="dashboard-card" style="margin-top: var(--space-6);">
+                        <div class="card-header">
+                            <h3>Data Subject Rights</h3>
+                        </div>
+                        <div id="privacyRequestsSection">
+                            <div class="loading-state">Loading privacy requests...</div>
                         </div>
                     </div>
                 </div>

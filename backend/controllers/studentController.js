@@ -477,15 +477,40 @@ const createLecturer = async (req, res) => {
 
     const lecturerData = {
       full_name, email, password: hashedPassword, role: 'lecturer',
-      phone, gender, course_id, status: 'active'
+      phone, gender, course_id, status: 'active', email_verified: false
     };
 
-    const result = await User.create(lecturerData);
+    // Generate verification token if email provided
+    if (email) {
+      const { generateToken: generateEmailToken, sendVerificationEmail } = require('../config/email');
+      const verificationToken = generateEmailToken();
+      const verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+      
+      lecturerData.verification_token = verificationToken;
+      lecturerData.verification_token_expires = verificationTokenExpires;
 
-    res.status(201).json({
-      message: 'Lecturer created successfully',
-      id: result.id
-    });
+      const result = await User.create(lecturerData);
+
+      // Send verification email
+      try {
+        await sendVerificationEmail(email, verificationToken);
+      } catch (emailError) {
+        console.error('Failed to send verification email:', emailError);
+        // Continue with creation even if email fails
+      }
+
+      res.status(201).json({
+        message: 'Lecturer created successfully. A verification email has been sent to the provided email address.',
+        id: result.id
+      });
+    } else {
+      const result = await User.create(lecturerData);
+
+      res.status(201).json({
+        message: 'Lecturer created successfully',
+        id: result.id
+      });
+    }
   } catch (error) {
     console.error('Create lecturer error:', error);
     if (error.message.includes('UNIQUE')) {

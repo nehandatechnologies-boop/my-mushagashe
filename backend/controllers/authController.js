@@ -80,6 +80,15 @@ const lecturerLogin = async (req, res) => {
       return res.status(403).json({ error: 'Account is not active' });
     }
 
+    // Check email verification if email exists
+    if (user.email && !user.email_verified) {
+      return res.status(403).json({ 
+        error: 'Your email address has not been verified yet. Please check your email and click the verification link.',
+        requires_verification: true,
+        email: user.email
+      });
+    }
+
     // Verify password
     const isPasswordValid = bcrypt.compareSync(trimmedPassword, user.password);
     

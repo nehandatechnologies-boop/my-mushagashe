@@ -95,6 +95,10 @@ app.get('/student-register.html', (req, res) => {
   res.sendFile(path.join(frontendPath, 'pages/student-register.html'));
 });
 
+app.get('/student-dashboard.html', (req, res) => {
+  res.sendFile(path.join(frontendPath, 'pages/student-dashboard.html'));
+});
+
 app.get('/lecturer-dashboard.html', (req, res) => {
   res.sendFile(path.join(frontendPath, 'pages/lecturer-dashboard.html'));
 });

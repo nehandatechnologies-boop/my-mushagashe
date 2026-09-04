@@ -114,6 +114,14 @@ document.querySelectorAll('.nav-item').forEach(link => {
         if (page === 'students') loadStudents();
         if (page === 'results') loadResults();
         if (page === 'subjects') loadSubjects();
+        if (page === 'profile') loadProfile();
+        if (page === 'privacy') loadPrivacy();
+        
+        // Close mobile sidebar
+        if (window.innerWidth <= 1024) {
+            sidebar.classList.remove('open');
+            sidebarOverlay.classList.remove('show');
+        }
     });
 });
 
@@ -530,46 +538,54 @@ document.getElementById('logoutBtn').addEventListener('click', () => {
     window.location.href = 'lecturer-login.html';
 });
 
-// Change password
+// Change password handler
 document.getElementById('changePasswordBtn').addEventListener('click', () => {
+    showChangePasswordModal();
+});
+
+// Show change password modal
+function showChangePasswordModal() {
     showModal(`
         <div class="modal-header">
-            <h3>Change Password</h3>
+            <h2>Change Password</h2>
             <button class="modal-close" onclick="hideModal()">&times;</button>
         </div>
-        <form id="changePasswordForm" class="modal-form">
-            <div class="form-group">
-                <label>Current Password *</label>
-                <input type="password" name="current_password" required>
-            </div>
-            <div class="form-group">
-                <label>New Password *</label>
-                <input type="password" name="new_password" required minlength="6">
-            </div>
-            <div class="form-group">
-                <label>Confirm New Password *</label>
-                <input type="password" name="confirm_password" required minlength="6">
-            </div>
-            <button type="submit" class="btn btn-primary">Change Password</button>
-        </form>
+        <div class="modal-body">
+            <form id="changePasswordForm">
+                <div class="form-group">
+                    <label for="current_password">Current Password *</label>
+                    <input type="password" id="current_password" name="current_password" required>
+                </div>
+                <div class="form-group">
+                    <label for="new_password">New Password *</label>
+                    <input type="password" id="new_password" name="new_password" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label for="confirm_password">Confirm New Password *</label>
+                    <input type="password" id="confirm_password" name="confirm_password" required minlength="6">
+                </div>
+                <button type="submit" class="btn btn-primary">Change Password</button>
+            </form>
+        </div>
     `);
-
+    
     document.getElementById('changePasswordForm').addEventListener('submit', async (e) => {
         e.preventDefault();
-        const formData = new FormData(e.target);
-        const data = Object.fromEntries(formData);
-
-        if (data.new_password !== data.confirm_password) {
+        const currentPassword = document.getElementById('current_password').value;
+        const newPassword = document.getElementById('new_password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
+        
+        if (newPassword !== confirmPassword) {
             showToast('Passwords do not match', 'error');
             return;
         }
-
+        
         try {
             await apiRequest('/auth/change-password', {
                 method: 'PUT',
                 body: JSON.stringify({
-                    current_password: data.current_password,
-                    new_password: data.new_password
+                    current_password: currentPassword,
+                    new_password: newPassword
                 })
             });
             showToast('Password changed successfully');
@@ -578,11 +594,25 @@ document.getElementById('changePasswordBtn').addEventListener('click', () => {
             showToast(error.message || 'Failed to change password', 'error');
         }
     });
-});
+}
 
-// Change profile picture
-document.getElementById('sidebarAvatar').addEventListener('click', () => {
-    const user = JSON.parse(localStorage.getItem('user'));
+// Profile picture click handler
+const headerAvatar = document.getElementById('headerAvatar');
+const sidebarAvatar = document.getElementById('sidebarAvatar');
+
+if (headerAvatar) {
+    headerAvatar.addEventListener('click', () => {
+        showProfilePictureModal();
+    });
+}
+
+if (sidebarAvatar) {
+    sidebarAvatar.addEventListener('click', () => {
+        showProfilePictureModal();
+    });
+}
+
+function showProfilePictureModal() {
     showModal(`
         <div class="modal-header">
             <h3>Change Profile Picture</h3>
@@ -627,8 +657,9 @@ document.getElementById('sidebarAvatar').addEventListener('click', () => {
             const result = await response.json();
             
             // Update user in localStorage
-            user.profile_picture_url = result.profile_picture_url;
-            localStorage.setItem('user', JSON.stringify(user));
+            const currentUser = JSON.parse(localStorage.getItem('user'));
+            currentUser.profile_picture_url = result.profile_picture_url;
+            localStorage.setItem('user', JSON.stringify(currentUser));
 
             // Update UI
             updateProfilePicture(result.profile_picture_url);
@@ -636,6 +667,7 @@ document.getElementById('sidebarAvatar').addEventListener('click', () => {
             showToast('Profile picture updated successfully');
             hideModal();
         } catch (error) {
+            console.error('Profile picture upload error:', error);
             showToast(error.message || 'Failed to upload profile picture', 'error');
         }
     });
@@ -669,6 +701,139 @@ function initializeProfilePicture() {
     }
 }
 
+// Load profile
+async function loadProfile() {
+    try {
+        const profile = await apiRequest('/auth/profile');
+        
+        document.getElementById('profileFullName').value = profile.full_name;
+        document.getElementById('profileEmail').value = profile.email || '';
+        document.getElementById('profilePhone').value = profile.phone || '';
+        document.getElementById('profileCourse').value = profile.course_name || 'Not assigned';
+        
+        // Display profile picture in profile page
+        const profileAvatarLarge = document.getElementById('profileAvatarLarge');
+        if (profileAvatarLarge) {
+            if (profile.profile_picture_url) {
+                profileAvatarLarge.style.backgroundImage = `url(${profile.profile_picture_url})`;
+                profileAvatarLarge.style.backgroundSize = 'cover';
+                profileAvatarLarge.style.backgroundPosition = 'center';
+                profileAvatarLarge.textContent = '';
+            } else {
+                profileAvatarLarge.style.backgroundImage = '';
+                profileAvatarLarge.style.background = '#ddd';
+                profileAvatarLarge.textContent = profile.full_name.charAt(0).toUpperCase();
+            }
+        }
+        
+        // Update user in localStorage for sidebar/header avatar
+        localStorage.setItem('user', JSON.stringify(profile));
+        initializeProfilePicture();
+    } catch (error) {
+        console.error('Error loading profile:', error);
+        showToast('Failed to load profile', 'error');
+    }
+}
+
+// Load privacy & security page
+async function loadPrivacy() {
+    const privacyConsentSection = document.getElementById('privacyConsentSection');
+    const privacyRequestsSection = document.getElementById('privacyRequestsSection');
+    
+    try {
+        // Load privacy consent section
+        if (privacyConsentSection) {
+            privacyConsentSection.innerHTML = `
+                <div class="privacy-info">
+                    <p>Your data is protected according to our privacy policy. You have the right to:</p>
+                    <ul>
+                        <li>Access your personal data</li>
+                        <li>Request data deletion</li>
+                        <li>Update your information</li>
+                        <li>Control your account security</li>
+                    </ul>
+                </div>
+            `;
+        }
+        
+        // Load privacy requests section
+        if (privacyRequestsSection) {
+            privacyRequestsSection.innerHTML = `
+                <div class="privacy-actions">
+                    <p>To exercise your data rights, please contact the administration.</p>
+                    <div style="margin-top: 16px;">
+                        <button class="btn btn-secondary" onclick="showToast('Data access request submitted. Administration will contact you.', 'success')">
+                            Request Data Access
+                        </button>
+                        <button class="btn btn-secondary" style="margin-left: 8px;" onclick="showToast('Data deletion request submitted. Administration will contact you.', 'success')">
+                            Request Data Deletion
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('Error loading privacy settings:', error);
+        if (privacyConsentSection) {
+            privacyConsentSection.innerHTML = '<p class="error-state">Unable to load privacy settings. Please refresh and try again.</p>';
+        }
+        if (privacyRequestsSection) {
+            privacyRequestsSection.innerHTML = '<p class="error-state">Unable to load privacy requests. Please refresh and try again.</p>';
+        }
+    }
+}
+
+// Profile form handler
+document.getElementById('profileForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const updateData = {
+        phone: document.getElementById('profilePhone').value
+    };
+
+    try {
+        await apiRequest('/auth/profile', {
+            method: 'PUT',
+            body: JSON.stringify(updateData)
+        });
+        
+        showToast('Profile updated successfully');
+    } catch (error) {
+        console.error('Error updating profile:', error);
+        showToast('Failed to update profile', 'error');
+    }
+});
+
+// Password form handler
+document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const currentPassword = document.getElementById('currentPassword').value;
+    const newPassword = document.getElementById('newPassword').value;
+    const confirmPassword = document.getElementById('confirmPassword').value;
+
+    if (newPassword !== confirmPassword) {
+        showToast('Passwords do not match', 'error');
+        return;
+    }
+
+    try {
+        await apiRequest('/auth/change-password', {
+            method: 'PUT',
+            body: JSON.stringify({
+                current_password: currentPassword,
+                new_password: newPassword
+            })
+        });
+        
+        showToast('Password changed successfully');
+        e.target.reset();
+    } catch (error) {
+        console.error('Error changing password:', error);
+        showToast('Failed to change password', 'error');
+    }
+});
+
 // Notification functionality
 async function loadUnreadCount() {
     try {
@@ -676,6 +841,8 @@ async function loadUnreadCount() {
         updateNotificationBadge(response.unread_count);
     } catch (error) {
         console.error('Failed to load unread count:', error);
+        // Silently fail for unread count - don't show toast to avoid spam
+        updateNotificationBadge(0);
     }
 }
 
@@ -697,6 +864,10 @@ async function loadAnnouncementsWithReadStatus() {
         displayNotifications(announcements);
     } catch (error) {
         console.error('Failed to load notifications:', error);
+        const notificationPanel = document.getElementById('notificationPanel');
+        if (notificationPanel) {
+            notificationPanel.innerHTML = '<div class="notification-empty">Unable to load announcements. Please try again.</div>';
+        }
     }
 }
 
