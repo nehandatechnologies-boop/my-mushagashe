@@ -47,6 +47,9 @@ router.post('/student/login', authRateLimiter, validateLogin, authController.stu
 // Get current user profile (authenticated)
 router.get('/profile', authenticate, authController.getProfile);
 
+// Get current user's profile picture URL (authenticated)
+router.get('/profile-picture', authenticate, authController.getProfilePicture);
+
 // Update profile (authenticated)
 router.put('/profile', authenticate, authController.updateProfile);
 

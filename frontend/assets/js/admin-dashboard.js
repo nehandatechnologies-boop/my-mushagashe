@@ -2646,16 +2646,23 @@ function toggleNotificationPanel() {
 }
 
 // Initialize notification bell
+let notificationInterval = null;
+
 function initializeNotifications() {
     const notificationBell = document.getElementById('notificationBell');
     if (notificationBell) {
         notificationBell.addEventListener('click', toggleNotificationPanel);
     }
     
+    // Clear any existing interval to prevent duplicates
+    if (notificationInterval) {
+        clearInterval(notificationInterval);
+    }
+    
     loadUnreadCount();
     
     // Refresh unread count every 30 seconds
-    setInterval(loadUnreadCount, 30000);
+    notificationInterval = setInterval(loadUnreadCount, 30000);
 }
 
 // Theme functionality

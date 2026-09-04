@@ -172,6 +172,25 @@ const getProfile = async (req, res) => {
   }
 };
 
+// Get current user's profile picture URL
+const getProfilePicture = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Return profile picture URL or null if not set
+    res.json({ 
+      profile_picture_url: user.profile_picture_url || null 
+    });
+  } catch (error) {
+    console.error('Get profile picture error:', error);
+    res.status(500).json({ error: 'Failed to fetch profile picture' });
+  }
+};
+
 // Update profile
 const updateProfile = async (req, res) => {
   try {
@@ -363,6 +382,7 @@ module.exports = {
   lecturerLogin,
   studentLogin,
   getProfile,
+  getProfilePicture,
   updateProfile,
   changePassword,
   requestStudentPasswordReset,

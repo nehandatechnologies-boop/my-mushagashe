@@ -83,11 +83,18 @@ const errorHandler = (err, req, res, next) => {
 
 // 404 handler
 const notFoundHandler = (req, res) => {
-  res.status(404).json({
-    error: 'Route not found',
-    path: req.path,
-    method: req.method
-  });
+  // Check if this is a request for a static asset (CSS, JS, images, etc.)
+  if (req.path.match(/\.(css|js|png|jpg|jpeg|gif|svg|ico|woff|woff2|ttf|eot)$/)) {
+    // For static assets, return a 404 without JSON
+    res.status(404).send('Not Found');
+  } else {
+    // For API routes and pages, return JSON error
+    res.status(404).json({
+      error: 'Route not found',
+      path: req.path,
+      method: req.method
+    });
+  }
 };
 
 // Async error wrapper

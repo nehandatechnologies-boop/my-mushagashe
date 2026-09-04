@@ -19,25 +19,38 @@ class AnnouncementReads {
   }
 
   static async getUnreadCount(userId) {
-    // Get total announcements
-    const { count: totalAnnouncements, error: countError } = await supabase
-      .from('announcements')
-      .select('*', { count: 'exact', head: true });
+    try {
+      // Get total announcements
+      const { count: totalAnnouncements, error: countError } = await supabase
+        .from('announcements')
+        .select('*', { count: 'exact', head: true });
 
-    if (countError) throw countError;
+      if (countError) {
+        console.error('Error counting announcements:', countError);
+        // If table doesn't exist or other error, return 0
+        return 0;
+      }
 
-    // Get read announcement IDs for this user
-    const { data: readAnnouncements, error: readError } = await supabase
-      .from('announcement_reads')
-      .select('announcement_id')
-      .eq('user_id', userId);
+      // Get read announcement IDs for this user
+      const { data: readAnnouncements, error: readError } = await supabase
+        .from('announcement_reads')
+        .select('announcement_id')
+        .eq('user_id', userId);
 
-    if (readError) throw readError;
+      if (readError) {
+        console.error('Error fetching read announcements:', readError);
+        // If table doesn't exist or other error, assume no reads
+        return totalAnnouncements || 0;
+      }
 
-    const readIds = readAnnouncements.map(r => r.announcement_id);
-    const unreadCount = totalAnnouncements - readIds.length;
+      const readIds = readAnnouncements ? readAnnouncements.map(r => r.announcement_id) : [];
+      const unreadCount = (totalAnnouncements || 0) - readIds.length;
 
-    return Math.max(0, unreadCount);
+      return Math.max(0, unreadCount);
+    } catch (error) {
+      console.error('Unexpected error in getUnreadCount:', error);
+      return 0;
+    }
   }
 
   static async getReadAnnouncements(userId) {
