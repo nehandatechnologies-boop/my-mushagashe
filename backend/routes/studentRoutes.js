@@ -61,8 +61,8 @@ router.post('/register', studentController.registerStudent);
 // Create new student (admin only)
 router.post('/', authenticate, adminOnly, validateStudent, studentController.createStudent);
 
-// Get all students (admin only)
-router.get('/', authenticate, adminOnly, studentController.getAllStudents);
+// Get all students (admin or lecturer - controller handles role-based filtering)
+router.get('/', authenticate, studentController.getAllStudents);
 
 // Lecturer management routes (admin only)
 router.post('/lecturers', authenticate, adminOnly, studentController.createLecturer);

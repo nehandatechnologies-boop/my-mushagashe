@@ -89,7 +89,10 @@ function checkAuth() {
 // Load lecturer info
 async function loadLecturerInfo() {
     const user = checkAuth();
-    document.getElementById('lecturer-name').textContent = user.full_name;
+    const lecturerNameEl = document.getElementById('lecturerName');
+    if (lecturerNameEl) {
+        lecturerNameEl.textContent = user.full_name;
+    }
     return user;
 }
 
