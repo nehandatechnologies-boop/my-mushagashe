@@ -97,6 +97,10 @@ document.getElementById('lecturerLoginForm').addEventListener('submit', async (e
         saveEmail(loginData.email, rememberMe);
 
         localStorage.setItem('token', response.token);
+        localStorage.setItem('auth_type', response.auth_type || 'custom');
+        if (response.refresh_token) {
+            localStorage.setItem('refresh_token', response.refresh_token);
+        }
         localStorage.setItem('user', JSON.stringify(response.user));
 
         window.location.href = 'lecturer-dashboard.html';

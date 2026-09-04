@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const { generateToken } = require('../middleware/auth');
 const { generateToken: generateEmailToken, sendVerificationEmail, sendPasswordResetEmail } = require('../config/email');
+const { supabase } = require('../config/supabaseAuth');
 
 // Admin login
 const adminLogin = async (req, res) => {
@@ -51,7 +52,7 @@ const adminLogin = async (req, res) => {
   }
 };
 
-// Lecturer login
+// Lecturer login (hybrid: tries Supabase Auth first, falls back to custom JWT)
 const lecturerLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -80,23 +81,56 @@ const lecturerLogin = async (req, res) => {
       return res.status(403).json({ error: 'Account is not active' });
     }
 
-    // Check email verification if email exists
-    if (user.email && !user.email_verified) {
+    // Try Supabase Auth first if auth_type is 'supabase'
+    if (user.auth_type === 'supabase') {
+      try {
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email: trimmedEmail,
+          password: trimmedPassword
+        });
+
+        if (!authError && authData.user) {
+          // Check email confirmation
+          if (!authData.user.email_confirmed_at) {
+            return res.status(403).json({ 
+              error: 'Your email address has not been verified yet. Please check your email and click the verification link.',
+              requires_verification: true,
+              email: trimmedEmail
+            });
+          }
+
+          // Supabase Auth successful
+          const { password: _, ...userWithoutPassword } = user;
+          
+          return res.json({
+            token: authData.session.access_token,
+            refresh_token: authData.session.refresh_token,
+            auth_type: 'supabase',
+            user: userWithoutPassword
+          });
+        }
+      } catch (supabaseError) {
+        console.log('Supabase auth failed, trying custom auth:', supabaseError.message);
+      }
+    }
+
+    // Fall back to custom JWT for users with auth_type 'custom'
+    if (user.email && !user.email_verified && user.auth_type !== 'supabase') {
       return res.status(403).json({ 
         error: 'Your email address has not been verified yet. Please check your email and click the verification link.',
         requires_verification: true,
-        email: user.email
+        email: trimmedEmail
       });
     }
 
-    // Verify password
+    // Verify password with bcrypt
     const isPasswordValid = bcrypt.compareSync(trimmedPassword, user.password);
     
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Generate token
+    // Generate custom JWT token
     const token = generateToken(user);
 
     // Return user data without password
@@ -104,6 +138,7 @@ const lecturerLogin = async (req, res) => {
 
     res.json({
       token,
+      auth_type: 'custom',
       user: userWithoutPassword
     });
   } catch (error) {
@@ -112,7 +147,7 @@ const lecturerLogin = async (req, res) => {
   }
 };
 
-// Student login
+// Student login (hybrid: tries Supabase Auth first, falls back to custom JWT)
 const studentLogin = async (req, res) => {
   try {
     const { student_number, password } = req.body;
@@ -141,8 +176,41 @@ const studentLogin = async (req, res) => {
       return res.status(403).json({ error: 'Account is not active' });
     }
 
-    // Check email verification if email exists
-    if (user.email && !user.email_verified) {
+    // Try Supabase Auth first if user has email and auth_type is 'supabase'
+    if (user.email && user.auth_type === 'supabase') {
+      try {
+        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+          email: user.email,
+          password: trimmedPassword
+        });
+
+        if (!authError && authData.user) {
+          // Check email confirmation
+          if (!authData.user.email_confirmed_at) {
+            return res.status(403).json({ 
+              error: 'Your email address has not been verified yet. Please check your email and click the verification link.',
+              requires_verification: true,
+              email: user.email
+            });
+          }
+
+          // Supabase Auth successful
+          const { password: _, ...userWithoutPassword } = user;
+          
+          return res.json({
+            token: authData.session.access_token,
+            refresh_token: authData.session.refresh_token,
+            auth_type: 'supabase',
+            user: userWithoutPassword
+          });
+        }
+      } catch (supabaseError) {
+        console.log('Supabase auth failed, trying custom auth:', supabaseError.message);
+      }
+    }
+
+    // Fall back to custom JWT for users without email or if Supabase Auth failed
+    if (user.email && !user.email_verified && user.auth_type !== 'supabase') {
       return res.status(403).json({ 
         error: 'Your email address has not been verified yet. Please check your email and click the verification link.',
         requires_verification: true,
@@ -150,14 +218,14 @@ const studentLogin = async (req, res) => {
       });
     }
 
-    // Verify password
+    // Verify password with bcrypt
     const isPasswordValid = bcrypt.compareSync(trimmedPassword, user.password);
     
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    // Generate token
+    // Generate custom JWT token
     const token = generateToken(user);
 
     // Return user data without password
@@ -165,6 +233,7 @@ const studentLogin = async (req, res) => {
 
     res.json({
       token,
+      auth_type: 'custom',
       user: userWithoutPassword
     });
   } catch (error) {

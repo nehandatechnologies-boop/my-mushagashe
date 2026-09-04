@@ -118,17 +118,27 @@ document.getElementById('studentRegisterForm').addEventListener('submit', async 
     setLoading(true);
 
     try {
-        const response = await apiRequest('/students/register', {
+        // Use Supabase Auth registration endpoint
+        const response = await apiRequest('/auth/student/register-supabase', {
             method: 'POST',
             body: JSON.stringify(registerData)
         });
 
-        showSuccess('Account created successfully! Redirecting to login...');
-        
-        // Redirect to login after 2 seconds
-        setTimeout(() => {
-            window.location.href = 'student-login.html';
-        }, 2000);
+        if (response.requires_verification) {
+            showSuccess('Registration successful! Please check your email to verify your account before logging in.');
+            
+            // Redirect to login after 3 seconds
+            setTimeout(() => {
+                window.location.href = 'student-login.html';
+            }, 3000);
+        } else {
+            showSuccess('Account created successfully! Redirecting to login...');
+            
+            // Redirect to login after 2 seconds
+            setTimeout(() => {
+                window.location.href = 'student-login.html';
+            }, 2000);
+        }
     } catch (error) {
         showError(error.message || 'Registration failed. Please try again.');
     } finally {

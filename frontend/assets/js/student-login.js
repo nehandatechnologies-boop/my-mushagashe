@@ -94,8 +94,12 @@ document.getElementById('studentLoginForm').addEventListener('submit', async (e)
             body: JSON.stringify(loginData)
         });
 
-        // Store token and user data
+        // Store token, auth_type, refresh token, and user data
         localStorage.setItem('token', response.token);
+        localStorage.setItem('auth_type', response.auth_type || 'custom');
+        if (response.refresh_token) {
+            localStorage.setItem('refresh_token', response.refresh_token);
+        }
         localStorage.setItem('user', JSON.stringify(response.user));
 
         // Redirect to dashboard

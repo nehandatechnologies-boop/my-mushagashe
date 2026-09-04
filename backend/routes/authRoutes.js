@@ -3,6 +3,7 @@ const router = express.Router();
 const { body } = require('express-validator');
 const authController = require('../controllers/authController');
 const studentController = require('../controllers/studentController');
+const studentControllerSupabase = require('../controllers/studentControllerSupabase');
 const { authenticate, adminOnly } = require('../middleware/auth');
 const { authRateLimiter } = require('../middleware/security');
 const multer = require('multer');
@@ -43,6 +44,12 @@ router.post('/lecturer/login', authRateLimiter, validateLogin, authController.le
 
 // Student login
 router.post('/student/login', authRateLimiter, validateLogin, authController.studentLogin);
+
+// Student registration with Supabase Auth
+router.post('/student/register-supabase', authRateLimiter, studentControllerSupabase.registerStudentSupabase);
+
+// Lecturer creation with Supabase Auth (admin only)
+router.post('/lecturer/create-supabase', authenticate, adminOnly, studentControllerSupabase.createLecturerSupabase);
 
 // Get current user profile (authenticated)
 router.get('/profile', authenticate, authController.getProfile);
