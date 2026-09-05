@@ -214,11 +214,22 @@
   border-radius: var(--radius-lg);
   cursor: pointer;
   appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3E%3C/svg%3E");
-  background-position: right var(--space-3) center;
-  background-repeat: no-repeat;
-  background-size: 1.5em 1.5em;
   padding-right: var(--space-10);
+  position: relative;
+}
+
+.select::after {
+  content: '';
+  position: absolute;
+  right: var(--space-3);
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 0.375em solid transparent;
+  border-right: 0.375em solid transparent;
+  border-top: 0.375em solid var(--gray-500);
+  pointer-events: none;
 }
 
 .select:focus {
@@ -245,15 +256,24 @@
   cursor: pointer;
   appearance: none;
   transition: all var(--transition-base);
+  position: relative;
 }
 
 .checkbox-input:checked {
   background: var(--primary-600);
   border-color: var(--primary-600);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white' stroke-width='3'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' d='M5 13l4 4L19 7'/%3E%3C/svg%3E");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 0.75em 0.75em;
+}
+
+.checkbox-input:checked::after {
+  content: '';
+  position: absolute;
+  left: 0.25rem;
+  top: 0.125rem;
+  width: 0.375rem;
+  height: 0.625rem;
+  border: solid white;
+  border-width: 0 0.125rem 0.125rem 0;
+  transform: rotate(45deg);
 }
 
 .checkbox-input:focus {
@@ -279,15 +299,24 @@
   cursor: pointer;
   appearance: none;
   transition: all var(--transition-base);
+  position: relative;
 }
 
 .radio-input:checked {
   background: var(--primary-600);
   border-color: var(--primary-600);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='white' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='4'/%3E%3C/svg%3E");
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: 0.5em 0.5em;
+}
+
+.radio-input:checked::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 0.5em;
+  height: 0.5em;
+  background: white;
+  border-radius: var(--radius-full);
 }
 
 .radio-input:focus {
