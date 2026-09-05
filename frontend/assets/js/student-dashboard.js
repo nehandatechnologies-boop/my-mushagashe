@@ -409,6 +409,7 @@ async function loadProfile() {
         document.getElementById('profileFullName').value = profile.full_name;
         document.getElementById('profileStudentNumber').value = profile.student_number;
         document.getElementById('profileCourse').value = profile.course_name || 'Not assigned';
+        document.getElementById('profileIntake').value = profile.intake || 'N/A';
         document.getElementById('profilePhone').value = profile.phone || '';
         document.getElementById('profileEmail').value = profile.email || '';
         document.getElementById('profileGuardianPhone').value = profile.guardian_phone || '';

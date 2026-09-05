@@ -159,13 +159,14 @@ const createStudent = async (req, res) => {
 const getAllStudents = async (req, res) => {
   try {
     const {
-      role, status, course_id, search, limit = 50, offset = 0
+      role, status, course_id, intake, search, limit = 50, offset = 0
     } = req.query;
 
     const filters = {
       role: role || 'student',
       status,
       course_id,
+      intake,
       search,
       limit: parseInt(limit),
       offset: parseInt(offset)
@@ -229,7 +230,7 @@ const updateStudent = async (req, res) => {
     const {
       full_name, email, student_number, phone, gender, national_id,
       date_of_birth, address, guardian_name, guardian_phone,
-      intake_year, status, course_id
+      intake, intake_year, status, course_id
     } = req.body;
 
     // Get current student data
@@ -241,7 +242,7 @@ const updateStudent = async (req, res) => {
     const updateData = {
       full_name, email, student_number, phone, gender, national_id,
       date_of_birth, address, guardian_name, guardian_phone,
-      intake_year, status, course_id
+      intake, intake_year, status, course_id
     };
 
     // Remove undefined values

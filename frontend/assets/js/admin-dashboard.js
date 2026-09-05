@@ -113,10 +113,11 @@ function navigateTo(page) {
 async function loadPageData(page) {
     switch(page) {
         case 'overview':
-            await loadDashboardStatistics();
+            await loadashboardStatistics();
             break;
         case 'students':
             await loadStudents();
+            await loadIntakeFilter();
             break;
         case 'courses':
             await loadCourses();
@@ -232,6 +233,26 @@ async function loadRecentAnnouncements() {
     }
 }
 
+// Load intake filter options
+function loadIntakeFilter() {
+    const intakeFilter = document.getElementById('intakeFilter');
+    if (!intakeFilter) return;
+    
+    // Generate intake options
+    const currentYear = new Date().getFullYear();
+    const months = ['January', 'May', 'September'];
+    let intakeOptions = '<option value="">All Intakes</option>';
+    for (let year = currentYear - 1; year <= currentYear + 2; year++) {
+        months.forEach(month => {
+            intakeOptions += `<option value="${month} ${year}">${month} ${year}</option>`;
+        });
+    }
+    intakeFilter.innerHTML = intakeOptions;
+    
+    // Add event listener for filter change
+    intakeFilter.addEventListener('change', loadStudents);
+}
+
 // Load students
 async function loadStudents() {
     console.log('[STUDENTS] Request started');
@@ -247,13 +268,16 @@ async function loadStudents() {
     try {
         const studentSearch = document.getElementById('studentSearch');
         const studentFilter = document.getElementById('studentFilter');
+        const intakeFilter = document.getElementById('intakeFilter');
         const search = studentSearch ? studentSearch.value : '';
         const filter = studentFilter ? studentFilter.value : '';
+        const intake = intakeFilter ? intakeFilter.value : '';
         
         let endpoint = '/students';
         const params = [];
         if (search) params.push(`search=${encodeURIComponent(search)}`);
         if (filter) params.push(`status=${filter}`);
+        if (intake) params.push(`intake=${encodeURIComponent(intake)}`);
         if (params.length) endpoint += '?' + params.join('&');
         
         console.log(`[STUDENTS] API Endpoint: GET ${endpoint}`);
@@ -278,6 +302,7 @@ async function loadStudents() {
                 <td>${student.student_number}</td>
                 <td>${student.full_name}</td>
                 <td>${student.course_name || 'Not assigned'}</td>
+                <td>${student.intake || 'N/A'}</td>
                 <td>${student.phone || 'N/A'}</td>
                 <td><span class="status-badge status-${student.status}">${student.status}</span></td>
                 <td>
@@ -664,6 +689,16 @@ if (importExcelBtn) {
 const addStudentBtn = document.getElementById('addStudentBtn');
 if (addStudentBtn) {
     addStudentBtn.addEventListener('click', () => {
+        // Generate intake options
+        const currentYear = new Date().getFullYear();
+        const months = ['January', 'May', 'September'];
+        let intakeOptions = '';
+        for (let year = currentYear - 1; year <= currentYear + 2; year++) {
+            months.forEach(month => {
+                intakeOptions += `<option value="${month} ${year}">${month} ${year}</option>`;
+            });
+        }
+
         showModal(`
             <div class="modal-header">
                 <h3>Add New Student</h3>
@@ -691,6 +726,13 @@ if (addStudentBtn) {
                     <input type="tel" name="phone">
                 </div>
                 <div class="form-group">
+                    <label>Intake *</label>
+                    <select name="intake" required>
+                        <option value="">Select Intake</option>
+                        ${intakeOptions}
+                    </select>
+                </div>
+                <div class="form-group">
                     <label>Course</label>
                     <select name="course_id" id="courseSelect">
                         <option value="">Select Course</option>
@@ -709,6 +751,17 @@ window.editStudent = async function(id) {
     try {
         const student = await apiRequest(`/students/${id}`);
         
+        // Generate intake options
+        const currentYear = new Date().getFullYear();
+        const months = ['January', 'May', 'September'];
+        let intakeOptions = '';
+        for (let year = currentYear - 1; year <= currentYear + 2; year++) {
+            months.forEach(month => {
+                const selected = student.intake === `${month} ${year}` ? 'selected' : '';
+                intakeOptions += `<option value="${month} ${year}" ${selected}>${month} ${year}</option>`;
+            });
+        }
+
         showModal(`
             <div class="modal-header">
                 <h3>Edit Student</h3>
@@ -722,6 +775,13 @@ window.editStudent = async function(id) {
                 <div class="form-group">
                     <label>Phone</label>
                     <input type="tel" name="phone" value="${student.phone || ''}">
+                </div>
+                <div class="form-group">
+                    <label>Intake</label>
+                    <select name="intake">
+                        <option value="">Select Intake</option>
+                        ${intakeOptions}
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>Status</label>

@@ -5,13 +5,13 @@ class User {
     const {
       full_name, email, student_number, password, role, phone, gender,
       national_id, date_of_birth, address, guardian_name, guardian_phone,
-      intake_year, course_id, status
+      intake, intake_year, course_id, status
     } = userData;
 
     const insertData = {
       full_name, email, student_number, password, role, phone, gender,
       national_id, date_of_birth, address, guardian_name, guardian_phone,
-      intake_year, course_id, status
+      intake, intake_year, course_id, status
     };
 
     // Remove undefined values and convert empty strings to null
@@ -110,6 +110,10 @@ class User {
 
     if (filters.course_id) {
       query = query.eq('course_id', filters.course_id);
+    }
+
+    if (filters.intake) {
+      query = query.eq('intake', filters.intake);
     }
 
     if (filters.search) {

@@ -85,6 +85,26 @@ function setLoading(loading) {
     btnLoader.style.display = loading ? 'inline' : 'none';
 }
 
+// Generate intake options (January, May, September for current and next 2 years)
+function generateIntakeOptions() {
+    const currentYear = new Date().getFullYear();
+    const months = ['January', 'May', 'September'];
+    const intakeSelect = document.getElementById('intake');
+    
+    // Generate intakes for previous year, current year, and next 2 years
+    for (let year = currentYear - 1; year <= currentYear + 2; year++) {
+        months.forEach(month => {
+            const option = document.createElement('option');
+            option.value = `${month} ${year}`;
+            option.textContent = `${month} ${year}`;
+            intakeSelect.appendChild(option);
+        });
+    }
+}
+
+// Initialize intake dropdown on page load
+document.addEventListener('DOMContentLoaded', generateIntakeOptions);
+
 // Student registration form handler
 document.getElementById('studentRegisterForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -111,7 +131,7 @@ document.getElementById('studentRegisterForm').addEventListener('submit', async 
         address: formData.get('address'),
         guardian_name: formData.get('guardian_name'),
         guardian_phone: formData.get('guardian_phone'),
-        intake_year: parseInt(formData.get('intake_year')),
+        intake: formData.get('intake'),
         password: password
     };
 

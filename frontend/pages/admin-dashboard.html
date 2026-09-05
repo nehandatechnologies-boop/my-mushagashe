@@ -433,6 +433,9 @@
                                 <option value="active">Active</option>
                                 <option value="suspended">Suspended</option>
                             </select>
+                            <select id="intakeFilter" class="select filter-select">
+                                <option value="">All Intakes</option>
+                            </select>
                         </div>
                         <div class="table-container">
                             <table class="table">
@@ -441,6 +444,7 @@
                                         <th>Student Number</th>
                                         <th>Name</th>
                                         <th>Course</th>
+                                        <th>Intake</th>
                                         <th>Phone</th>
                                         <th>Status</th>
                                         <th>Actions</th>
@@ -448,7 +452,7 @@
                                 </thead>
                                 <tbody id="studentsTableBody">
                                     <tr>
-                                        <td colspan="6" class="text-center">Loading students...</td>
+                                        <td colspan="7" class="text-center">Loading students...</td>
                                     </tr>
                                 </tbody>
                             </table>

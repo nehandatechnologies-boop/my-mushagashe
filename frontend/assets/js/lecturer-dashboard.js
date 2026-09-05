@@ -111,7 +111,10 @@ document.querySelectorAll('.nav-item').forEach(link => {
         document.querySelectorAll('.page-section').forEach(s => s.classList.add('hidden'));
         document.getElementById(`${page}-page`).classList.remove('hidden');
         
-        if (page === 'students') loadStudents();
+        if (page === 'students') {
+            loadStudents();
+            loadIntakeFilter();
+        }
         if (page === 'results') loadResults();
         if (page === 'subjects') loadSubjects();
         if (page === 'profile') loadProfile();
@@ -125,14 +128,51 @@ document.querySelectorAll('.nav-item').forEach(link => {
     });
 });
 
+// Load intake filter options
+function loadIntakeFilter() {
+    const intakeFilter = document.getElementById('intakeFilter');
+    if (!intakeFilter) return;
+    
+    // Generate intake options
+    const currentYear = new Date().getFullYear();
+    const months = ['January', 'May', 'September'];
+    let intakeOptions = '<option value="">All Intakes</option>';
+    for (let year = currentYear - 1; year <= currentYear + 2; year++) {
+        months.forEach(month => {
+            intakeOptions += `<option value="${month} ${year}">${month} ${year}</option>`;
+        });
+    }
+    intakeFilter.innerHTML = intakeOptions;
+    
+    // Add event listener for filter change
+    intakeFilter.addEventListener('change', loadStudents);
+    
+    // Also add event listener for search
+    const studentSearch = document.getElementById('studentSearch');
+    if (studentSearch) {
+        studentSearch.addEventListener('input', loadStudents);
+    }
+}
+
 // Load students in lecturer's course
 async function loadStudents() {
     try {
-        const students = await apiRequest('/students');
+        const studentSearch = document.getElementById('studentSearch');
+        const intakeFilter = document.getElementById('intakeFilter');
+        const search = studentSearch ? studentSearch.value : '';
+        const intake = intakeFilter ? intakeFilter.value : '';
+        
+        let endpoint = '/students';
+        const params = [];
+        if (search) params.push(`search=${encodeURIComponent(search)}`);
+        if (intake) params.push(`intake=${encodeURIComponent(intake)}`);
+        if (params.length) endpoint += '?' + params.join('&');
+        
+        const students = await apiRequest(endpoint);
         const tbody = document.getElementById('students-table-body');
         
         if (students.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4" class="text-center">No students found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center">No students found</td></tr>';
             return;
         }
         
@@ -141,6 +181,7 @@ async function loadStudents() {
                 <td>${student.student_number}</td>
                 <td>${student.full_name}</td>
                 <td>${student.email || 'N/A'}</td>
+                <td>${student.intake || 'N/A'}</td>
                 <td><span class="badge badge-${student.status === 'active' ? 'success' : 'warning'}">${student.status}</span></td>
             </tr>
         `).join('');
