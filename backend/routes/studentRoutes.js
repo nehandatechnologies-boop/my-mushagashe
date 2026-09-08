@@ -55,8 +55,8 @@ const validateStudent = [
   body('email').optional().isEmail().withMessage('Invalid email')
 ];
 
-// Public student registration
-router.post('/register', studentController.registerStudent);
+// Public student registration - REMOVED - Admin only
+// router.post('/register', studentController.registerStudent);
 
 // Create new student (admin only)
 router.post('/', authenticate, adminOnly, validateStudent, studentController.createStudent);

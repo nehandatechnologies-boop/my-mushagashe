@@ -46,8 +46,8 @@ router.post('/lecturer/login', authRateLimiter, validateLogin, authController.le
 // Student login
 router.post('/student/login', authRateLimiter, validateLogin, authController.studentLogin);
 
-// Student registration with Supabase Auth
-router.post('/student/register-supabase', authRateLimiter, studentControllerSupabase.registerStudentSupabase);
+// Student registration with Supabase Auth - REMOVED - Admin only
+// router.post('/student/register-supabase', authRateLimiter, studentControllerSupabase.registerStudentSupabase);
 
 // Lecturer creation with Supabase Auth (admin only)
 router.post('/lecturer/create-supabase', authenticate, adminOnly, studentControllerSupabase.createLecturerSupabase);

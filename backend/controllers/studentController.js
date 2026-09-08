@@ -3,98 +3,15 @@ const User = require('../models/User');
 const Fee = require('../models/Fee');
 const XLSX = require('xlsx');
 const { generateToken, sendVerificationEmail } = require('../config/email');
+const { supabaseAdmin } = require('../config/supabaseAuth');
 
-// Public student registration
-const registerStudent = async (req, res) => {
-  try {
-    const {
-      full_name, email, student_number, password, phone, gender,
-      national_id, date_of_birth, address, guardian_name, guardian_phone,
-      intake_year
-    } = req.body;
+// Public student registration - REMOVED - Admin only
+// const registerStudent = async (req, res) => { ... };
 
-    // Trim whitespace from inputs
-    const trimmedStudentNumber = student_number?.trim();
-    const trimmedEmail = email?.trim();
-    const trimmedPassword = password?.trim();
-
-    // Validation
-    if (!full_name || !trimmedStudentNumber || !trimmedPassword) {
-      return res.status(400).json({ error: 'Full name, student number, and password are required' });
-    }
-
-    if (trimmedPassword.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
-    }
-
-    // Check if student number or email already exists
-    const existingStudent = await User.findByStudentNumber(trimmedStudentNumber);
-    if (existingStudent) {
-      return res.status(400).json({ error: 'Student number already exists' });
-    }
-
-    if (trimmedEmail) {
-      const existingEmail = await User.findByEmail(trimmedEmail);
-      if (existingEmail) {
-        return res.status(400).json({ error: 'Email already exists' });
-      }
-    }
-
-    // Hash password
-    const hashedPassword = bcrypt.hashSync(trimmedPassword, 10);
-
-    // Generate verification token if email provided
-    let verificationToken = null;
-    let verificationTokenExpires = null;
-    let emailVerified = true; // Default to true if no email provided
-
-    if (trimmedEmail) {
-      verificationToken = generateToken();
-      verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-      emailVerified = false;
-    }
-
-    const studentData = {
-      full_name, email: trimmedEmail, student_number: trimmedStudentNumber, 
-      password: hashedPassword, role: 'student',
-      phone, gender, national_id, date_of_birth, address, guardian_name,
-      guardian_phone, intake_year, status: 'active',
-      email_verified: emailVerified,
-      verification_token: verificationToken,
-      verification_token_expires: verificationTokenExpires
-    };
-
-    const result = await User.create(studentData);
-
-    console.log('Student registered successfully:', { id: result.id, student_number: trimmedStudentNumber });
-
-    // Send verification email if email provided
-    if (trimmedEmail && verificationToken) {
-      const emailSent = await sendVerificationEmail(trimmedEmail, verificationToken);
-      if (!emailSent) {
-        console.warn('Verification email could not be sent, but registration succeeded');
-      }
-    }
-
-    res.status(201).json({
-      message: trimmedEmail 
-        ? 'Student registered successfully. Please check your email to verify your account.'
-        : 'Student registered successfully.',
-      id: result.id,
-      student_number: trimmedStudentNumber,
-      requires_verification: !!trimmedEmail
-    });
-  } catch (error) {
-    console.error('Register student error:', error);
-    if (error.message.includes('UNIQUE')) {
-      return res.status(400).json({ error: 'Student number or email already exists' });
-    }
-    res.status(500).json({ error: 'Failed to register student' });
-  }
-};
-
-// Create new student
+// Create new student (admin only) - Modified to use Supabase Admin API
 const createStudent = async (req, res) => {
+  let createdSupabaseUserId = null;
+
   try {
     const {
       full_name, email, student_number, password, phone, gender,
@@ -129,13 +46,50 @@ const createStudent = async (req, res) => {
       }
     }
 
-    // Hash password
-    const hashedPassword = bcrypt.hashSync(trimmedPassword, 10);
+    // Check if Supabase Admin is available
+    if (!supabaseAdmin) {
+      return res.status(500).json({ error: 'Admin operations not available. Service role key not configured.' });
+    }
 
+    // Create Supabase Auth user using admin API (bypasses email confirmation)
+    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      email: trimmedEmail || `${trimmedStudentNumber}@mushagashe.local`,
+      password: trimmedPassword,
+      email_confirm: true, // Auto-confirm for admin-created users
+      user_metadata: {
+        full_name: full_name,
+        student_number: trimmedStudentNumber,
+        role: 'student'
+      }
+    });
+
+    if (authError) {
+      console.error('Supabase admin auth error:', authError);
+      return res.status(400).json({ error: authError.message || 'Failed to create authentication account' });
+    }
+
+    createdSupabaseUserId = authData.user.id;
+    console.log('Supabase Auth user created successfully, ID:', createdSupabaseUserId);
+
+    // Create custom users table entry with profile data
     const studentData = {
-      full_name, email: trimmedEmail, student_number: trimmedStudentNumber, password: hashedPassword, role: 'student',
-      phone, gender, national_id, date_of_birth, address, guardian_name,
-      guardian_phone, intake_year, course_id, status: 'active'
+      full_name,
+      email: trimmedEmail,
+      student_number: trimmedStudentNumber,
+      password: null, // Password managed by Supabase Auth
+      role: 'student',
+      phone,
+      gender,
+      national_id,
+      date_of_birth,
+      address,
+      guardian_name,
+      guardian_phone,
+      intake_year,
+      course_id,
+      status: 'active', // Admin-created accounts are active
+      auth_type: 'supabase',
+      supabase_user_id: createdSupabaseUserId
     };
 
     const result = await User.create(studentData);
@@ -148,6 +102,18 @@ const createStudent = async (req, res) => {
     });
   } catch (error) {
     console.error('Create student error:', error);
+    
+    // ROLLBACK: Delete Supabase Auth user if database profile creation failed
+    if (createdSupabaseUserId && supabaseAdmin) {
+      try {
+        console.log('Rolling back: Deleting Supabase Auth user:', createdSupabaseUserId);
+        await supabaseAdmin.auth.admin.deleteUser(createdSupabaseUserId);
+        console.log('Rollback successful: Supabase Auth user deleted');
+      } catch (rollbackError) {
+        console.error('Rollback failed: Could not delete Supabase Auth user:', rollbackError);
+      }
+    }
+
     if (error.message.includes('UNIQUE') || error.code === '23505') {
       return res.status(400).json({ error: 'Student number or email already exists' });
     }
