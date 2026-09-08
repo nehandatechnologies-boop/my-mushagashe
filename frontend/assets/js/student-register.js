@@ -144,21 +144,12 @@ document.getElementById('studentRegisterForm').addEventListener('submit', async 
             body: JSON.stringify(registerData)
         });
 
-        if (response.requires_verification) {
-            showSuccess('Registration successful! Please check your email to verify your account before logging in.');
-            
-            // Redirect to login after 3 seconds
-            setTimeout(() => {
-                window.location.href = 'student-login.html';
-            }, 3000);
-        } else {
-            showSuccess('Account created successfully! Redirecting to login...');
-            
-            // Redirect to login after 2 seconds
-            setTimeout(() => {
-                window.location.href = 'student-login.html';
-            }, 2000);
-        }
+        showSuccess('Registration submitted successfully! Your account is awaiting administrator approval. Once approved, you will be able to log in.');
+        
+        // Redirect to login after 3 seconds
+        setTimeout(() => {
+            window.location.href = 'student-login.html';
+        }, 3000);
     } catch (error) {
         showError(error.message || 'Registration failed. Please try again.');
     } finally {

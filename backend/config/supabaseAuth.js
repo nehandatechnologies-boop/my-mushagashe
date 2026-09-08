@@ -1,8 +1,17 @@
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.SUPABASE_URL || 'https://krenyvbcwtbwcsrpiryf.supabase.co';
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtyZW55dmJjd3Rid2NzcnBpcnlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2NDYxMDgsImV4cCI6MjEwMTIyMjEwOH0.ePaoY-bRwmRFo2Rd2eA_XY_EllShPtC178eyUXnUl-I';
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+// Validate required environment variables
+if (!supabaseUrl) {
+  throw new Error('SUPABASE_URL environment variable is required');
+}
+
+if (!supabaseAnonKey) {
+  throw new Error('SUPABASE_ANON_KEY environment variable is required');
+}
 
 // Regular Supabase client for database operations (uses anon key)
 const supabase = createClient(supabaseUrl, supabaseAnonKey, {
@@ -16,6 +25,9 @@ const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     }
   }
 });
+
+console.log('[Supabase] Client initialized with URL:', supabaseUrl);
+console.log('[Supabase] Anon key present:', !!supabaseAnonKey);
 
 // Supabase Auth client with service role key for admin operations
 // This allows bypassing email confirmation and creating users programmatically

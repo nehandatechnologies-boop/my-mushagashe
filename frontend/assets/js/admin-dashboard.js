@@ -113,7 +113,7 @@ function navigateTo(page) {
 async function loadPageData(page) {
     switch(page) {
         case 'overview':
-            await loadashboardStatistics();
+            await loadDashboardStatistics();
             break;
         case 'students':
             await loadStudents();
@@ -138,6 +138,10 @@ async function loadPageData(page) {
         case 'announcements':
             await loadAnnouncements();
             break;
+        case 'approvals':
+            await loadApprovals();
+            await updatePendingBadge();
+            break;
         case 'settings':
             await loadTemplateInfo();
             break;
@@ -157,6 +161,7 @@ async function loadDashboardStatistics() {
         console.log('STEP 5: beginning statistics rendering');
         
         document.getElementById('totalStudents').textContent = stats.students.total || 0;
+        await updatePendingBadge();
         document.getElementById('totalCourses').textContent = stats.courses.total || 0;
         document.getElementById('revenueCollected').textContent = `$${(stats.fees.total_collected || 0).toFixed(2)}`;
         document.getElementById('pendingFees').textContent = stats.fees.unpaid || 0;
@@ -2744,8 +2749,255 @@ function toggleTheme() {
 function updateThemeToggle(theme) {
     const themeToggle = document.getElementById('themeToggle');
     if (themeToggle) {
-        themeToggle.textContent = theme === 'light' ? '🌙' : '☀️';
-        themeToggle.addEventListener('click', toggleTheme);
+        themeToggle.innerHTML = theme === 'light' ? '<span>🌙</span>' : '<span>☀️</span>';
     }
 }
 
+// Approval System Functions
+
+// Load pending accounts for approval
+async function loadApprovals() {
+    try {
+        const statusFilter = document.getElementById('approvalStatusFilter')?.value || 'pending';
+        const roleFilter = document.getElementById('approvalRoleFilter')?.value || '';
+        const searchQuery = document.getElementById('approvalSearchInput')?.value || '';
+
+        let endpoint = '/auth/admin/accounts';
+        const params = new URLSearchParams();
+        
+        if (statusFilter && statusFilter !== 'all') {
+            params.append('status', statusFilter);
+        }
+        if (roleFilter) {
+            params.append('role', roleFilter);
+        }
+        if (searchQuery) {
+            params.append('search', searchQuery);
+        }
+
+        if (params.toString()) {
+            endpoint += `?${params.toString()}`;
+        }
+
+        const response = await apiRequest(endpoint);
+        renderApprovalsTable(response.accounts || []);
+    } catch (error) {
+        console.error('Failed to load approvals:', error);
+        document.getElementById('approvalsTable').innerHTML = `
+            <div class="error-state">
+                <p>Failed to load accounts. Please try again.</p>
+            </div>
+        `;
+    }
+}
+
+// Update pending badge count
+async function updatePendingBadge() {
+    try {
+        const response = await apiRequest('/auth/admin/pending-accounts?role=student');
+        const studentCount = response.count || 0;
+        
+        const lecturerResponse = await apiRequest('/auth/admin/pending-accounts?role=lecturer');
+        const lecturerCount = lecturerResponse.count || 0;
+        
+        const totalPending = studentCount + lecturerCount;
+        
+        const badge = document.getElementById('pendingBadge');
+        if (badge) {
+            if (totalPending > 0) {
+                badge.textContent = totalPending;
+                badge.style.display = 'inline';
+            } else {
+                badge.style.display = 'none';
+            }
+        }
+    } catch (error) {
+        console.error('Failed to update pending badge:', error);
+    }
+}
+
+// Render approvals table
+function renderApprovalsTable(accounts) {
+    const tableContainer = document.getElementById('approvalsTable');
+    
+    if (!accounts || accounts.length === 0) {
+        tableContainer.innerHTML = `
+            <div class="empty-state">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                </svg>
+                <p class="empty-state-title">No accounts found</p>
+                <p class="empty-state-description">No accounts match the current filter criteria.</p>
+            </div>
+        `;
+        return;
+    }
+
+    const tableHTML = `
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>${accounts[0].role === 'student' ? 'Student Number' : 'Email'}</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Intake</th>
+                    <th>Registration Date</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${accounts.map(account => `
+                    <tr>
+                        <td>
+                            <div class="user-cell">
+                                <div class="user-avatar">${account.full_name.charAt(0).toUpperCase()}</div>
+                                <div>
+                                    <div class="user-name">${account.full_name}</div>
+                                    <div class="user-email">${account.email || 'No email'}</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td>${account.student_number || account.email || '-'}</td>
+                        <td><span class="badge badge-${account.role}">${account.role}</span></td>
+                        <td><span class="status-badge status-${account.status}">${account.status}</span></td>
+                        <td>${account.intake || '-'}</td>
+                        <td>${new Date(account.created_at).toLocaleDateString()}</td>
+                        <td>
+                            <div class="action-buttons">
+                                ${account.status === 'pending' ? `
+                                    <button onclick="approveAccount(${account.id})" class="btn btn-sm btn-success" title="Approve">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="20 6 9 17 4 12"></polyline>
+                                        </svg>
+                                    </button>
+                                    <button onclick="rejectAccount(${account.id})" class="btn btn-sm btn-danger" title="Reject">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                                        </svg>
+                                    </button>
+                                ` : ''}
+                                ${account.status === 'active' ? `
+                                    <button onclick="suspendAccount(${account.id})" class="btn btn-sm btn-warning" title="Suspend">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="12" cy="12" r="10"></circle>
+                                            <line x1="4" y1="12" x2="20" y2="12"></line>
+                                        </svg>
+                                    </button>
+                                ` : ''}
+                                ${account.status === 'suspended' ? `
+                                    <button onclick="reactivateAccount(${account.id})" class="btn btn-sm btn-success" title="Reactivate">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="20 6 9 17 4 12"></polyline>
+                                        </svg>
+                                    </button>
+                                ` : ''}
+                            </div>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+    `;
+
+    tableContainer.innerHTML = tableHTML;
+}
+
+// Approve account
+async function approveAccount(accountId) {
+    if (!confirm('Are you sure you want to approve this account?')) return;
+
+    try {
+        await apiRequest(`/auth/admin/accounts/${accountId}/approve`, {
+            method: 'POST',
+            body: JSON.stringify({ reason: 'Account approved by administrator' })
+        });
+
+        showToast('Account approved successfully');
+        await loadApprovals();
+        await updatePendingBadge();
+    } catch (error) {
+        showToast(error.message || 'Failed to approve account', 'error');
+    }
+}
+
+// Reject account
+async function rejectAccount(accountId) {
+    const reason = prompt('Please provide a reason for rejection (optional):');
+    
+    try {
+        await apiRequest(`/auth/admin/accounts/${accountId}/reject`, {
+            method: 'POST',
+            body: JSON.stringify({ reason: reason || 'Account rejected by administrator' })
+        });
+
+        showToast('Account rejected successfully');
+        await loadApprovals();
+        await updatePendingBadge();
+    } catch (error) {
+        showToast(error.message || 'Failed to reject account', 'error');
+    }
+}
+
+// Suspend account
+async function suspendAccount(accountId) {
+    const reason = prompt('Please provide a reason for suspension (optional):');
+    
+    try {
+        await apiRequest(`/auth/admin/accounts/${accountId}/suspend`, {
+            method: 'POST',
+            body: JSON.stringify({ reason: reason || 'Account suspended by administrator' })
+        });
+
+        showToast('Account suspended successfully');
+        await loadApprovals();
+    } catch (error) {
+        showToast(error.message || 'Failed to suspend account', 'error');
+    }
+}
+
+// Reactivate account
+async function reactivateAccount(accountId) {
+    if (!confirm('Are you sure you want to reactivate this account?')) return;
+
+    try {
+        await apiRequest(`/auth/admin/accounts/${accountId}/reactivate`, {
+            method: 'POST',
+            body: JSON.stringify({ reason: 'Account reactivated by administrator' })
+        });
+
+        showToast('Account reactivated successfully');
+        await loadApprovals();
+    } catch (error) {
+        showToast(error.message || 'Failed to reactivate account', 'error');
+    }
+}
+
+// Setup approval filters
+function setupApprovalFilters() {
+    const statusFilter = document.getElementById('approvalStatusFilter');
+    const roleFilter = document.getElementById('approvalRoleFilter');
+    const searchInput = document.getElementById('approvalSearchInput');
+
+    if (statusFilter) {
+        statusFilter.addEventListener('change', loadApprovals);
+    }
+    if (roleFilter) {
+        roleFilter.addEventListener('change', loadApprovals);
+    }
+    if (searchInput) {
+        let debounceTimer;
+        searchInput.addEventListener('input', () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(loadApprovals, 300);
+        });
+    }
+}
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
+    setupApprovalFilters();
+    updatePendingBadge();
+});

@@ -52,8 +52,10 @@ const registerStudentSupabase = async (req, res) => {
       }
     }
 
-    // Create Supabase Auth user
-    console.log('[Student Registration] Creating Supabase Auth user');
+    // Create Supabase Auth user WITHOUT email confirmation
+    console.log('[Student Registration] Creating Supabase Auth user (no email confirmation required)');
+    console.log('[Student Registration] Email provided:', !!email);
+    
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: email || `${student_number}@mushagashe.local`,
       password: password,
@@ -67,8 +69,13 @@ const registerStudentSupabase = async (req, res) => {
     });
 
     if (authError) {
-      console.error('[Student Registration] Supabase auth error:', authError);
-      return res.status(400).json({ error: authError.message });
+      console.error('[Student Registration] Supabase auth error type:', authError.name);
+      console.error('[Student Registration] Supabase auth error message:', authError.message);
+      console.error('[Student Registration] Supabase auth error status:', authError.status);
+      if (authError.name === 'AuthRetryableFetchError') {
+        console.error('[Student Registration] AuthRetryableFetchError - likely network or credential issue');
+      }
+      return res.status(400).json({ error: authError.message || 'Failed to create account. Please try again.' });
     }
 
     console.log('[Student Registration] Supabase Auth user created successfully, ID:', authData.user.id);
@@ -90,7 +97,7 @@ const registerStudentSupabase = async (req, res) => {
       intake: intake || null,
       intake_year: intake ? extractYearFromIntake(intake) : null, // Keep for backward compatibility
       course_id,
-      status: 'active'
+      status: 'pending' // NEW: Accounts start as pending, require admin approval
     };
 
     // Conditionally add auth_type fields only if they exist in the database
@@ -120,9 +127,8 @@ const registerStudentSupabase = async (req, res) => {
     console.log('[Student Registration] User profile created successfully, ID:', profile.id);
 
     res.status(201).json({
-      message: 'Registration successful. Please check your email to verify your account.',
-      requires_verification: true,
-      email: email || null,
+      message: 'Registration submitted successfully! Your account is awaiting administrator approval. Once approved, you will be able to log in.',
+      requires_approval: true,
       user_id: profile.id
     });
   } catch (error) {
@@ -194,10 +200,9 @@ const createLecturerSupabase = async (req, res) => {
       phone,
       gender,
       course_id,
-      status: 'active',
+      status: 'pending', // NEW: Accounts start as pending, require admin approval
       auth_type: 'supabase',
-      supabase_user_id: authData.user.id,
-      email_verified: true // Admin-created users are auto-verified
+      supabase_user_id: authData.user.id
     };
 
     const profile = await User.create(userData);

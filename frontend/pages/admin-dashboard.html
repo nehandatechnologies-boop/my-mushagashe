@@ -191,6 +191,14 @@
 
                 <div class="nav-section">
                     <div class="nav-section-title">Operations</div>
+                    <a href="#" class="nav-item" data-page="approvals">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M9 11l3 3L22 4"></path>
+                            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"></path>
+                        </svg>
+                        <span>Account Approvals</span>
+                        <span class="badge" id="pendingBadge" style="display: none;">0</span>
+                    </a>
                     <a href="#" class="nav-item" data-page="fees">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                             <line x1="12" y1="1" x2="12" y2="23"></line>
@@ -704,6 +712,38 @@
                     <div class="dashboard-card">
                         <div id="allAnnouncements" class="announcements-list">
                             <div class="loading-state">Loading announcements...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Account Approvals Page -->
+                <div id="approvals-page" class="page-section hidden">
+                    <div class="page-header">
+                        <h1>Account Approvals</h1>
+                        <p>Review and approve pending student and lecturer registrations</p>
+                    </div>
+
+                    <div class="table-controls">
+                        <div class="filter-group">
+                            <select id="approvalStatusFilter" class="select filter-select">
+                                <option value="pending">Pending</option>
+                                <option value="all">All</option>
+                                <option value="active">Active</option>
+                                <option value="rejected">Rejected</option>
+                                <option value="suspended">Suspended</option>
+                            </select>
+                            <select id="approvalRoleFilter" class="select filter-select">
+                                <option value="">All Roles</option>
+                                <option value="student">Students</option>
+                                <option value="lecturer">Lecturers</option>
+                            </select>
+                            <input type="text" id="approvalSearchInput" class="input search-input" placeholder="Search by name, email, or student number...">
+                        </div>
+                    </div>
+
+                    <div class="dashboard-card">
+                        <div id="approvalsTable" class="table-wrapper">
+                            <div class="loading-state">Loading accounts...</div>
                         </div>
                     </div>
                 </div>

@@ -456,23 +456,6 @@
     <script src="../assets/js/student-register.js"></script>
     <script>
         document.getElementById('current-year').textContent = new Date().getFullYear();
-
-        document.getElementById('studentRegisterForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            const btn = document.getElementById('registerBtn');
-            const btnText = btn.querySelector('.btn-text');
-            const errorDiv = document.getElementById('error-message');
-            const successDiv = document.getElementById('success-message');
-            
-            btn.classList.add('btn-loading');
-            btnText.textContent = 'Creating Account...';
-            errorDiv.classList.remove('show');
-            successDiv.classList.remove('show');
-            
-            // Form submission is handled by student-register.js
-            // This just adds loading state
-        });
     </script>
 </body>
 </html>

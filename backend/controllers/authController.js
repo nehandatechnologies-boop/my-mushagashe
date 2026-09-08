@@ -77,6 +77,25 @@ const lecturerLogin = async (req, res) => {
       return res.status(403).json({ error: 'Lecturer access required' });
     }
 
+    // Check account status - NEW: Admin approval system
+    if (user.status === 'pending') {
+      return res.status(403).json({ 
+        error: 'Your account is awaiting administrator approval. Please contact Mushagashe administration if you require assistance.',
+        code: 'ACCOUNT_PENDING_APPROVAL'
+      });
+    }
+
+    if (user.status === 'rejected') {
+      return res.status(403).json({ 
+        error: 'Your account registration has been rejected. Please contact Mushagashe administration.',
+        code: 'ACCOUNT_REJECTED'
+      });
+    }
+
+    if (user.status === 'suspended') {
+      return res.status(403).json({ error: 'Account is suspended' });
+    }
+
     if (user.status !== 'active') {
       return res.status(403).json({ error: 'Account is not active' });
     }
@@ -90,16 +109,7 @@ const lecturerLogin = async (req, res) => {
         });
 
         if (!authError && authData.user) {
-          // Check email confirmation
-          if (!authData.user.email_confirmed_at) {
-            return res.status(403).json({ 
-              error: 'Your email address has not been verified yet. Please check your email and click the verification link.',
-              requires_verification: true,
-              email: trimmedEmail
-            });
-          }
-
-          // Supabase Auth successful
+          // Supabase Auth successful - email confirmation no longer required
           const { password: _, ...userWithoutPassword } = user;
           
           return res.json({
@@ -115,13 +125,7 @@ const lecturerLogin = async (req, res) => {
     }
 
     // Fall back to custom JWT for users with auth_type 'custom'
-    if (user.email && !user.email_verified && user.auth_type !== 'supabase') {
-      return res.status(403).json({ 
-        error: 'Your email address has not been verified yet. Please check your email and click the verification link.',
-        requires_verification: true,
-        email: trimmedEmail
-      });
-    }
+    // Email verification check REMOVED - no longer required
 
     // Verify password with bcrypt
     const isPasswordValid = bcrypt.compareSync(trimmedPassword, user.password);
@@ -172,6 +176,25 @@ const studentLogin = async (req, res) => {
       return res.status(403).json({ error: 'Student access required' });
     }
 
+    // Check account status - NEW: Admin approval system
+    if (user.status === 'pending') {
+      return res.status(403).json({ 
+        error: 'Your account is awaiting administrator approval. Please contact Mushagashe administration if you require assistance.',
+        code: 'ACCOUNT_PENDING_APPROVAL'
+      });
+    }
+
+    if (user.status === 'rejected') {
+      return res.status(403).json({ 
+        error: 'Your account registration has been rejected. Please contact Mushagashe administration.',
+        code: 'ACCOUNT_REJECTED'
+      });
+    }
+
+    if (user.status === 'suspended') {
+      return res.status(403).json({ error: 'Account is suspended' });
+    }
+
     if (user.status !== 'active') {
       return res.status(403).json({ error: 'Account is not active' });
     }
@@ -185,16 +208,7 @@ const studentLogin = async (req, res) => {
         });
 
         if (!authError && authData.user) {
-          // Check email confirmation
-          if (!authData.user.email_confirmed_at) {
-            return res.status(403).json({ 
-              error: 'Your email address has not been verified yet. Please check your email and click the verification link.',
-              requires_verification: true,
-              email: user.email
-            });
-          }
-
-          // Supabase Auth successful
+          // Supabase Auth successful - email confirmation no longer required
           const { password: _, ...userWithoutPassword } = user;
           
           return res.json({
@@ -210,13 +224,7 @@ const studentLogin = async (req, res) => {
     }
 
     // Fall back to custom JWT for users without email or if Supabase Auth failed
-    if (user.email && !user.email_verified && user.auth_type !== 'supabase') {
-      return res.status(403).json({ 
-        error: 'Your email address has not been verified yet. Please check your email and click the verification link.',
-        requires_verification: true,
-        email: user.email
-      });
-    }
+    // Email verification check REMOVED - no longer required
 
     // Verify password with bcrypt
     const isPasswordValid = bcrypt.compareSync(trimmedPassword, user.password);
@@ -369,99 +377,31 @@ const changePassword = async (req, res) => {
   }
 };
 
-// Request password reset (student)
+// Request password reset (student) - DISABLED - Admin only
 const requestStudentPasswordReset = async (req, res) => {
   try {
-    const { student_number } = req.body;
-
-    if (!student_number) {
-      return res.status(400).json({ error: 'Student number is required' });
-    }
-
-    const trimmedStudentNumber = student_number.trim();
-
-    // Find student by student number
-    const user = await User.findByStudentNumber(trimmedStudentNumber);
-    
-    if (!user) {
-      return res.status(404).json({ error: 'Student not found' });
-    }
-
-    if (user.role !== 'student') {
-      return res.status(400).json({ error: 'User is not a student' });
-    }
-
-    if (user.status !== 'active') {
-      return res.status(403).json({ error: 'Account is not active. Please contact administration.' });
-    }
-
-    // Generate temporary password
-    const temporaryPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4);
-    
-    // Hash temporary password
-    const hashedPassword = bcrypt.hashSync(temporaryPassword, 10);
-
-    // Update password
-    await User.update(user.id, { password: hashedPassword });
-
-    // NOTE: In production with email infrastructure, send this temporary password via email
-    // For now, return it in the response (not ideal but functional without email)
-    res.json({
-      message: 'Password reset successful',
-      temporary_password: temporaryPassword,
-      note: 'Please change your password after logging in. In production, this would be sent via email.'
+    // Password reset is now admin-only. Direct user reset has been disabled.
+    return res.status(403).json({ 
+      error: 'Password reset has been disabled for security. Please contact Mushagashe administration to reset your password.',
+      code: 'PASSWORD_RESET_DISABLED'
     });
   } catch (error) {
-    console.error('Student password reset error:', error);
-    res.status(500).json({ error: 'Failed to reset password' });
+    console.error('Request student password reset error:', error);
+    res.status(500).json({ error: 'Failed to process password reset request' });
   }
 };
 
-// Request password reset (lecturer)
+// Request password reset (lecturer) - DISABLED - Admin only
 const requestLecturerPasswordReset = async (req, res) => {
   try {
-    const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
-    }
-
-    const trimmedEmail = email.trim();
-
-    // Find lecturer by email
-    const user = await User.findByEmail(trimmedEmail);
-    
-    if (!user) {
-      return res.status(404).json({ error: 'Lecturer not found' });
-    }
-
-    if (user.role !== 'lecturer' && user.role !== 'instructor') {
-      return res.status(400).json({ error: 'User is not a lecturer' });
-    }
-
-    if (user.status !== 'active') {
-      return res.status(403).json({ error: 'Account is not active. Please contact administration.' });
-    }
-
-    // Generate temporary password
-    const temporaryPassword = Math.random().toString(36).slice(-8) + Math.random().toString(36).slice(-4);
-    
-    // Hash temporary password
-    const hashedPassword = bcrypt.hashSync(temporaryPassword, 10);
-
-    // Update password
-    await User.update(user.id, { password: hashedPassword });
-
-    // NOTE: In production with email infrastructure, send this temporary password via email
-    // For now, return it in the response (not ideal but functional without email)
-    res.json({
-      message: 'Password reset successful',
-      temporary_password: temporaryPassword,
-      note: 'Please change your password after logging in. In production, this would be sent via email.'
+    // Password reset is now admin-only. Direct user reset has been disabled.
+    return res.status(403).json({ 
+      error: 'Password reset has been disabled for security. Please contact Mushagashe administration to reset your password.',
+      code: 'PASSWORD_RESET_DISABLED'
     });
   } catch (error) {
-    console.error('Lecturer password reset error:', error);
-    res.status(500).json({ error: 'Failed to reset password' });
+    console.error('Request lecturer password reset error:', error);
+    res.status(500).json({ error: 'Failed to process password reset request' });
   }
 };
 
@@ -548,48 +488,17 @@ const resendVerificationEmail = async (req, res) => {
   }
 };
 
-// Request password reset (generic)
+// Request password reset (generic) - DISABLED - Admin only
 const requestPasswordReset = async (req, res) => {
   try {
-    const { email } = req.body;
-
-    if (!email) {
-      return res.status(400).json({ error: 'Email is required' });
-    }
-
-    const trimmedEmail = email.trim();
-
-    // Find user by email (don't reveal if email exists or not)
-    const user = await User.findByEmail(trimmedEmail);
-    
-    if (!user) {
-      // Return generic message for security
-      return res.json({ message: 'If an account exists for that email address, a password reset link has been sent.' });
-    }
-
-    if (user.status !== 'active') {
-      return res.json({ message: 'If an account exists for that email address, a password reset link has been sent.' });
-    }
-
-    // Generate reset token
-    const resetToken = generateEmailToken();
-    const resetTokenExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
-
-    // Update user with reset token
-    await User.update(user.id, {
-      reset_password_token: resetToken,
-      reset_password_expires: resetTokenExpires
+    // Password reset is now admin-only. Direct user reset has been disabled.
+    return res.status(403).json({ 
+      error: 'Password reset has been disabled for security. Please contact Mushagashe administration to reset your password.',
+      code: 'PASSWORD_RESET_DISABLED'
     });
-
-    // Send password reset email
-    await sendPasswordResetEmail(trimmedEmail, resetToken);
-
-    // Always return generic message for security
-    res.json({ message: 'If an account exists for that email address, a password reset link has been sent.' });
   } catch (error) {
     console.error('Request password reset error:', error);
-    // Still return generic message for security
-    res.json({ message: 'If an account exists for that email address, a password reset link has been sent.' });
+    res.status(500).json({ error: 'Failed to process password reset request' });
   }
 };
 

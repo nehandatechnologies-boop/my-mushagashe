@@ -4,6 +4,7 @@ const { body } = require('express-validator');
 const authController = require('../controllers/authController');
 const studentController = require('../controllers/studentController');
 const studentControllerSupabase = require('../controllers/studentControllerSupabase');
+const approvalController = require('../controllers/approvalController');
 const { authenticate, adminOnly } = require('../middleware/auth');
 const { authRateLimiter } = require('../middleware/security');
 const multer = require('multer');
@@ -75,16 +76,18 @@ router.post('/profile-picture', authenticate, profilePictureUpload.single('profi
 // Delete own profile picture (authenticated)
 router.delete('/profile-picture', authenticate, studentController.deleteProfilePicture);
 
-// Email verification
-router.get('/verify-email', authController.verifyEmail);
-
-// Resend verification email (authenticated)
-router.post('/resend-verification', authenticate, authRateLimiter, authController.resendVerificationEmail);
-
 // Request password reset (generic)
 router.post('/forgot-password', authRateLimiter, authController.requestPasswordReset);
 
 // Reset password with token
 router.post('/reset-password', authController.resetPassword);
+
+// Admin approval routes (admin only)
+router.get('/admin/pending-accounts', authenticate, adminOnly, approvalController.getPendingAccounts);
+router.get('/admin/accounts', authenticate, adminOnly, approvalController.getAllAccounts);
+router.post('/admin/accounts/:id/approve', authenticate, adminOnly, approvalController.approveAccount);
+router.post('/admin/accounts/:id/reject', authenticate, adminOnly, approvalController.rejectAccount);
+router.post('/admin/accounts/:id/suspend', authenticate, adminOnly, approvalController.suspendAccount);
+router.post('/admin/accounts/:id/reactivate', authenticate, adminOnly, approvalController.reactivateAccount);
 
 module.exports = router;
