@@ -24,7 +24,7 @@ const securityHeaders = helmet({
 // Rate limiting configuration
 const rateLimiter = rateLimit({
   windowMs: (parseInt(process.env.RATE_LIMIT_WINDOW) || 15) * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX) || 100, // limit each IP to 100 requests per windowMs
+  max: parseInt(process.env.RATE_LIMIT_MAX) || 10000, // limit each IP to 1000 requests per windowMs (increased for development)
   message: {
     error: 'Too many requests from this IP, please try again later.'
   },
@@ -35,7 +35,7 @@ const rateLimiter = rateLimit({
 // Stricter rate limiting for authentication routes (per-IP and per-identifier)
 const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // limit each IP + identifier to 5 login attempts per windowMs
+  max: 100, // limit each IP + identifier to 20 login attempts per windowMs (increased for development)
   message: {
     error: 'Too many login attempts for this account, please try again later.'
   },
