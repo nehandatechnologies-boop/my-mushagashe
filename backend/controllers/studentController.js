@@ -788,7 +788,7 @@ const deleteProfilePicture = async (req, res) => {
 };
 
 module.exports = {
-  registerStudent,
+  // registerStudent - REMOVED - Admin only
   createStudent,
   getAllStudents,
   getStudentById,
