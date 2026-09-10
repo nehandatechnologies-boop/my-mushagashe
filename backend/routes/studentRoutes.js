@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const studentController = require('../controllers/studentController');
 const { authenticate, adminOnly, lecturerOnly } = require('../middleware/auth');
+const { requirePermission } = require('../middleware/rbac');
 
 // Ensure uploads/students directory exists
 const uploadDir = path.join(__dirname, '../../uploads/students');
@@ -58,51 +59,51 @@ const validateStudent = [
 // Public student registration - REMOVED - Admin only
 // router.post('/register', studentController.registerStudent);
 
-// Create new student (admin only)
-router.post('/', authenticate, adminOnly, validateStudent, studentController.createStudent);
+// Create new student - requires students.create permission
+router.post('/', authenticate, requirePermission('students.create'), validateStudent, studentController.createStudent);
 
-// Get all students (admin or lecturer - controller handles role-based filtering)
-router.get('/', authenticate, studentController.getAllStudents);
+// Get all students - requires students.view permission
+router.get('/', authenticate, requirePermission('students.view'), studentController.getAllStudents);
 
-// Lecturer management routes (admin only)
-router.post('/lecturers', authenticate, adminOnly, studentController.createLecturer);
-router.get('/lecturers', authenticate, adminOnly, studentController.getAllLecturers);
-router.get('/lecturers/:id', authenticate, adminOnly, studentController.getLecturerById);
-router.put('/lecturers/:id', authenticate, adminOnly, studentController.updateLecturer);
-router.delete('/lecturers/:id', authenticate, adminOnly, studentController.deleteLecturer);
-router.put('/lecturers/:id/reset-password', authenticate, adminOnly, studentController.resetLecturerPassword);
+// Lecturer management routes - require lecturers.create/edit/delete permissions
+router.post('/lecturers', authenticate, requirePermission('lecturers.create'), studentController.createLecturer);
+router.get('/lecturers', authenticate, requirePermission('lecturers.view'), studentController.getAllLecturers);
+router.get('/lecturers/:id', authenticate, requirePermission('lecturers.view'), studentController.getLecturerById);
+router.put('/lecturers/:id', authenticate, requirePermission('lecturers.edit'), studentController.updateLecturer);
+router.delete('/lecturers/:id', authenticate, requirePermission('lecturers.delete'), studentController.deleteLecturer);
+router.put('/lecturers/:id/reset-password', authenticate, requirePermission('lecturers.edit'), studentController.resetLecturerPassword);
 
-// Get student by ID (admin only)
-router.get('/:id', authenticate, adminOnly, studentController.getStudentById);
+// Get student by ID - requires students.view permission
+router.get('/:id', authenticate, requirePermission('students.view'), studentController.getStudentById);
 
-// Update student (admin only)
-router.put('/:id', authenticate, adminOnly, studentController.updateStudent);
+// Update student - requires students.edit permission
+router.put('/:id', authenticate, requirePermission('students.edit'), studentController.updateStudent);
 
-// Delete student (admin only)
-router.delete('/:id', authenticate, adminOnly, studentController.deleteStudent);
+// Delete student - requires students.delete permission
+router.delete('/:id', authenticate, requirePermission('students.delete'), studentController.deleteStudent);
 
-// Suspend student (admin only)
-router.put('/:id/suspend', authenticate, adminOnly, studentController.suspendStudent);
+// Suspend student - requires students.suspend permission
+router.put('/:id/suspend', authenticate, requirePermission('students.suspend'), studentController.suspendStudent);
 
-// Activate student (admin only)
-router.put('/:id/activate', authenticate, adminOnly, studentController.activateStudent);
+// Activate student - requires students.edit permission
+router.put('/:id/activate', authenticate, requirePermission('students.edit'), studentController.activateStudent);
 
-// Reset student password (admin only)
-router.put('/:id/reset-password', authenticate, adminOnly, studentController.resetPassword);
+// Reset student password - requires students.edit permission
+router.put('/:id/reset-password', authenticate, requirePermission('students.edit'), studentController.resetPassword);
 
-// Assign course to student (admin only)
-router.put('/:id/assign-course', authenticate, adminOnly, studentController.assignCourse);
+// Assign course to student - requires students.edit permission
+router.put('/:id/assign-course', authenticate, requirePermission('students.edit'), studentController.assignCourse);
 
-// Get student statistics (admin only)
-router.get('/stats/overview', authenticate, adminOnly, studentController.getStudentStatistics);
+// Get student statistics - requires students.view permission
+router.get('/stats/overview', authenticate, requirePermission('students.view'), studentController.getStudentStatistics);
 
-// Import students from Excel (admin only)
-router.post('/import/excel', authenticate, adminOnly, excelUpload.single('file'), studentController.importStudentsFromExcel);
+// Import students from Excel - requires students.create permission
+router.post('/import/excel', authenticate, requirePermission('students.create'), excelUpload.single('file'), studentController.importStudentsFromExcel);
 
-// Upload profile picture (admin only)
-router.post('/:id/profile-picture', authenticate, adminOnly, profilePictureUpload.single('profilePicture'), studentController.uploadProfilePicture);
+// Upload profile picture - requires students.edit permission
+router.post('/:id/profile-picture', authenticate, requirePermission('students.edit'), profilePictureUpload.single('profilePicture'), studentController.uploadProfilePicture);
 
-// Delete profile picture (admin only)
-router.delete('/:id/profile-picture', authenticate, adminOnly, studentController.deleteProfilePicture);
+// Delete profile picture - requires students.edit permission
+router.delete('/:id/profile-picture', authenticate, requirePermission('students.edit'), studentController.deleteProfilePicture);
 
 module.exports = router;

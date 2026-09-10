@@ -11,11 +11,22 @@ class Permission {
     return data;
   }
 
-  static async findByRole(role) {
+  static async findByRole(roleName) {
+    // Get role ID first
+    const { data: roleData, error: roleError } = await supabase
+      .from('roles')
+      .select('id')
+      .eq('name', roleName)
+      .single();
+
+    if (roleError) {
+      if (roleError.code === 'PGRST116') return []; // Role not found
+      throw roleError;
+    }
+
     const { data, error } = await supabase
       .from('role_permissions')
       .select(`
-        permission_id,
         permissions (
           id,
           name,
@@ -23,24 +34,40 @@ class Permission {
           category
         )
       `)
-      .eq('role', role);
+      .eq('role_id', roleData.id);
 
     if (error) throw error;
 
     // Flatten the nested data
-    return data.map(rp => rp.permissions);
+    return data.map(rp => rp.permissions).filter(p => p !== null);
   }
 
-  static async hasPermission(role, permissionName) {
+  static async hasPermission(roleName, permissionName) {
+    // SUPER_ADMIN has all permissions
+    if (roleName === 'SUPER_ADMIN' || roleName === 'super_admin') {
+      return true;
+    }
+
+    // Get role ID first
+    const { data: roleData, error: roleError } = await supabase
+      .from('roles')
+      .select('id')
+      .eq('name', roleName)
+      .single();
+
+    if (roleError) {
+      if (roleError.code === 'PGRST116') return false; // Role not found
+      throw roleError;
+    }
+
     const { data, error } = await supabase
       .from('role_permissions')
       .select(`
-        permission_id,
         permissions (
           name
         )
       `)
-      .eq('role', role)
+      .eq('role_id', roleData.id)
       .eq('permissions.name', permissionName)
       .single();
 
@@ -52,16 +79,32 @@ class Permission {
     return !!data;
   }
 
-  static async hasAnyPermission(role, permissionNames) {
+  static async hasAnyPermission(roleName, permissionNames) {
+    // SUPER_ADMIN has all permissions
+    if (roleName === 'SUPER_ADMIN' || roleName === 'super_admin') {
+      return true;
+    }
+
+    // Get role ID first
+    const { data: roleData, error: roleError } = await supabase
+      .from('roles')
+      .select('id')
+      .eq('name', roleName)
+      .single();
+
+    if (roleError) {
+      if (roleError.code === 'PGRST116') return false; // Role not found
+      throw roleError;
+    }
+
     const { data, error } = await supabase
       .from('role_permissions')
       .select(`
-        permission_id,
         permissions (
           name
         )
       `)
-      .eq('role', role)
+      .eq('role_id', roleData.id)
       .in('permissions.name', permissionNames);
 
     if (error) throw error;
@@ -69,10 +112,10 @@ class Permission {
     return data && data.length > 0;
   }
 
-  static async assignPermissionToRole(role, permissionId) {
+  static async assignPermissionToRole(roleId, permissionId) {
     const { data, error } = await supabase
       .from('role_permissions')
-      .insert({ role, permission_id: permissionId })
+      .insert({ role_id: roleId, permission_id: permissionId })
       .select()
       .single();
 
@@ -80,11 +123,11 @@ class Permission {
     return data;
   }
 
-  static async removePermissionFromRole(role, permissionId) {
+  static async removePermissionFromRole(roleId, permissionId) {
     const { error } = await supabase
       .from('role_permissions')
       .delete()
-      .eq('role', role)
+      .eq('role_id', roleId)
       .eq('permission_id', permissionId);
 
     if (error) throw error;
@@ -96,6 +139,30 @@ class Permission {
       .from('permissions')
       .select('*')
       .eq('category', category)
+      .order('name', { ascending: true });
+
+    if (error) throw error;
+    return data;
+  }
+
+  static async getRoleByName(roleName) {
+    const { data, error } = await supabase
+      .from('roles')
+      .select('*')
+      .eq('name', roleName)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null; // Not found
+      throw error;
+    }
+    return data;
+  }
+
+  static async getAllRoles() {
+    const { data, error } = await supabase
+      .from('roles')
+      .select('*')
       .order('name', { ascending: true });
 
     if (error) throw error;

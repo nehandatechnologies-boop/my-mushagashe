@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
 const resultController = require('../controllers/resultController');
-const { authenticate, adminOnly, lecturerOnly } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
+const { requirePermission } = require('../middleware/rbac');
 
 // Validation middleware
 const validateResult = [
@@ -12,34 +13,34 @@ const validateResult = [
   body('academic_year').notEmpty().withMessage('Academic year is required')
 ];
 
-// Create new result (admin or lecturer only)
-router.post('/', authenticate, resultController.createResult);
+// Create new result - requires results.create permission
+router.post('/', authenticate, requirePermission('results.create'), resultController.createResult);
 
-// Import multiple results (admin only)
-router.post('/import', authenticate, adminOnly, resultController.importResults);
+// Import multiple results - requires results.create permission
+router.post('/import', authenticate, requirePermission('results.create'), resultController.importResults);
 
-// Get all results (admin or lecturer only)
-router.get('/', authenticate, resultController.getAllResults);
+// Get all results - requires results.view permission
+router.get('/', authenticate, requirePermission('results.view'), resultController.getAllResults);
 
-// Get result statistics (admin only)
-router.get('/statistics', authenticate, adminOnly, resultController.getResultStatistics);
+// Get result statistics - requires results.view permission
+router.get('/statistics', authenticate, requirePermission('results.view'), resultController.getResultStatistics);
 
-// Get student GPA (authenticated)
-router.get('/gpa', authenticate, resultController.getStudentGPA);
+// Get student GPA - requires results.view permission
+router.get('/gpa', authenticate, requirePermission('results.view'), resultController.getStudentGPA);
 
-// Download results as PDF (authenticated)
-router.get('/download/pdf', authenticate, resultController.downloadResultsPDF);
+// Download results as PDF - requires results.view permission
+router.get('/download/pdf', authenticate, requirePermission('results.view'), resultController.downloadResultsPDF);
 
-// Download single result as PDF (authenticated)
-router.get('/:id/download/pdf', authenticate, resultController.downloadResultPDF);
+// Download single result as PDF - requires results.view permission
+router.get('/:id/download/pdf', authenticate, requirePermission('results.view'), resultController.downloadResultPDF);
 
-// Get result by ID (authenticated)
-router.get('/:id', authenticate, resultController.getResultById);
+// Get result by ID - requires results.view permission
+router.get('/:id', authenticate, requirePermission('results.view'), resultController.getResultById);
 
-// Update result (admin or lecturer only)
-router.put('/:id', authenticate, resultController.updateResult);
+// Update result - requires results.edit permission
+router.put('/:id', authenticate, requirePermission('results.edit'), resultController.updateResult);
 
-// Delete result (admin or lecturer only)
-router.delete('/:id', authenticate, resultController.deleteResult);
+// Delete result - requires results.delete permission
+router.delete('/:id', authenticate, requirePermission('results.delete'), resultController.deleteResult);
 
 module.exports = router;

@@ -3,6 +3,7 @@ const User = require('../models/User');
 const { generateToken } = require('../middleware/auth');
 const { generateToken: generateEmailToken, sendVerificationEmail, sendPasswordResetEmail } = require('../config/email');
 const { supabase } = require('../config/supabaseAuth');
+const Permission = require('../models/Permission');
 
 // Admin login
 const adminLogin = async (req, res) => {
@@ -21,7 +22,16 @@ const adminLogin = async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
-    if (user.role !== 'admin' && user.role !== 'super_admin') {
+    // Check if user is an admin (support both 'admin' and new RBAC roles)
+    const isAdmin = user.role === 'admin' || 
+                   user.role === 'super_admin' ||
+                   user.role === 'SUPER_ADMIN' ||
+                   user.role === 'ACADEMIC_ADMIN' ||
+                   user.role === 'FINANCE_ADMIN' ||
+                   user.role === 'ADMISSIONS_ADMIN' ||
+                   user.role === 'LECTURER_ADMIN';
+
+    if (!isAdmin) {
       return res.status(403).json({ error: 'Admin access required' });
     }
 
@@ -39,12 +49,16 @@ const adminLogin = async (req, res) => {
     // Generate token
     const token = generateToken(user);
 
+    // Get user permissions based on role
+    const permissions = await Permission.findByRole(user.role);
+
     // Return user data without password
     const { password: _, ...userWithoutPassword } = user;
 
     res.json({
       token,
-      user: userWithoutPassword
+      user: userWithoutPassword,
+      permissions
     });
   } catch (error) {
     console.error('Admin login error:', error);

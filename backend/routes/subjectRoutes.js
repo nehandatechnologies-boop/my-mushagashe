@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
 const subjectController = require('../controllers/subjectController');
-const { authenticate, adminOnly } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
+const { requirePermission } = require('../middleware/rbac');
 
 // Validation middleware
 const validateSubject = [
@@ -11,22 +12,22 @@ const validateSubject = [
   body('course_id').notEmpty().withMessage('Course ID is required')
 ];
 
-// Create new subject (admin or lecturer for their course)
-router.post('/', authenticate, validateSubject, subjectController.createSubject);
+// Create new subject - requires subjects.create permission
+router.post('/', authenticate, requirePermission('subjects.create'), validateSubject, subjectController.createSubject);
 
-// Get all subjects (authenticated)
-router.get('/', authenticate, subjectController.getAllSubjects);
+// Get all subjects - requires subjects.view permission
+router.get('/', authenticate, requirePermission('subjects.view'), subjectController.getAllSubjects);
 
-// Get subjects by course ID (authenticated)
-router.get('/course/:course_id', authenticate, subjectController.getSubjectsByCourseId);
+// Get subjects by course ID - requires subjects.view permission
+router.get('/course/:course_id', authenticate, requirePermission('subjects.view'), subjectController.getSubjectsByCourseId);
 
-// Get subject by ID (authenticated)
-router.get('/:id', authenticate, subjectController.getSubjectById);
+// Get subject by ID - requires subjects.view permission
+router.get('/:id', authenticate, requirePermission('subjects.view'), subjectController.getSubjectById);
 
-// Update subject (admin or lecturer for their course)
-router.put('/:id', authenticate, subjectController.updateSubject);
+// Update subject - requires subjects.edit permission
+router.put('/:id', authenticate, requirePermission('subjects.edit'), subjectController.updateSubject);
 
-// Delete subject (admin only)
-router.delete('/:id', authenticate, adminOnly, subjectController.deleteSubject);
+// Delete subject - requires subjects.delete permission
+router.delete('/:id', authenticate, requirePermission('subjects.delete'), subjectController.deleteSubject);
 
 module.exports = router;

@@ -2,7 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { body } = require('express-validator');
 const feeController = require('../controllers/feeController');
-const { authenticate, adminOnly } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
+const { requirePermission } = require('../middleware/rbac');
 
 // Validation middleware
 const validateFee = [
@@ -16,31 +17,31 @@ const validatePayment = [
   body('amount_paid').custom(value => value > 0).withMessage('Amount paid must be greater than 0')
 ];
 
-// Create new fee (admin only)
-router.post('/', authenticate, adminOnly, feeController.createFee);
+// Create new fee - requires fees.create permission
+router.post('/', authenticate, requirePermission('fees.create'), feeController.createFee);
 
-// Get all fees (authenticated - controller handles role-based filtering)
-router.get('/', authenticate, feeController.getAllFees);
+// Get all fees - requires fees.view permission
+router.get('/', authenticate, requirePermission('fees.view'), feeController.getAllFees);
 
-// Get fee statistics (admin only)
-router.get('/statistics', authenticate, adminOnly, feeController.getFeeStatistics);
+// Get fee statistics - requires financial_reports.view permission
+router.get('/statistics', authenticate, requirePermission('financial_reports.view'), feeController.getFeeStatistics);
 
-// Get outstanding balance for current user (authenticated)
-router.get('/outstanding', authenticate, feeController.getOutstandingBalance);
+// Get outstanding balance for current user - requires fees.view permission
+router.get('/outstanding', authenticate, requirePermission('fees.view'), feeController.getOutstandingBalance);
 
-// Generate receipt number (admin only)
-router.get('/generate-receipt', authenticate, adminOnly, feeController.generateReceiptNumber);
+// Generate receipt number - requires payments.create permission
+router.get('/generate-receipt', authenticate, requirePermission('payments.create'), feeController.generateReceiptNumber);
 
-// Get fee by ID (admin only)
-router.get('/:id', authenticate, adminOnly, feeController.getFeeById);
+// Get fee by ID - requires fees.view permission
+router.get('/:id', authenticate, requirePermission('fees.view'), feeController.getFeeById);
 
-// Update fee (admin only)
-router.put('/:id', authenticate, adminOnly, feeController.updateFee);
+// Update fee - requires fees.edit permission
+router.put('/:id', authenticate, requirePermission('fees.edit'), feeController.updateFee);
 
-// Record payment (admin only)
-router.post('/:id/payment', authenticate, adminOnly, validatePayment, feeController.recordPayment);
+// Record payment - requires payments.create permission
+router.post('/:id/payment', authenticate, requirePermission('payments.create'), validatePayment, feeController.recordPayment);
 
-// Delete fee (admin only)
-router.delete('/:id', authenticate, adminOnly, feeController.deleteFee);
+// Delete fee - requires fees.delete permission
+router.delete('/:id', authenticate, requirePermission('fees.delete'), feeController.deleteFee);
 
 module.exports = router;

@@ -24,6 +24,33 @@ if (isNgrok) {
 // Get stored token and user data
 const token = localStorage.getItem('token');
 const user = JSON.parse(localStorage.getItem('user') || '{}');
+const permissions = JSON.parse(localStorage.getItem('permissions') || '[]');
+
+// Permission helper functions
+function hasPermission(permissionName) {
+  const role = user.role;
+  if (role === 'SUPER_ADMIN' || role === 'super_admin') return true;
+  return permissions.some(p => p.name === permissionName);
+}
+
+function hasRole(roleName) {
+  const role = user.role;
+  return role === roleName || role === roleName.toLowerCase();
+}
+
+function getRoleDisplayName() {
+  const role = user.role;
+  const roleNames = {
+    'SUPER_ADMIN': 'Super Administrator',
+    'super_admin': 'Super Administrator',
+    'ACADEMIC_ADMIN': 'Academic Administrator',
+    'FINANCE_ADMIN': 'Finance Administrator',
+    'ADMISSIONS_ADMIN': 'Admissions Administrator',
+    'LECTURER_ADMIN': 'Lecturer Administrator',
+    'admin': 'Administrator'
+  };
+  return roleNames[role] || role || 'Unknown';
+}
 
 // API Request helper with authentication
 async function apiRequest(endpoint, options = {}) {
@@ -90,6 +117,29 @@ function hideToast() {
 
 // Page navigation
 function navigateTo(page) {
+    // Check if user has permission to access this page
+    const pagePermissions = {
+        'overview': 'students.view',
+        'students': 'students.view',
+        'courses': 'courses.view',
+        'lecturers': 'lecturers.view',
+        'subjects': 'subjects.view',
+        'fees': 'fees.view',
+        'results': 'results.view',
+        'announcements': 'announcements.view',
+        'approvals': 'students.approve',
+        'intakes': 'intakes.view',
+        'admins': 'admins.view',
+        'audit': 'audit_logs.view',
+        'settings': 'settings.view'
+    };
+
+    const requiredPermission = pagePermissions[page];
+    if (requiredPermission && !hasPermission(requiredPermission)) {
+        showToast('You do not have permission to access this section', 'error');
+        return;
+    }
+
     document.querySelectorAll('.page-section').forEach(p => p.classList.add('hidden'));
     document.querySelectorAll('.page-section').forEach(p => p.classList.remove('active'));
     
@@ -2997,6 +3047,77 @@ function setupApprovalFilters() {
 }
 
 // Initialize on page load
+window.addEventListener('DOMContentLoaded', async () => {
+    // Update welcome message with role
+    const welcomeElement = document.getElementById('welcomeMessage');
+    if (welcomeElement) {
+        welcomeElement.textContent = `Welcome, ${getRoleDisplayName()}`;
+    }
+
+    // Apply permissions to navigation
+    applyPermissionsToNavigation();
+
+    // Load initial page
+    await loadDashboardStatistics();
+    await loadRecentAnnouncements();
+    await updatePendingBadge();
+});
+
+// Apply permissions to navigation menu
+function applyPermissionsToNavigation() {
+    // Hide/show navigation items based on permissions
+    const navItems = document.querySelectorAll('.nav-item');
+    
+    navItems.forEach(item => {
+        const page = item.dataset.page;
+        const pagePermissions = {
+            'overview': 'students.view',
+            'students': 'students.view',
+            'courses': 'courses.view',
+            'lecturers': 'lecturers.view',
+            'subjects': 'subjects.view',
+            'fees': 'fees.view',
+            'results': 'results.view',
+            'announcements': 'announcements.view',
+            'approvals': 'students.approve',
+            'intakes': 'intakes.view',
+            'admins': 'admins.view',
+            'audit': 'audit_logs.view',
+            'settings': 'settings.view'
+        };
+
+        const requiredPermission = pagePermissions[page];
+        if (requiredPermission && !hasPermission(requiredPermission)) {
+            item.style.display = 'none';
+        }
+    });
+
+    // Hide sections that user doesn't have permission to access
+    const pageSections = document.querySelectorAll('.page-section');
+    pageSections.forEach(section => {
+        const pageId = section.id.replace('-page', '');
+        const pagePermissions = {
+            'overview': 'students.view',
+            'students': 'students.view',
+            'courses': 'courses.view',
+            'lecturers': 'lecturers.view',
+            'subjects': 'subjects.view',
+            'fees': 'fees.view',
+            'results': 'results.view',
+            'announcements': 'announcements.view',
+            'approvals': 'students.approve',
+            'intakes': 'intakes.view',
+            'admins': 'admins.view',
+            'audit': 'audit_logs.view',
+            'settings': 'settings.view'
+        };
+
+        const requiredPermission = pagePermissions[pageId];
+        if (requiredPermission && !hasPermission(requiredPermission)) {
+            section.style.display = 'none';
+        }
+    });
+}
 document.addEventListener('DOMContentLoaded', () => {
     setupApprovalFilters();
     updatePendingBadge();
