@@ -654,6 +654,9 @@ const importStudentsFromExcel = async (req, res) => {
 
     const importedStudents = [];
     const errors = [];
+    const skippedExisting = [];
+    const skippedDuplicates = [];
+    const processedStudentNumbers = new Set();
 
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
@@ -667,7 +670,7 @@ const importStudentsFromExcel = async (req, res) => {
         }
 
         // Normalize headers: map various cases to consistent field names
-        const normalizeHeader = (row, possibleHeaders, fieldName) => {
+        const normalizeHeader = (row, possibleHeaders) => {
           for (const header of possibleHeaders) {
             if (row[header] !== undefined && row[header] !== null && row[header] !== '') {
               return row[header];
@@ -707,15 +710,30 @@ const importStudentsFromExcel = async (req, res) => {
           continue;
         }
 
-        // Check if student number already exists
-        const existingStudent = await User.findByStudentNumber(studentData.student_number);
-        if (existingStudent) {
-          errors.push({
+        // Check for duplicate within this spreadsheet
+        if (processedStudentNumbers.has(studentData.student_number)) {
+          skippedDuplicates.push({
             row: rowNum,
             student_number: studentData.student_number,
             full_name: studentData.full_name,
-            field: 'student_number',
-            error: 'Student number already exists'
+            field: 'spreadsheet_duplicate',
+            error: 'Duplicate student number within spreadsheet'
+          });
+          continue;
+        }
+
+        // Mark this student number as processed
+        processedStudentNumbers.add(studentData.student_number);
+
+        // Check if student number already exists in database
+        const existingStudent = await User.findByStudentNumber(studentData.student_number);
+        if (existingStudent) {
+          skippedExisting.push({
+            row: rowNum,
+            student_number: studentData.student_number,
+            full_name: studentData.full_name,
+            field: 'existing_record',
+            error: 'Student number already exists in database'
           });
           continue;
         }
@@ -747,21 +765,36 @@ const importStudentsFromExcel = async (req, res) => {
           full_name: studentData.full_name
         });
       } catch (error) {
+        // Extract student info from raw row for error reporting
+        const normalizeHeader = (row, possibleHeaders) => {
+          for (const header of possibleHeaders) {
+            if (row[header] !== undefined && row[header] !== null && row[header] !== '') {
+              return row[header];
+            }
+          }
+          return null;
+        };
+
+        const errorStudentNumber = normalizeHeader(row, ['STUDENT NUMBER', 'Student Number', 'student_number', 'Student_Number', 'StudentNo', 'Student No.', 'STUDENT NO'])?.trim();
+        const errorFullName = normalizeHeader(row, ['FULL NAME', 'Full Name', 'full_name', 'Full_Name', 'Name', 'NAME'])?.trim();
+
         errors.push({
           row: rowNum,
-          student_number: studentData.student_number,
-          full_name: studentData.full_name,
+          student_number: errorStudentNumber,
+          full_name: errorFullName,
           field: 'database',
           error: error.message
         });
       }
     }
 
-    console.log(`[IMPORT] Complete: ${importedStudents.length} imported, ${errors.length} errors`);
+    console.log(`[IMPORT] Complete: ${importedStudents.length} imported, ${skippedExisting.length} existing, ${skippedDuplicates.length} spreadsheet duplicates, ${errors.length} errors`);
 
     res.status(201).json({
       message: `Imported ${importedStudents.length} students successfully`,
       imported: importedStudents,
+      skipped_existing: skippedExisting.length,
+      skipped_duplicates: skippedDuplicates.length,
       errors: errors
     });
   } catch (error) {

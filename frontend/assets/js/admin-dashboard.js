@@ -691,6 +691,8 @@ function hideModal() {
 }
 
 // Student CRUD operations
+let isImporting = false;
+
 const importExcelBtn = document.getElementById('importExcelBtn');
 if (importExcelBtn) {
     importExcelBtn.addEventListener('click', () => {
@@ -705,18 +707,31 @@ if (importExcelBtn) {
                     <input type="file" name="file" accept=".xlsx,.xls" required>
                     <small class="form-help">Supported columns: Full Name, Student Number, Email, Password, Phone, Gender, National ID, Date of Birth, Address, Guardian Name, Guardian Phone, Intake Year, Course ID</small>
                 </div>
-                <button type="submit" class="btn btn-primary">Import Students</button>
+                <button type="submit" class="btn btn-primary" id="importSubmitBtn">Import Students</button>
             </form>
         `);
-        
+
         document.getElementById('importExcelForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+
+            if (isImporting) {
+                showToast('Import already in progress. Please wait.', 'error');
+                return;
+            }
+
             const fileInput = e.target.querySelector('input[type="file"]');
             const file = fileInput.files[0];
-            
+
             if (!file) {
                 showToast('Please select a file', 'error');
                 return;
+            }
+
+            isImporting = true;
+            const submitBtn = document.getElementById('importSubmitBtn');
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Importing...';
             }
 
             const formData = new FormData();
@@ -737,12 +752,21 @@ if (importExcelBtn) {
                     throw new Error(data.error || 'Import failed');
                 }
 
-                showToast(`Imported ${data.imported.length} students successfully`);
+                // Show detailed results
+                let message = `Import complete: ${data.imported} imported`;
+                if (data.skipped_existing > 0) {
+                    message += `, ${data.skipped_existing} already exist`;
+                }
+                if (data.skipped_duplicates > 0) {
+                    message += `, ${data.skipped_duplicates} spreadsheet duplicates`;
+                }
+                if (data.errors && data.errors.length > 0) {
+                    message += `, ${data.errors.length} errors`;
+                }
+                showToast(message);
 
                 if (data.errors && data.errors.length > 0) {
                     console.warn(`Import errors: ${data.errors.length} rows failed`);
-                    // Show summary in toast
-                    showToast(`${data.errors.length} rows had errors. Check console for details.`, 'error');
                     // Log detailed errors with row numbers
                     data.errors.slice(0, 10).forEach(err => {
                         console.warn(`Row ${err.row}: ${err.student_number} - ${err.full_name} - ${err.field}: ${err.error}`);
@@ -757,6 +781,12 @@ if (importExcelBtn) {
             } catch (error) {
                 console.error('Import error:', error);
                 showToast('Failed to import students', 'error');
+            } finally {
+                isImporting = false;
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Import Students';
+                }
             }
         });
     });
