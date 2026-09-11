@@ -608,15 +608,49 @@ const importStudentsFromExcel = async (req, res) => {
 
     // Parse Excel file
     const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
-    const sheetName = workbook.SheetNames[0];
-    const worksheet = workbook.Sheets[sheetName];
-    const data = XLSX.utils.sheet_to_json(worksheet);
 
-    if (!data || data.length === 0) {
-      return res.status(400).json({ error: 'No data found in Excel file' });
+    // Detect the correct worksheet with student import headers
+    console.log(`[IMPORT] Available worksheets: ${workbook.SheetNames.join(', ')}`);
+
+    const keyHeaders = ['FULL NAME', 'STUDENT NUMBER', 'COURSE'];
+    let selectedSheetName = null;
+    let selectedWorksheet = null;
+
+    for (const sheetName of workbook.SheetNames) {
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+      if (!jsonData || jsonData.length === 0) continue;
+
+      // Get the first row as potential headers
+      const firstRow = jsonData[0];
+      if (!firstRow) continue;
+
+      // Check if this row contains our key headers (case-insensitive)
+      const firstRowUpper = firstRow.map(h => String(h || '').toUpperCase().trim());
+      const hasKeyHeaders = keyHeaders.every(kh => firstRowUpper.includes(kh.toUpperCase()));
+
+      if (hasKeyHeaders) {
+        selectedSheetName = sheetName;
+        selectedWorksheet = worksheet;
+        console.log(`[IMPORT] Selected worksheet: ${sheetName}`);
+        console.log(`[IMPORT] Detected headers: ${firstRow.join(', ')}`);
+        break;
+      }
     }
 
-    console.log(`[IMPORT] Processing ${data.length} rows from Excel file`);
+    if (!selectedWorksheet) {
+      return res.status(400).json({ error: 'No valid student import worksheet found. Please ensure your Excel file contains headers: FULL NAME, STUDENT NUMBER, COURSE' });
+    }
+
+    // Parse the selected worksheet
+    const data = XLSX.utils.sheet_to_json(selectedWorksheet);
+
+    if (!data || data.length === 0) {
+      return res.status(400).json({ error: 'No data found in selected worksheet' });
+    }
+
+    console.log(`[IMPORT] Processing ${data.length} rows from worksheet: ${selectedSheetName}`);
 
     const importedStudents = [];
     const errors = [];
@@ -626,21 +660,37 @@ const importStudentsFromExcel = async (req, res) => {
       const rowNum = i + 2; // Excel rows are 1-indexed, plus header row
 
       try {
-        // Map Excel columns to database fields
+        // Skip completely empty rows
+        const hasAnyData = Object.values(row).some(val => val !== null && val !== undefined && val !== '');
+        if (!hasAnyData) {
+          continue;
+        }
+
+        // Normalize headers: map various cases to consistent field names
+        const normalizeHeader = (row, possibleHeaders, fieldName) => {
+          for (const header of possibleHeaders) {
+            if (row[header] !== undefined && row[header] !== null && row[header] !== '') {
+              return row[header];
+            }
+          }
+          return null;
+        };
+
+        // Map Excel columns to database fields with case-insensitive matching
         const studentData = {
-          full_name: row['Full Name'] || row['full_name'] || row['Name'],
-          student_number: row['Student Number'] || row['student_number'],
-          email: row['Email'] || row['email'],
-          password: row['Password'] || row['password'] || 'password123',
-          phone: row['Phone'] || row['phone'],
-          gender: row['Gender'] || row['gender'],
-          national_id: row['National ID'] || row['national_id'],
-          date_of_birth: row['Date of Birth'] || row['date_of_birth'],
-          address: row['Address'] || row['address'],
-          guardian_name: row['Guardian Name'] || row['guardian_name'],
-          guardian_phone: row['Guardian Phone'] || row['guardian_phone'],
-          intake_year: row['Intake Year'] || row['intake_year'],
-          course_id: row['Course ID'] || row['course_id'],
+          full_name: normalizeHeader(row, ['FULL NAME', 'Full Name', 'full_name', 'Full_Name', 'Name', 'NAME'])?.trim(),
+          student_number: normalizeHeader(row, ['STUDENT NUMBER', 'Student Number', 'student_number', 'Student_Number', 'StudentNo', 'Student No.', 'STUDENT NO'])?.trim(),
+          course: normalizeHeader(row, ['COURSE', 'Course', 'course'])?.trim(),
+          email: normalizeHeader(row, ['EMAIL', 'Email', 'email'])?.trim(),
+          password: normalizeHeader(row, ['PASSWORD', 'Password', 'password'])?.trim(),
+          phone: normalizeHeader(row, ['PHONE NUMBER', 'Phone Number', 'phone', 'Phone'])?.trim(),
+          gender: normalizeHeader(row, ['GENDER', 'Gender', 'gender'])?.trim(),
+          national_id: normalizeHeader(row, ['NATIONAL ID', 'National ID', 'national_id'])?.trim(),
+          date_of_birth: normalizeHeader(row, ['DATE OF BIRTH', 'Date of Birth', 'date_of_birth'])?.trim(),
+          address: normalizeHeader(row, ['ADDRESS', 'Address', 'address'])?.trim(),
+          guardian_name: normalizeHeader(row, ['GUARDIAN NAME', 'Guardian Name', 'guardian_name'])?.trim(),
+          guardian_phone: normalizeHeader(row, ['GUARDIAN PHONE', 'Guardian Phone', 'guardian_phone'])?.trim(),
+          intake_year: normalizeHeader(row, ['INTAKE YEAR', 'Intake Year', 'intake_year'])?.trim(),
           role: 'student',
           status: 'active'
         };
@@ -686,7 +736,7 @@ const importStudentsFromExcel = async (req, res) => {
         }
 
         // Hash password
-        const hashedPassword = bcrypt.hashSync(studentData.password, 10);
+        const hashedPassword = bcrypt.hashSync(studentData.password || 'password123', 10);
         studentData.password = hashedPassword;
 
         // Create student
@@ -699,8 +749,8 @@ const importStudentsFromExcel = async (req, res) => {
       } catch (error) {
         errors.push({
           row: rowNum,
-          student_number: row['Student Number'] || row['student_number'],
-          full_name: row['Full Name'] || row['full_name'] || row['Name'],
+          student_number: studentData.student_number,
+          full_name: studentData.full_name,
           field: 'database',
           error: error.message
         });
