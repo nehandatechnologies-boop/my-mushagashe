@@ -2019,7 +2019,7 @@ if (addAdminBtn) {
 
 window.editAdministrator = async function(id) {
     try {
-        const admin = await apiRequest(`/api/admins/administrators/${id}`);
+        const admin = await apiRequest(`/admins/administrators/${id}`);
         const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
         const canCreateSuperAdmin = currentUser.role === 'SUPER_ADMIN';
         
@@ -2088,7 +2088,7 @@ window.deleteAdministrator = async function(id) {
     }
     
     try {
-        await apiRequest(`/api/admins/administrators/${id}`, { method: 'DELETE' });
+        await apiRequest(`/admins/administrators/${id}`, { method: 'DELETE' });
         showToast('Administrator deleted successfully');
         loadAdministrators();
     } catch (error) {
@@ -2101,7 +2101,7 @@ window.resetAdminPassword = async function(id) {
     if (!confirm('Are you sure you want to reset this administrator\'s password? A new temporary password will be generated.')) return;
     
     try {
-        const response = await fetch(`${API_BASE}/api/admins/administrators/${id}/reset-password`, {
+        const response = await fetch(`${API_BASE}/admins/administrators/${id}/reset-password`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -2272,7 +2272,7 @@ if (addIntakeBtn) {
 
 window.editIntake = async function(id) {
     try {
-        const intake = await apiRequest(`/api/intakes/${id}`);
+        const intake = await apiRequest(`/intakes/${id}`);
         
         showModal(`
             <div class="modal-header">
@@ -2319,7 +2319,7 @@ window.deleteIntake = async function(id) {
     }
     
     try {
-        await apiRequest(`/api/intakes/${id}`, { method: 'DELETE' });
+        await apiRequest(`/intakes/${id}`, { method: 'DELETE' });
         showToast('Intake deleted successfully');
         loadIntakes();
     } catch (error) {
@@ -2721,9 +2721,6 @@ window.addEventListener('load', () => {
     const headerAdminName = document.getElementById('headerAdminName');
     if (adminName) adminName.textContent = currentUser.full_name;
     if (headerAdminName) headerAdminName.textContent = currentUser.full_name;
-
-    // Load initial data
-    loadDashboardStatistics();
 });
 
 // Close modal when clicking outside
@@ -3198,7 +3195,7 @@ async function handleEditAdminSubmit(form) {
     }
     
     try {
-        await apiRequest(`/api/admins/administrators/${adminId}`, {
+        await apiRequest(`/admins/administrators/${adminId}`, {
             method: 'PUT',
             body: JSON.stringify(updateData)
         });
@@ -3241,7 +3238,7 @@ async function handleEditIntakeSubmit(form) {
     }
     
     try {
-        await apiRequest(`/api/intakes/${intakeId}`, {
+        await apiRequest(`/intakes/${intakeId}`, {
             method: 'PUT',
             body: JSON.stringify(updateData)
         });
