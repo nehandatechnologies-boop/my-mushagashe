@@ -212,6 +212,11 @@ class Result {
   }
 
   static calculateGrade(finalMark) {
+    // If final mark is null or undefined, don't assign a grade
+    if (finalMark === null || finalMark === undefined) {
+      return null;
+    }
+    // If final mark is 0, still assign F (could be legitimate zero score)
     if (finalMark >= 80) return 'A';
     if (finalMark >= 70) return 'B';
     if (finalMark >= 60) return 'C';

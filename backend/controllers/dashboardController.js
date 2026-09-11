@@ -70,32 +70,14 @@ const getDashboardStatistics = async (req, res) => {
 // Get student-specific dashboard data
 const getStudentDashboard = async (req, res) => {
   try {
-    console.log('[DASHBOARD] Student dashboard request - User ID:', req.user?.id, 'Role:', req.user?.role);
     const userId = req.user.id;
 
-    console.log('[DASHBOARD] Fetching user data...');
     const user = await User.findById(userId);
-    console.log('[DASHBOARD] User found:', user ? 'yes' : 'no');
-
-    console.log('[DASHBOARD] Fetching fees...');
     const fees = await Fee.findByUserId(userId);
-    console.log('[DASHBOARD] Fees count:', fees?.length);
-
-    console.log('[DASHBOARD] Fetching results...');
     const results = await Result.findByUserId(userId);
-    console.log('[DASHBOARD] Results count:', results?.length);
-
-    console.log('[DASHBOARD] Fetching announcements...');
     const announcements = await Announcement.getLatest(5);
-    console.log('[DASHBOARD] Announcements count:', announcements?.length);
-
-    console.log('[DASHBOARD] Calculating outstanding balance...');
     const outstandingBalance = await Fee.getOutstandingByUser(userId);
-    console.log('[DASHBOARD] Outstanding balance:', outstandingBalance);
-
-    console.log('[DASHBOARD] Calculating GPA...');
     const gpaData = await Result.getStudentGPA(userId);
-    console.log('[DASHBOARD] GPA data:', gpaData);
 
     const dashboardData = {
       user: {
@@ -120,13 +102,9 @@ const getStudentDashboard = async (req, res) => {
       announcements: announcements.slice(0, 5)
     };
 
-    console.log('[DASHBOARD] Dashboard data prepared successfully');
     res.json(dashboardData);
   } catch (error) {
-    console.error('[DASHBOARD] Get student dashboard error:', error);
-    console.error('[DASHBOARD] Error message:', error.message);
-    console.error('[DASHBOARD] Error code:', error.code);
-    console.error('[DASHBOARD] Error stack:', error.stack);
+    console.error('[DASHBOARD] Get student dashboard error:', error.message);
     res.status(500).json({ error: 'Failed to fetch student dashboard data' });
   }
 };

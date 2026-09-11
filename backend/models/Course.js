@@ -123,7 +123,8 @@ class Course {
     const { data, error } = await supabase
       .from('users')
       .select('id')
-      .eq('course_id', courseId);
+      .eq('course_id', courseId)
+      .eq('role', 'student');
 
     if (error) throw error;
     return data.length;

@@ -738,12 +738,18 @@ if (importExcelBtn) {
                 }
 
                 showToast(`Imported ${data.imported.length} students successfully`);
-                
+
                 if (data.errors && data.errors.length > 0) {
-                    console.warn('Import errors:', data.errors);
-                    // Show first few errors in toast
-                    const errorSample = data.errors.slice(0, 3).map(e => e.error || e.message).join('; ');
-                    showToast(`${data.errors.length} rows had errors. Sample: ${errorSample}`, 'error');
+                    console.warn(`Import errors: ${data.errors.length} rows failed`);
+                    // Show summary in toast
+                    showToast(`${data.errors.length} rows had errors. Check console for details.`, 'error');
+                    // Log detailed errors with row numbers
+                    data.errors.slice(0, 10).forEach(err => {
+                        console.warn(`Row ${err.row}: ${err.student_number} - ${err.full_name} - ${err.field}: ${err.error}`);
+                    });
+                    if (data.errors.length > 10) {
+                        console.warn(`... and ${data.errors.length - 10} more errors`);
+                    }
                 }
 
                 hideModal();
@@ -1899,7 +1905,7 @@ async function loadAdministrators() {
         const roleFilter = adminRoleFilter ? adminRoleFilter.value : '';
         const statusFilter = adminStatusFilter ? adminStatusFilter.value : '';
         
-        let endpoint = '/api/admins/administrators';
+        let endpoint = '/admins/administrators';
         const params = [];
         if (search) params.push(`search=${encodeURIComponent(search)}`);
         if (roleFilter) params.push(`role=${roleFilter}`);
@@ -2142,7 +2148,7 @@ async function loadAuditLogs() {
         const entityFilter = auditEntityFilter ? auditEntityFilter.value : '';
         const dateFilter = auditDateFilter ? auditDateFilter.value : '';
         
-        let endpoint = '/api/admins/audit/logs';
+        let endpoint = '/admins/audit/logs';
         const params = [];
         if (search) params.push(`search=${encodeURIComponent(search)}`);
         if (actionFilter) params.push(`action=${actionFilter}`);
@@ -2187,7 +2193,7 @@ async function loadIntakes() {
         const search = intakeSearch ? intakeSearch.value : '';
         const statusFilter = intakeStatusFilter ? intakeStatusFilter.value : '';
         
-        let endpoint = '/api/intakes';
+        let endpoint = '/intakes';
         const params = [];
         if (search) params.push(`search=${encodeURIComponent(search)}`);
         if (statusFilter) params.push(`status=${statusFilter}`);
@@ -3167,7 +3173,7 @@ async function handleAddAdminSubmit(form) {
     const adminData = Object.fromEntries(formData);
     
     try {
-        await apiRequest('/api/admins/administrators', {
+        await apiRequest('/admins/administrators', {
             method: 'POST',
             body: JSON.stringify(adminData)
         });
@@ -3210,7 +3216,7 @@ async function handleAddIntakeSubmit(form) {
     const intakeData = Object.fromEntries(formData);
     
     try {
-        await apiRequest('/api/intakes', {
+        await apiRequest('/intakes', {
             method: 'POST',
             body: JSON.stringify(intakeData)
         });
@@ -3628,21 +3634,21 @@ window.addEventListener('DOMContentLoaded', async () => {
     // Check authentication before loading dashboard
     const token = localStorage.getItem('token');
     const user = JSON.parse(localStorage.getItem('user') || '{}');
-    
+
     if (!token) {
         window.location.href = 'admin-login.html';
         return;
     }
 
     // Check if user has any admin role
-    const isAdmin = user.role === 'admin' || 
+    const isAdmin = user.role === 'admin' ||
                    user.role === 'super_admin' ||
                    user.role === 'SUPER_ADMIN' ||
                    user.role === 'ACADEMIC_ADMIN' ||
                    user.role === 'FINANCE_ADMIN' ||
                    user.role === 'ADMISSIONS_ADMIN' ||
                    user.role === 'LECTURER_ADMIN';
-    
+
     if (!isAdmin) {
         window.location.href = 'admin-login.html';
         return;
@@ -3671,6 +3677,9 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     // Apply permissions to navigation
     applyPermissionsToNavigation();
+
+    // Setup approval filters
+    setupApprovalFilters();
 
     // Load initial page
     await loadDashboardStatistics();
@@ -3893,7 +3902,3 @@ function applyPermissionsToNavigation() {
         }
     });
 }
-document.addEventListener('DOMContentLoaded', () => {
-    setupApprovalFilters();
-    updatePendingBadge();
-});

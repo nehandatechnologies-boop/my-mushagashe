@@ -174,7 +174,12 @@ class Fee {
       throw new Error('Invalid payment amount');
     }
 
+    // Prevent overpayment
     const newAmountPaid = (fee.amount_paid || 0) + paymentAmount;
+    if (newAmountPaid > fee.amount) {
+      throw new Error('Payment amount would exceed the fee amount. Maximum allowed: ' + (fee.amount - (fee.amount_paid || 0)));
+    }
+
     const newBalance = fee.amount - newAmountPaid;
     const newStatus = newBalance <= 0 ? 'paid' : 'partial';
 

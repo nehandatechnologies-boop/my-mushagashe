@@ -616,10 +616,15 @@ const importStudentsFromExcel = async (req, res) => {
       return res.status(400).json({ error: 'No data found in Excel file' });
     }
 
+    console.log(`[IMPORT] Processing ${data.length} rows from Excel file`);
+
     const importedStudents = [];
     const errors = [];
 
-    for (const row of data) {
+    for (let i = 0; i < data.length; i++) {
+      const row = data[i];
+      const rowNum = i + 2; // Excel rows are 1-indexed, plus header row
+
       try {
         // Map Excel columns to database fields
         const studentData = {
@@ -642,15 +647,42 @@ const importStudentsFromExcel = async (req, res) => {
 
         // Validation
         if (!studentData.full_name || !studentData.student_number) {
-          errors.push({ row, error: 'Missing required fields (Full Name, Student Number)' });
+          errors.push({
+            row: rowNum,
+            student_number: studentData.student_number,
+            full_name: studentData.full_name,
+            field: 'required_fields',
+            error: 'Missing required fields (Full Name, Student Number)'
+          });
           continue;
         }
 
         // Check if student number already exists
         const existingStudent = await User.findByStudentNumber(studentData.student_number);
         if (existingStudent) {
-          errors.push({ row, error: 'Student number already exists' });
+          errors.push({
+            row: rowNum,
+            student_number: studentData.student_number,
+            full_name: studentData.full_name,
+            field: 'student_number',
+            error: 'Student number already exists'
+          });
           continue;
+        }
+
+        // Check if email already exists (if provided)
+        if (studentData.email) {
+          const existingEmail = await User.findByEmail(studentData.email);
+          if (existingEmail) {
+            errors.push({
+              row: rowNum,
+              student_number: studentData.student_number,
+              full_name: studentData.full_name,
+              field: 'email',
+              error: 'Email already exists'
+            });
+            continue;
+          }
         }
 
         // Hash password
@@ -665,9 +697,17 @@ const importStudentsFromExcel = async (req, res) => {
           full_name: studentData.full_name
         });
       } catch (error) {
-        errors.push({ row, error: error.message });
+        errors.push({
+          row: rowNum,
+          student_number: row['Student Number'] || row['student_number'],
+          full_name: row['Full Name'] || row['full_name'] || row['Name'],
+          field: 'database',
+          error: error.message
+        });
       }
     }
+
+    console.log(`[IMPORT] Complete: ${importedStudents.length} imported, ${errors.length} errors`);
 
     res.status(201).json({
       message: `Imported ${importedStudents.length} students successfully`,

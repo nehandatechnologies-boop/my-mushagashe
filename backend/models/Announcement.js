@@ -192,8 +192,9 @@ class Announcement {
     if (error) throw error;
 
     const stats = {
-      total_announcements: data.length,
+      total: data.length,
       urgent_count: data.filter(a => a.priority === 'urgent').length,
+      important_count: data.filter(a => a.priority === 'important').length,
       normal_count: data.filter(a => a.priority === 'normal').length,
       low_count: data.filter(a => a.priority === 'low').length
     };
