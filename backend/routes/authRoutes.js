@@ -79,8 +79,14 @@ router.delete('/profile-picture', authenticate, studentController.deleteProfileP
 // Request password reset (generic)
 router.post('/forgot-password', authRateLimiter, authController.requestPasswordReset);
 
+// Request admin password reset (SUPER_ADMIN only)
+router.post('/admin/reset-password', authenticate, authController.requestAdminPasswordReset);
+
 // Reset password with token
 router.post('/reset-password', authController.resetPassword);
+
+// Logout (authenticated)
+router.post('/logout', authenticate, authController.logout);
 
 // Admin approval routes (admin only)
 router.get('/admin/pending-accounts', authenticate, adminOnly, approvalController.getPendingAccounts);

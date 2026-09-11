@@ -3,7 +3,7 @@
 
 ## Executive Summary
 
-Successfully implemented a comprehensive Role-Based Access Control (RBAC) system for the Mushagashe Student Portal, transforming the single-administrator system into a secure multi-administrator platform with five distinct roles, granular permissions, audit logging, and intake management.
+Successfully implemented a comprehensive Role-Based Access Control (RBAC) system with secure multi-administrator login for the Mushagashe Student Portal. The system transforms the single-administrator platform into a secure multi-administrator system with five distinct roles, granular permissions, audit logging, intake management, and a complete authentication experience.
 
 **Implementation Date:** September 2026
 **Status:** Backend Implementation Complete, Frontend Integration Complete, Database Migration Required
@@ -24,6 +24,14 @@ Successfully implemented a comprehensive Role-Based Access Control (RBAC) system
 - ✅ Supported multi-student intakes
 - ✅ Created frontend permission helper for UX
 - ✅ Implemented SUPER_ADMIN protection safeguards
+- ✅ **NEW:** Updated admin login page with multi-admin branding
+- ✅ **NEW:** Implemented role-based login redirection
+- ✅ **NEW:** Added suspended administrator login protection
+- ✅ **NEW:** Implemented logout functionality with session cleanup
+- ✅ **NEW:** Added change password functionality
+- ✅ **NEW:** Added forgot password functionality
+- ✅ **NEW:** Created admin profile menu with user details
+- ✅ **NEW:** Implemented session/token protection on dashboard
 
 ### 1.2 Design Principles
 
@@ -32,6 +40,8 @@ Successfully implemented a comprehensive Role-Based Access Control (RBAC) system
 - **Audit Trail:** All critical admin actions are logged
 - **Backward Compatibility:** Existing functionality preserved
 - **No Redesign:** Existing UI and styling maintained
+- **Single Authentication Gateway:** All admins use same login endpoint
+- **Role Determination:** Backend determines role from database, not frontend
 
 ---
 
@@ -208,23 +218,228 @@ Successfully implemented a comprehensive Role-Based Access Control (RBAC) system
 
 ---
 
-## 6. Security Features
+## 6. Multi-Admin Login System
 
-### 6.1 Server-Side Authorization
+### 6.1 Login Page Branding
+
+**Updated:** `frontend/pages/admin-login.html`
+
+- **Title:** "Administrator Sign In - Mushagashe Vocational Training Centre"
+- **Header:** "Mushagashe VTC - Student Portal"
+- **Subtitle:** "Enter your credentials to access the administrator portal"
+- **Fields:** Email Address, Password (with show/hide toggle)
+- **Actions:** Sign In, Forgot Password, Remember Me
+- **Loading State:** "Signing in..." button during authentication
+- **Error Handling:** Clear error messages for invalid credentials, suspended accounts
+
+### 6.2 Authentication Flow
+
+```
+Admin Login Page
+     ↓
+POST /api/auth/admin/login
+     ↓
+Validate email and password
+     ↓
+Check if user is admin (any RBAC role)
+     ↓
+Check account status (reject if suspended)
+     ↓
+Verify password with bcrypt
+     ↓
+Load user role from database
+     ↓
+Load permissions based on role
+     ↓
+Generate JWT token
+     ↓
+Return: { token, user, permissions }
+     ↓
+Store token, user, permissions in localStorage
+     ↓
+Redirect to admin-dashboard.html
+     ↓
+Dashboard validates token with backend
+     ↓
+Apply permissions to navigation
+     ↓
+Display role-specific interface
+```
+
+### 6.3 Login Response Structure
+
+```json
+{
+  "success": true,
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "user": {
+    "id": 123,
+    "full_name": "Administrator Name",
+    "email": "admin@example.com",
+    "role": "FINANCE_ADMIN",
+    "status": "active",
+    "created_at": "2026-01-01T00:00:00Z"
+  },
+  "permissions": [
+    {
+      "id": 1,
+      "name": "students.view",
+      "description": "View student information",
+      "category": "students"
+    },
+    {
+      "id": 2,
+      "name": "fees.view",
+      "description": "View fee information",
+      "category": "fees"
+    }
+  ]
+}
+```
+
+### 6.4 Suspended Administrator Protection
+
+**Backend:** `backend/controllers/authController.js`
+
+- Suspended admins receive specific error message:
+  ```json
+  {
+    "error": "Your administrator account has been suspended. Please contact the Super Administrator."
+  }
+  ```
+- Status check occurs before password verification
+- No information about whether email exists is revealed
+
+### 6.5 Logout Functionality
+
+**Frontend:** `frontend/assets/js/admin-dashboard.js`
+
+**Process:**
+1. User clicks logout button (sidebar or profile dropdown)
+2. Confirmation dialog: "Are you sure you want to logout?"
+3. Clear localStorage: `token`, `user`, `permissions`
+4. Redirect to `admin-login.html`
+5. Browser back-button cannot access dashboard (no token)
+
+**Logout Buttons:**
+- Sidebar footer logout button
+- Profile dropdown logout button
+
+### 6.6 Change Password Functionality
+
+**Frontend:** `frontend/assets/js/admin-dashboard.js`
+
+**Process:**
+1. User clicks "Change Password" button
+2. Prompts for: Current Password, New Password, Confirm New Password
+3. Validation:
+   - Passwords must match
+   - Minimum 6 characters
+4. API call: `PUT /api/auth/change-password`
+5. Success/error toast notification
+
+**API Request:**
+```json
+{
+  "currentPassword": "oldpassword123",
+  "newPassword": "newpassword456"
+}
+```
+
+### 6.7 Forgot Password Functionality
+
+**Frontend:** `frontend/pages/admin-login.html`
+
+**Process:**
+1. User clicks "Forgot Password?" link
+2. Prompt for email address
+3. API call: `POST /api/auth/forgot-password`
+4. Generic response (no email enumeration):
+   ```
+   "If an account exists with this email, you will receive password reset instructions."
+   ```
+5. Uses existing password reset architecture
+
+### 6.8 Admin Profile Menu
+
+**Frontend:** `frontend/pages/admin-dashboard.html`
+
+**Features:**
+- Clickable sidebar user area to toggle dropdown
+- Profile dropdown displays:
+  - Avatar (initial letter)
+  - Full name
+  - Email
+  - Role (display name)
+  - Status (Active/Suspended with color coding)
+  - Last login date
+- Actions:
+  - Change Password
+  - Logout
+- Closes when clicking outside
+
+### 6.9 Session/Token Protection
+
+**Frontend:** `frontend/assets/js/admin-dashboard.js`
+
+**On Dashboard Load:**
+1. Check if token exists in localStorage
+2. If no token: redirect to login
+3. Validate token with backend: `GET /api/auth/profile`
+4. If validation fails:
+   - Clear localStorage
+   - Redirect to login
+5. Only load dashboard if token is valid
+
+**Protection Against:**
+- No token in localStorage
+- Expired tokens
+- Invalid tokens
+- Revoked sessions
+- Suspended accounts
+- Deleted accounts
+- Browser back-button after logout
+
+### 6.10 Role-Based Dashboard Configuration
+
+**Navigation items hidden based on permissions:**
+
+SUPER_ADMIN:
+- Dashboard, Students, Courses, Lecturers, Subjects, Results, Fees, Announcements, Intakes, Administrators, Audit Logs, Settings
+
+ACADEMIC_ADMIN:
+- Dashboard, Students, Lecturers, Courses, Subjects, Results, Intakes, Announcements
+
+FINANCE_ADMIN:
+- Dashboard, Students, Fees
+
+ADMISSIONS_ADMIN:
+- Dashboard, Students, Intakes, Announcements
+
+LECTURER_ADMIN:
+- Dashboard, Students, Courses, Subjects, Results
+
+**Welcome Message:** "Welcome, [Role Display Name]"
+
+---
+
+## 7. Security Features
+
+### 7.1 Server-Side Authorization
 
 All admin API endpoints now protected with granular permissions:
 - `requirePermission('permission.name')` - Single permission check
 - `requireAnyPermission('perm1', 'perm2')` - Any of multiple permissions
 - `requireAllPermissions('perm1', 'perm2')` - All required permissions
 
-### 6.2 SUPER_ADMIN Protection
+### 7.2 SUPER_ADMIN Protection
 
 - Cannot suspend or delete self
 - Cannot change own role
 - Last SUPER_ADMIN cannot be deleted or suspended
 - Only SUPER_ADMIN can create SUPER_ADMIN accounts
 
-### 6.3 Audit Logging
+### 7.3 Audit Logging
 
 All critical actions logged with:
 - Admin ID
@@ -235,15 +450,33 @@ All critical actions logged with:
 - IP address
 - Timestamp
 
-### 6.4 Permission Caching
+### 7.4 Permission Caching
 
 Role permissions cached for 5 minutes to reduce database queries while maintaining security.
 
+### 7.5 Login Security
+
+- **Rate Limiting:** Existing `authRateLimiter` applied to login endpoint
+- **Password Hashing:** bcrypt used for all password operations
+- **No Plaintext Passwords:** Never stored, logged, or returned
+- **Email Enumeration Protection:** Generic error messages
+- **Token Validation:** Backend validates tokens on dashboard load
+- **Session Cleanup:** Complete localStorage clear on logout
+- **Suspended Account Protection:** Backend rejects suspended admin logins
+
 ---
 
-## 7. API Endpoints
+## 8. API Endpoints
 
-### 7.1 Administrator Management (SUPER_ADMIN only)
+### 8.1 Authentication Endpoints
+
+- `POST /api/auth/admin/login` - Administrator login (all RBAC roles)
+- `POST /api/auth/forgot-password` - Request password reset
+- `POST /api/auth/reset-password` - Reset password with token
+- `GET /api/auth/profile` - Get current user profile (authenticated)
+- `PUT /api/auth/change-password` - Change password (authenticated)
+
+### 8.2 Administrator Management (SUPER_ADMIN only)
 
 - `GET /api/admins` - Get all administrators
 - `GET /api/admins/:id` - Get administrator by ID
@@ -256,7 +489,7 @@ Role permissions cached for 5 minutes to reduce database queries while maintaini
 - `GET /api/admins/audit/logs` - Get audit logs
 - `GET /api/admins/audit/logs/recent` - Get recent audit logs
 
-### 7.2 Intake Management
+### 8.3 Intake Management
 
 - `GET /api/intakes` - Get all intakes
 - `GET /api/intakes/:id` - Get intake by ID
@@ -268,63 +501,63 @@ Role permissions cached for 5 minutes to reduce database queries while maintaini
 
 ---
 
-## 8. Permission Matrix
+## 9. Permission Matrix
 
-| Permission | SUPER_ADMIN | ACADEMIC_FINANCE | ADMISSIONS | LECTURER |
-|------------|-------------|------------------|------------|----------|
-| students.view | ✅ | ✅ | ✅ | ✅ |
-| students.create | ✅ | ✅ | ✅ | ❌ |
-| students.edit | ✅ | ✅ | ✅ | ❌ |
-| students.delete | ✅ | ❌ | ❌ | ❌ |
-| students.approve | ✅ | ✅ | ✅ | ❌ |
-| students.suspend | ✅ | ✅ | ✅ | ❌ |
-| lecturers.view | ✅ | ✅ | ❌ | ❌ |
-| lecturers.create | ✅ | ✅ | ❌ | ❌ |
-| lecturers.edit | ✅ | ✅ | ❌ | ❌ |
-| lecturers.delete | ✅ | ❌ | ❌ | ❌ |
-| courses.view | ✅ | ✅ | ❌ | ✅ |
-| courses.create | ✅ | ✅ | ❌ | ❌ |
-| courses.edit | ✅ | ✅ | ❌ | ❌ |
-| courses.delete | ✅ | ❌ | ❌ | ❌ |
-| subjects.view | ✅ | ✅ | ❌ | ✅ |
-| subjects.create | ✅ | ✅ | ❌ | ❌ |
-| subjects.edit | ✅ | ✅ | ❌ | ❌ |
-| subjects.delete | ✅ | ❌ | ❌ | ❌ |
-| results.view | ✅ | ✅ | ❌ | ✅ |
-| results.create | ✅ | ✅ | ❌ | ✅ |
-| results.edit | ✅ | ✅ | ❌ | ✅ |
-| results.delete | ✅ | ❌ | ❌ | ❌ |
-| results.publish | ✅ | ✅ | ❌ | ❌ |
-| fees.view | ✅ | ❌ | ❌ | ❌ |
-| fees.create | ✅ | ❌ | ❌ | ❌ |
-| fees.edit | ✅ | ❌ | ❌ | ❌ |
-| fees.delete | ✅ | ❌ | ❌ | ❌ |
-| payments.view | ✅ | ❌ | ❌ | ❌ |
-| payments.create | ✅ | ❌ | ❌ | ❌ |
-| payments.edit | ✅ | ❌ | ❌ | ❌ |
-| financial_reports.view | ✅ | ❌ | ❌ | ❌ |
-| announcements.view | ✅ | ✅ | ✅ | ❌ |
-| announcements.create | ✅ | ✅ | ❌ | ❌ |
-| announcements.edit | ✅ | ✅ | ❌ | ❌ |
-| announcements.delete | ✅ | ❌ | ❌ | ❌ |
-| intakes.view | ✅ | ✅ | ✅ | ❌ |
-| intakes.create | ✅ | ✅ | ✅ | ❌ |
-| intakes.edit | ✅ | ✅ | ✅ | ❌ |
-| intakes.delete | ✅ | ❌ | ❌ | ❌ |
-| admins.view | ✅ | ❌ | ❌ | ❌ |
-| admins.create | ✅ | ❌ | ❌ | ❌ |
-| admins.edit | ✅ | ❌ | ❌ | ❌ |
-| admins.delete | ✅ | ❌ | ❌ | ❌ |
-| admins.suspend | ✅ | ❌ | ❌ | ❌ |
-| audit_logs.view | ✅ | ❌ | ❌ | ❌ |
-| settings.view | ✅ | ❌ | ❌ | ❌ |
-| settings.edit | ✅ | ❌ | ❌ | ❌ |
+| Permission | SUPER_ADMIN | ACADEMIC_ADMIN | FINANCE_ADMIN | ADMISSIONS_ADMIN | LECTURER_ADMIN |
+|------------|-------------|---------------|---------------|-----------------|----------------|
+| students.view | ✅ | ✅ | ✅ | ✅ | ✅ |
+| students.create | ✅ | ✅ | ❌ | ✅ | ❌ |
+| students.edit | ✅ | ✅ | ❌ | ✅ | ❌ |
+| students.delete | ✅ | ❌ | ❌ | ❌ | ❌ |
+| students.approve | ✅ | ✅ | ❌ | ✅ | ❌ |
+| students.suspend | ✅ | ✅ | ❌ | ✅ | ❌ |
+| lecturers.view | ✅ | ✅ | ❌ | ❌ | ❌ |
+| lecturers.create | ✅ | ✅ | ❌ | ❌ | ❌ |
+| lecturers.edit | ✅ | ✅ | ❌ | ❌ | ❌ |
+| lecturers.delete | ✅ | ❌ | ❌ | ❌ | ❌ |
+| courses.view | ✅ | ✅ | ❌ | ❌ | ✅ |
+| courses.create | ✅ | ✅ | ❌ | ❌ | ❌ |
+| courses.edit | ✅ | ✅ | ❌ | ❌ | ❌ |
+| courses.delete | ✅ | ❌ | ❌ | ❌ | ❌ |
+| subjects.view | ✅ | ✅ | ❌ | ❌ | ✅ |
+| subjects.create | ✅ | ✅ | ❌ | ❌ | ❌ |
+| subjects.edit | ✅ | ✅ | ❌ | ❌ | ❌ |
+| subjects.delete | ✅ | ❌ | ❌ | ❌ | ❌ |
+| results.view | ✅ | ✅ | ❌ | ❌ | ✅ |
+| results.create | ✅ | ✅ | ❌ | ❌ | ✅ |
+| results.edit | ✅ | ✅ | ❌ | ❌ | ✅ |
+| results.delete | ✅ | ❌ | ❌ | ❌ | ❌ |
+| results.publish | ✅ | ✅ | ❌ | ❌ | ❌ |
+| fees.view | ✅ | ❌ | ✅ | ❌ | ❌ |
+| fees.create | ✅ | ❌ | ✅ | ❌ | ❌ |
+| fees.edit | ✅ | ❌ | ✅ | ❌ | ❌ |
+| fees.delete | ✅ | ❌ | ❌ | ❌ | ❌ |
+| payments.view | ✅ | ❌ | ✅ | ❌ | ❌ |
+| payments.create | ✅ | ❌ | ✅ | ❌ | ❌ |
+| payments.edit | ✅ | ❌ | ✅ | ❌ | ❌ |
+| financial_reports.view | ✅ | ❌ | ✅ | ❌ | ❌ |
+| announcements.view | ✅ | ✅ | ❌ | ✅ | ❌ |
+| announcements.create | ✅ | ✅ | ❌ | ❌ | ❌ |
+| announcements.edit | ✅ | ✅ | ❌ | ❌ | ❌ |
+| announcements.delete | ✅ | ❌ | ❌ | ❌ | ❌ |
+| intakes.view | ✅ | ✅ | ❌ | ✅ | ❌ |
+| intakes.create | ✅ | ✅ | ❌ | ✅ | ❌ |
+| intakes.edit | ✅ | ✅ | ❌ | ✅ | ❌ |
+| intakes.delete | ✅ | ❌ | ❌ | ❌ | ❌ |
+| admins.view | ✅ | ❌ | ❌ | ❌ | ❌ |
+| admins.create | ✅ | ❌ | ❌ | ❌ | ❌ |
+| admins.edit | ✅ | ❌ | ❌ | ❌ | ❌ |
+| admins.delete | ✅ | ❌ | ❌ | ❌ | ❌ |
+| admins.suspend | ✅ | ❌ | ❌ | ❌ | ❌ |
+| audit_logs.view | ✅ | ❌ | ❌ | ❌ | ❌ |
+| settings.view | ✅ | ❌ | ❌ | ❌ | ❌ |
+| settings.edit | ✅ | ❌ | ❌ | ❌ | ❌ |
 
 ---
 
-## 9. Deployment Instructions
+## 10. Deployment Instructions
 
-### 9.1 Database Migration
+### 10.1 Database Migration
 
 1. Run the RBAC schema migration in Supabase SQL Editor:
    ```sql

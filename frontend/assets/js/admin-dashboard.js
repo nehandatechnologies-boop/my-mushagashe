@@ -28,18 +28,24 @@ const permissions = JSON.parse(localStorage.getItem('permissions') || '[]');
 
 // Permission helper functions
 function hasPermission(permissionName) {
-  const role = user.role;
-  if (role === 'SUPER_ADMIN' || role === 'super_admin') return true;
-  return permissions.some(p => p.name === permissionName);
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const role = currentUser.role;
+  const currentPermissions = JSON.parse(localStorage.getItem('permissions') || '[]');
+  
+  // Support both legacy 'admin' and new RBAC roles
+  if (role === 'SUPER_ADMIN' || role === 'super_admin' || role === 'admin') return true;
+  return currentPermissions.some(p => p.name === permissionName);
 }
 
 function hasRole(roleName) {
-  const role = user.role;
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const role = currentUser.role;
   return role === roleName || role === roleName.toLowerCase();
 }
 
 function getRoleDisplayName() {
-  const role = user.role;
+  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+  const role = currentUser.role;
   const roleNames = {
     'SUPER_ADMIN': 'Super Administrator',
     'super_admin': 'Super Administrator',
@@ -194,6 +200,15 @@ async function loadPageData(page) {
             break;
         case 'settings':
             await loadTemplateInfo();
+            break;
+        case 'admins':
+            await loadAdministrators();
+            break;
+        case 'audit':
+            await loadAuditLogs();
+            break;
+        case 'intakes':
+            await loadIntakes();
             break;
     }
 }
@@ -1874,6 +1889,439 @@ async function deleteAnnouncement(id) {
 
 window.deleteAnnouncement = deleteAnnouncement;
 
+// Administrator Management Functions
+async function loadAdministrators() {
+    try {
+        const adminSearch = document.getElementById('adminSearch');
+        const adminRoleFilter = document.getElementById('adminRoleFilter');
+        const adminStatusFilter = document.getElementById('adminStatusFilter');
+        const search = adminSearch ? adminSearch.value : '';
+        const roleFilter = adminRoleFilter ? adminRoleFilter.value : '';
+        const statusFilter = adminStatusFilter ? adminStatusFilter.value : '';
+        
+        let endpoint = '/admin/administrators';
+        const params = [];
+        if (search) params.push(`search=${encodeURIComponent(search)}`);
+        if (roleFilter) params.push(`role=${roleFilter}`);
+        if (statusFilter) params.push(`status=${statusFilter}`);
+        if (params.length) endpoint += '?' + params.join('&');
+        
+        const administrators = await apiRequest(endpoint);
+        
+        const tbody = document.getElementById('adminsTableBody');
+        
+        if (!administrators || administrators.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">No administrators found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = administrators.map(admin => `
+            <tr>
+                <td>${admin.full_name}</td>
+                <td>${admin.email}</td>
+                <td><span class="badge badge-${admin.role.toLowerCase()}">${getRoleDisplayNameForRole(admin.role)}</span></td>
+                <td><span class="status-badge status-${admin.status}">${admin.status}</span></td>
+                <td>${admin.last_login ? new Date(admin.last_login).toLocaleDateString() : 'Never'}</td>
+                <td>
+                    <button class="action-btn edit" onclick="editAdministrator(${admin.id})">Edit</button>
+                    ${admin.role !== 'SUPER_ADMIN' ? `<button class="action-btn delete" onclick="deleteAdministrator(${admin.id})">Delete</button>` : ''}
+                </td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('Load administrators error:', error);
+        const tbody = document.getElementById('adminsTableBody');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">Failed to load administrators. Please try again.</td></tr>';
+        }
+        showToast('Failed to load administrators', 'error');
+    }
+}
+
+function getRoleDisplayNameForRole(role) {
+    const roleNames = {
+        'SUPER_ADMIN': 'Super Administrator',
+        'ACADEMIC_ADMIN': 'Academic Administrator',
+        'FINANCE_ADMIN': 'Finance Administrator',
+        'ADMISSIONS_ADMIN': 'Admissions Administrator',
+        'LECTURER_ADMIN': 'Lecturer Administrator'
+    };
+    return roleNames[role] || role;
+}
+
+const addAdminBtn = document.getElementById('addAdminBtn');
+if (addAdminBtn) {
+    addAdminBtn.addEventListener('click', () => {
+        // Only SUPER_ADMIN can create other SUPER_ADMIN
+        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+        const canCreateSuperAdmin = currentUser.role === 'SUPER_ADMIN';
+        
+        let roleOptions = '';
+        if (canCreateSuperAdmin) {
+            roleOptions = `
+                <option value="SUPER_ADMIN">Super Administrator</option>
+                <option value="ACADEMIC_ADMIN">Academic Administrator</option>
+                <option value="FINANCE_ADMIN">Finance Administrator</option>
+                <option value="ADMISSIONS_ADMIN">Admissions Administrator</option>
+                <option value="LECTURER_ADMIN">Lecturer Administrator</option>
+            `;
+        } else {
+            roleOptions = `
+                <option value="ACADEMIC_ADMIN">Academic Administrator</option>
+                <option value="FINANCE_ADMIN">Finance Administrator</option>
+                <option value="ADMISSIONS_ADMIN">Admissions Administrator</option>
+                <option value="LECTURER_ADMIN">Lecturer Administrator</option>
+            `;
+        }
+        
+        showModal(`
+            <div class="modal-header">
+                <h3>Add New Administrator</h3>
+                <button class="modal-close" onclick="hideModal()">&times;</button>
+            </div>
+            <form id="addAdminForm" class="modal-form">
+                <div class="form-group">
+                    <label>Full Name *</label>
+                    <input type="text" name="full_name" required>
+                </div>
+                <div class="form-group">
+                    <label>Email *</label>
+                    <input type="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label>Password *</label>
+                    <input type="password" name="password" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label>Role *</label>
+                    <select name="role" required>
+                        ${roleOptions}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select name="status">
+                        <option value="active">Active</option>
+                        <option value="suspended">Suspended</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Add Administrator</button>
+            </form>
+        `);
+    });
+}
+
+window.editAdministrator = async function(id) {
+    try {
+        const admin = await apiRequest(`/admin/administrators/${id}`);
+        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+        const canCreateSuperAdmin = currentUser.role === 'SUPER_ADMIN';
+        
+        let roleOptions = '';
+        if (canCreateSuperAdmin) {
+            roleOptions = `
+                <option value="SUPER_ADMIN" ${admin.role === 'SUPER_ADMIN' ? 'selected' : ''}>Super Administrator</option>
+                <option value="ACADEMIC_ADMIN" ${admin.role === 'ACADEMIC_ADMIN' ? 'selected' : ''}>Academic Administrator</option>
+                <option value="FINANCE_ADMIN" ${admin.role === 'FINANCE_ADMIN' ? 'selected' : ''}>Finance Administrator</option>
+                <option value="ADMISSIONS_ADMIN" ${admin.role === 'ADMISSIONS_ADMIN' ? 'selected' : ''}>Admissions Administrator</option>
+                <option value="LECTURER_ADMIN" ${admin.role === 'LECTURER_ADMIN' ? 'selected' : ''}>Lecturer Administrator</option>
+            `;
+        } else {
+            roleOptions = `
+                <option value="ACADEMIC_ADMIN" ${admin.role === 'ACADEMIC_ADMIN' ? 'selected' : ''}>Academic Administrator</option>
+                <option value="FINANCE_ADMIN" ${admin.role === 'FINANCE_ADMIN' ? 'selected' : ''}>Finance Administrator</option>
+                <option value="ADMISSIONS_ADMIN" ${admin.role === 'ADMISSIONS_ADMIN' ? 'selected' : ''}>Admissions Administrator</option>
+                <option value="LECTURER_ADMIN" ${admin.role === 'LECTURER_ADMIN' ? 'selected' : ''}>Lecturer Administrator</option>
+            `;
+        }
+        
+        showModal(`
+            <div class="modal-header">
+                <h3>Edit Administrator</h3>
+                <button class="modal-close" onclick="hideModal()">&times;</button>
+            </div>
+            <form id="editAdminForm" class="modal-form" data-admin-id="${id}">
+                <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" name="full_name" value="${admin.full_name}">
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input type="email" name="email" value="${admin.email}">
+                </div>
+                <div class="form-group">
+                    <label>Role</label>
+                    <select name="role" ${admin.role === 'SUPER_ADMIN' && currentUser.role !== 'SUPER_ADMIN' ? 'disabled' : ''}>
+                        ${roleOptions}
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select name="status">
+                        <option value="active" ${admin.status === 'active' ? 'selected' : ''}>Active</option>
+                        <option value="suspended" ${admin.status === 'suspended' ? 'selected' : ''}>Suspended</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Password Management</label>
+                    <button type="button" class="btn btn-warning" onclick="resetAdminPassword(${admin.id})">Reset Password</button>
+                    <small style="display: block; margin-top: 5px; color: #666;">This will generate a new temporary password for the administrator.</small>
+                </div>
+                <button type="submit" class="btn btn-primary">Update Administrator</button>
+            </form>
+        `);
+    } catch (error) {
+        console.error('Load administrator error:', error);
+        showToast('Failed to load administrator data', 'error');
+    }
+};
+
+window.deleteAdministrator = async function(id) {
+    if (!confirm('Are you sure you want to delete this administrator?')) {
+        return;
+    }
+    
+    try {
+        await apiRequest(`/admin/administrators/${id}`, { method: 'DELETE' });
+        showToast('Administrator deleted successfully');
+        loadAdministrators();
+    } catch (error) {
+        console.error('Delete administrator error:', error);
+        showToast('Failed to delete administrator: ' + (error.message || 'Unknown error'), 'error');
+    }
+};
+
+window.resetAdminPassword = async function(id) {
+    if (!confirm('Are you sure you want to reset this administrator\'s password? A new temporary password will be generated.')) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/admin/administrators/${id}/reset-password`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({ new_password: null }) // Let backend generate password
+        });
+        
+        const data = await response.json();
+        
+        if (!response.ok) {
+            throw new Error(data.error || 'Failed to reset password');
+        }
+        
+        // Show the temporary password in a modal
+        showModal(`
+            <div class="modal-header">
+                <h3>Password Reset Successful</h3>
+                <button class="modal-close" onclick="hideModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p style="margin-bottom: 15px;">A new temporary password has been generated for this administrator.</p>
+                <div style="background: #f0f9ff; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <strong>Temporary Password:</strong> <span style="font-family: monospace; font-size: 1.2em; color: #1e40af;">${data.temporary_password || 'Please check backend response'}</span>
+                </div>
+                <p style="color: #666; font-size: 0.9em;">Please provide this password to the administrator. They should change it after logging in.</p>
+            </div>
+        `);
+    } catch (error) {
+        console.error('Reset password error:', error);
+        showToast('Failed to reset password: ' + (error.message || 'Unknown error'), 'error');
+    }
+};
+
+// Audit Logs Functions
+async function loadAuditLogs() {
+    try {
+        const auditSearch = document.getElementById('auditSearch');
+        const auditActionFilter = document.getElementById('auditActionFilter');
+        const auditEntityFilter = document.getElementById('auditEntityFilter');
+        const auditDateFilter = document.getElementById('auditDateFilter');
+        const search = auditSearch ? auditSearch.value : '';
+        const actionFilter = auditActionFilter ? auditActionFilter.value : '';
+        const entityFilter = auditEntityFilter ? auditEntityFilter.value : '';
+        const dateFilter = auditDateFilter ? auditDateFilter.value : '';
+        
+        let endpoint = '/admin/audit-logs';
+        const params = [];
+        if (search) params.push(`search=${encodeURIComponent(search)}`);
+        if (actionFilter) params.push(`action=${actionFilter}`);
+        if (entityFilter) params.push(`entity_type=${entityFilter}`);
+        if (dateFilter) params.push(`date=${dateFilter}`);
+        if (params.length) endpoint += '?' + params.join('&');
+        
+        const auditLogs = await apiRequest(endpoint);
+        
+        const tbody = document.getElementById('auditTableBody');
+        
+        if (!auditLogs || auditLogs.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">No audit logs found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = auditLogs.map(log => `
+            <tr>
+                <td>${new Date(log.created_at).toLocaleString()}</td>
+                <td>${log.performed_by_name || 'System'} (${log.performed_by_email || 'N/A'})</td>
+                <td><span class="badge badge-${log.action.toLowerCase()}">${log.action}</span></td>
+                <td>${log.entity_type}</td>
+                <td>${log.details || 'N/A'}</td>
+                <td>${log.ip_address || 'N/A'}</td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('Load audit logs error:', error);
+        const tbody = document.getElementById('auditTableBody');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">Failed to load audit logs. Please try again.</td></tr>';
+        }
+        showToast('Failed to load audit logs', 'error');
+    }
+}
+
+// Intakes Management Functions
+async function loadIntakes() {
+    try {
+        const intakeSearch = document.getElementById('intakeSearch');
+        const intakeStatusFilter = document.getElementById('intakeStatusFilter');
+        const search = intakeSearch ? intakeSearch.value : '';
+        const statusFilter = intakeStatusFilter ? intakeStatusFilter.value : '';
+        
+        let endpoint = '/admin/intakes';
+        const params = [];
+        if (search) params.push(`search=${encodeURIComponent(search)}`);
+        if (statusFilter) params.push(`status=${statusFilter}`);
+        if (params.length) endpoint += '?' + params.join('&');
+        
+        const intakes = await apiRequest(endpoint);
+        
+        const tbody = document.getElementById('intakesTableBody');
+        
+        if (!intakes || intakes.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">No intakes found</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = intakes.map(intake => `
+            <tr>
+                <td>${intake.name}</td>
+                <td>${new Date(intake.start_date).toLocaleDateString()}</td>
+                <td>${new Date(intake.end_date).toLocaleDateString()}</td>
+                <td><span class="status-badge status-${intake.status}">${intake.status}</span></td>
+                <td>${intake.student_count || 0}</td>
+                <td>
+                    <button class="action-btn edit" onclick="editIntake(${intake.id})">Edit</button>
+                    <button class="action-btn delete" onclick="deleteIntake(${intake.id})">Delete</button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('Load intakes error:', error);
+        const tbody = document.getElementById('intakesTableBody');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="6" class="text-center">Failed to load intakes. Please try again.</td></tr>';
+        }
+        showToast('Failed to load intakes', 'error');
+    }
+}
+
+const addIntakeBtn = document.getElementById('addIntakeBtn');
+if (addIntakeBtn) {
+    addIntakeBtn.addEventListener('click', () => {
+        showModal(`
+            <div class="modal-header">
+                <h3>Add New Intake</h3>
+                <button class="modal-close" onclick="hideModal()">&times;</button>
+            </div>
+            <form id="addIntakeForm" class="modal-form">
+                <div class="form-group">
+                    <label>Intake Name *</label>
+                    <input type="text" name="name" required placeholder="e.g., January 2026">
+                </div>
+                <div class="form-group">
+                    <label>Start Date *</label>
+                    <input type="date" name="start_date" required>
+                </div>
+                <div class="form-group">
+                    <label>End Date *</label>
+                    <input type="date" name="end_date" required>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select name="status">
+                        <option value="upcoming">Upcoming</option>
+                        <option value="active">Active</option>
+                        <option value="completed">Completed</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea name="description" rows="3"></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Add Intake</button>
+            </form>
+        `);
+    });
+}
+
+window.editIntake = async function(id) {
+    try {
+        const intake = await apiRequest(`/admin/intakes/${id}`);
+        
+        showModal(`
+            <div class="modal-header">
+                <h3>Edit Intake</h3>
+                <button class="modal-close" onclick="hideModal()">&times;</button>
+            </div>
+            <form id="editIntakeForm" class="modal-form" data-intake-id="${id}">
+                <div class="form-group">
+                    <label>Intake Name</label>
+                    <input type="text" name="name" value="${intake.name}" required>
+                </div>
+                <div class="form-group">
+                    <label>Start Date</label>
+                    <input type="date" name="start_date" value="${intake.start_date}" required>
+                </div>
+                <div class="form-group">
+                    <label>End Date</label>
+                    <input type="date" name="end_date" value="${intake.end_date}" required>
+                </div>
+                <div class="form-group">
+                    <label>Status</label>
+                    <select name="status">
+                        <option value="upcoming" ${intake.status === 'upcoming' ? 'selected' : ''}>Upcoming</option>
+                        <option value="active" ${intake.status === 'active' ? 'selected' : ''}>Active</option>
+                        <option value="completed" ${intake.status === 'completed' ? 'selected' : ''}>Completed</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea name="description" rows="3">${intake.description || ''}</textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Update Intake</button>
+            </form>
+        `);
+    } catch (error) {
+        console.error('Load intake error:', error);
+        showToast('Failed to load intake data', 'error');
+    }
+};
+
+window.deleteIntake = async function(id) {
+    if (!confirm('Are you sure you want to delete this intake?')) {
+        return;
+    }
+    
+    try {
+        await apiRequest(`/admin/intakes/${id}`, { method: 'DELETE' });
+        showToast('Intake deleted successfully');
+        loadIntakes();
+    } catch (error) {
+        console.error('Delete intake error:', error);
+        showToast('Failed to delete intake: ' + (error.message || 'Unknown error'), 'error');
+    }
+};
+
 // Helper function to load courses dropdown
 async function loadCourseDropdown(selectedId = null) {
     try {
@@ -1968,6 +2416,15 @@ const feeFilter = document.getElementById('feeFilter');
 const resultSearch = document.getElementById('resultSearch');
 const semesterFilter = document.getElementById('semesterFilter');
 const subjectSearch = document.getElementById('subjectSearch');
+const adminSearch = document.getElementById('adminSearch');
+const adminRoleFilter = document.getElementById('adminRoleFilter');
+const adminStatusFilter = document.getElementById('adminStatusFilter');
+const auditSearch = document.getElementById('auditSearch');
+const auditActionFilter = document.getElementById('auditActionFilter');
+const auditEntityFilter = document.getElementById('auditEntityFilter');
+const auditDateFilter = document.getElementById('auditDateFilter');
+const intakeSearch = document.getElementById('intakeSearch');
+const intakeStatusFilter = document.getElementById('intakeStatusFilter');
 
 if (studentSearch) studentSearch.addEventListener('input', loadStudents);
 if (studentFilter) studentFilter.addEventListener('change', loadStudents);
@@ -1977,6 +2434,15 @@ if (feeFilter) feeFilter.addEventListener('change', loadFees);
 if (resultSearch) resultSearch.addEventListener('input', loadResults);
 if (semesterFilter) semesterFilter.addEventListener('change', loadResults);
 if (subjectSearch) subjectSearch.addEventListener('input', loadSubjects);
+if (adminSearch) adminSearch.addEventListener('input', loadAdministrators);
+if (adminRoleFilter) adminRoleFilter.addEventListener('change', loadAdministrators);
+if (adminStatusFilter) adminStatusFilter.addEventListener('change', loadAdministrators);
+if (auditSearch) auditSearch.addEventListener('input', loadAuditLogs);
+if (auditActionFilter) auditActionFilter.addEventListener('change', loadAuditLogs);
+if (auditEntityFilter) auditEntityFilter.addEventListener('change', loadAuditLogs);
+if (auditDateFilter) auditDateFilter.addEventListener('change', loadAuditLogs);
+if (intakeSearch) intakeSearch.addEventListener('input', loadIntakes);
+if (intakeStatusFilter) intakeStatusFilter.addEventListener('change', loadIntakes);
 // Subject course filter change handler
 const subjectCourseFilter = document.getElementById('subjectCourseFilter');
 if (subjectCourseFilter) {
@@ -2113,7 +2579,8 @@ if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
         localStorage.removeItem('token');
         localStorage.removeItem('user');
-        window.location.href = 'index.html';
+        localStorage.removeItem('permissions');
+        window.location.href = 'admin-login.html';
     });
 }
 
@@ -2229,7 +2696,16 @@ window.addEventListener('load', () => {
     const currentToken = localStorage.getItem('token');
     const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
     
-    if (!currentToken || currentUser.role !== 'admin') {
+    // Check if user has any admin role (old 'admin' or new RBAC roles)
+    const isAdmin = currentUser.role === 'admin' || 
+                   currentUser.role === 'super_admin' ||
+                   currentUser.role === 'SUPER_ADMIN' ||
+                   currentUser.role === 'ACADEMIC_ADMIN' ||
+                   currentUser.role === 'FINANCE_ADMIN' ||
+                   currentUser.role === 'ADMISSIONS_ADMIN' ||
+                   currentUser.role === 'LECTURER_ADMIN';
+    
+    if (!currentToken || !isAdmin) {
         window.location.href = 'admin-login.html';
         return;
     }
@@ -2313,6 +2789,18 @@ modalContainer.addEventListener('submit', async (e) => {
             break;
         case 'editAnnouncementForm':
             await handleEditAnnouncementSubmit(form);
+            break;
+        case 'addAdminForm':
+            await handleAddAdminSubmit(form);
+            break;
+        case 'editAdminForm':
+            await handleEditAdminSubmit(form);
+            break;
+        case 'addIntakeForm':
+            await handleAddIntakeSubmit(form);
+            break;
+        case 'editIntakeForm':
+            await handleEditIntakeSubmit(form);
             break;
         default:
             console.warn(`Unknown form ID: ${formId}`);
@@ -2668,6 +3156,92 @@ async function handleEditAnnouncementSubmit(form) {
     } catch (error) {
         console.error('Update announcement error:', error);
         showToast('Failed to update announcement', 'error');
+    }
+}
+
+async function handleAddAdminSubmit(form) {
+    const formData = new FormData(form);
+    const adminData = Object.fromEntries(formData);
+    
+    try {
+        await apiRequest('/admin/administrators', {
+            method: 'POST',
+            body: JSON.stringify(adminData)
+        });
+        showToast('Administrator added successfully');
+        hideModal();
+        loadAdministrators();
+    } catch (error) {
+        console.error('Add administrator error:', error);
+        showToast('Failed to add administrator', 'error');
+    }
+}
+
+async function handleEditAdminSubmit(form) {
+    const formData = new FormData(form);
+    const updateData = Object.fromEntries(formData);
+    
+    const adminId = form.dataset.adminId;
+    if (!adminId) {
+        console.error('Missing administrator ID');
+        showToast('Missing administrator ID', 'error');
+        return;
+    }
+    
+    try {
+        await apiRequest(`/admin/administrators/${adminId}`, {
+            method: 'PUT',
+            body: JSON.stringify(updateData)
+        });
+        showToast('Administrator updated successfully');
+        hideModal();
+        loadAdministrators();
+    } catch (error) {
+        console.error('Update administrator error:', error);
+        showToast('Failed to update administrator', 'error');
+    }
+}
+
+async function handleAddIntakeSubmit(form) {
+    const formData = new FormData(form);
+    const intakeData = Object.fromEntries(formData);
+    
+    try {
+        await apiRequest('/admin/intakes', {
+            method: 'POST',
+            body: JSON.stringify(intakeData)
+        });
+        showToast('Intake added successfully');
+        hideModal();
+        loadIntakes();
+    } catch (error) {
+        console.error('Add intake error:', error);
+        showToast('Failed to add intake', 'error');
+    }
+}
+
+async function handleEditIntakeSubmit(form) {
+    const formData = new FormData(form);
+    const updateData = Object.fromEntries(formData);
+    
+    const intakeId = form.dataset.intakeId;
+    if (!intakeId) {
+        console.error('Missing intake ID');
+        showToast('Missing intake ID', 'error');
+        return;
+    }
+    
+    try {
+        await apiRequest(`/admin/intakes/${intakeId}`, {
+            method: 'PUT',
+            body: JSON.stringify(updateData)
+        });
+        showToast('Intake updated successfully');
+        hideModal();
+        loadIntakes();
+    } catch (error) {
+        console.error('Update intake error:', error);
+        showToast('Failed to update intake', 'error');
     }
 }
 
@@ -3048,11 +3622,49 @@ function setupApprovalFilters() {
 
 // Initialize on page load
 window.addEventListener('DOMContentLoaded', async () => {
+    // Check authentication before loading dashboard
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    
+    if (!token) {
+        window.location.href = 'admin-login.html';
+        return;
+    }
+
+    // Check if user has any admin role
+    const isAdmin = user.role === 'admin' || 
+                   user.role === 'super_admin' ||
+                   user.role === 'SUPER_ADMIN' ||
+                   user.role === 'ACADEMIC_ADMIN' ||
+                   user.role === 'FINANCE_ADMIN' ||
+                   user.role === 'ADMISSIONS_ADMIN' ||
+                   user.role === 'LECTURER_ADMIN';
+    
+    if (!isAdmin) {
+        window.location.href = 'admin-login.html';
+        return;
+    }
+
+    // Validate token with backend
+    try {
+        await apiRequest('/auth/profile');
+    } catch (error) {
+        console.error('Token validation failed:', error);
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('permissions');
+        window.location.href = 'admin-login.html';
+        return;
+    }
+
     // Update welcome message with role
     const welcomeElement = document.getElementById('welcomeMessage');
     if (welcomeElement) {
         welcomeElement.textContent = `Welcome, ${getRoleDisplayName()}`;
     }
+
+    // Update sidebar user info
+    updateSidebarUserInfo();
 
     // Apply permissions to navigation
     applyPermissionsToNavigation();
@@ -3061,7 +3673,167 @@ window.addEventListener('DOMContentLoaded', async () => {
     await loadDashboardStatistics();
     await loadRecentAnnouncements();
     await updatePendingBadge();
+
+    // Setup logout button
+    const logoutBtn = document.getElementById('logoutBtn');
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', handleLogout);
+    }
+
+    // Setup profile logout button
+    const profileLogoutBtn = document.getElementById('profileLogout');
+    if (profileLogoutBtn) {
+        profileLogoutBtn.addEventListener('click', handleLogout);
+    }
+
+    // Setup change password button
+    const changePasswordBtn = document.getElementById('changePasswordBtn');
+    if (changePasswordBtn) {
+        changePasswordBtn.addEventListener('click', handleChangePassword);
+    }
+
+    // Setup profile change password button
+    const profileChangePasswordBtn = document.getElementById('profileChangePassword');
+    if (profileChangePasswordBtn) {
+        profileChangePasswordBtn.addEventListener('click', handleChangePassword);
+    }
+
+    // Setup sidebar user click for profile dropdown
+    const sidebarUser = document.getElementById('sidebarUser');
+    if (sidebarUser) {
+        sidebarUser.addEventListener('click', toggleProfileDropdown);
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (e) => {
+        const dropdown = document.getElementById('adminProfileDropdown');
+        const sidebarUser = document.getElementById('sidebarUser');
+        if (dropdown && sidebarUser && !dropdown.contains(e.target) && !sidebarUser.contains(e.target)) {
+            dropdown.style.display = 'none';
+        }
+    });
 });
+
+// Update sidebar user information
+function updateSidebarUserInfo() {
+    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    
+    const sidebarAvatar = document.getElementById('sidebarAvatar');
+    const sidebarUserName = document.getElementById('sidebarUserName');
+    const sidebarUserRole = document.getElementById('sidebarUserRole');
+    
+    const profileAvatar = document.getElementById('profileAvatar');
+    const profileName = document.getElementById('profileName');
+    const profileEmail = document.getElementById('profileEmail');
+    const profileRole = document.getElementById('profileRole');
+    const profileStatus = document.getElementById('profileStatus');
+    const profileLastLogin = document.getElementById('profileLastLogin');
+    
+    if (sidebarAvatar && user.full_name) {
+        sidebarAvatar.textContent = user.full_name.charAt(0).toUpperCase();
+    }
+    
+    if (sidebarUserName && user.full_name) {
+        sidebarUserName.textContent = user.full_name;
+    }
+    
+    if (sidebarUserRole) {
+        sidebarUserRole.textContent = getRoleDisplayName();
+    }
+
+    // Update profile dropdown
+    if (profileAvatar && user.full_name) {
+        profileAvatar.textContent = user.full_name.charAt(0).toUpperCase();
+    }
+    
+    if (profileName && user.full_name) {
+        profileName.textContent = user.full_name;
+    }
+    
+    if (profileEmail && user.email) {
+        profileEmail.textContent = user.email;
+    }
+    
+    if (profileRole) {
+        profileRole.textContent = getRoleDisplayName();
+    }
+    
+    if (profileStatus && user.status) {
+        profileStatus.textContent = user.status.charAt(0).toUpperCase() + user.status.slice(1);
+        profileStatus.className = 'detail-value status-' + user.status;
+    }
+    
+    if (profileLastLogin && user.last_login) {
+        profileLastLogin.textContent = new Date(user.last_login).toLocaleDateString();
+    }
+}
+
+// Toggle profile dropdown
+function toggleProfileDropdown() {
+    const dropdown = document.getElementById('adminProfileDropdown');
+    if (dropdown) {
+        dropdown.style.display = dropdown.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+// Handle logout
+async function handleLogout() {
+    if (!confirm('Are you sure you want to logout?')) {
+        return;
+    }
+
+    try {
+        // Call backend logout endpoint if available
+        await apiRequest('/auth/logout', {
+            method: 'POST'
+        });
+    } catch (error) {
+        console.log('Logout API call failed, proceeding with client-side logout');
+    }
+
+    // Clear authentication data
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    localStorage.removeItem('permissions');
+
+    // Redirect to login page
+    window.location.href = 'admin-login.html';
+}
+
+// Handle change password
+function handleChangePassword() {
+    const currentPassword = prompt('Enter your current password:');
+    if (!currentPassword) return;
+
+    const newPassword = prompt('Enter your new password:');
+    if (!newPassword) return;
+
+    const confirmPassword = prompt('Confirm your new password:');
+    if (!confirmPassword) return;
+
+    if (newPassword !== confirmPassword) {
+        showToast('Passwords do not match', 'error');
+        return;
+    }
+
+    if (newPassword.length < 6) {
+        showToast('Password must be at least 6 characters', 'error');
+        return;
+    }
+
+    // Call API to change password
+    apiRequest('/auth/change-password', {
+        method: 'PUT',
+        body: JSON.stringify({
+            currentPassword,
+            newPassword
+        })
+    }).then(() => {
+        showToast('Password changed successfully');
+    }).catch(error => {
+        showToast(error.message || 'Failed to change password', 'error');
+    });
+}
 
 // Apply permissions to navigation menu
 function applyPermissionsToNavigation() {

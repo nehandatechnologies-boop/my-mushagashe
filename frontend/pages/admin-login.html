@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval'; connect-src 'self' http://localhost:5000 https://*.onrender.com; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://fonts.gstatic.com; font-src 'self' https://fonts.gstatic.com;">
-    <title>Staff Login - Mushagashe Vocational Training Centre</title>
+    <title>Administrator Sign In - Mushagashe Vocational Training Centre</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -291,7 +291,7 @@
                     </div>
                     <div class="logo-text">
                         <h1>Mushagashe VTC</h1>
-                        <p>Staff Portal</p>
+                        <p>Student Portal</p>
                     </div>
                 </div>
                 <a href="../index.html" class="back-link">
@@ -314,8 +314,8 @@
                                 <line x1="9" y1="21" x2="9" y2="9"></line>
                             </svg>
                         </div>
-                        <h2 class="login-card-title">Staff Login</h2>
-                        <p class="login-card-subtitle">Enter your credentials to access the staff portal</p>
+                        <h2 class="login-card-title">Administrator Sign In</h2>
+                        <p class="login-card-subtitle">Enter your credentials to access the administrator portal</p>
                     </div>
 
                     <form id="adminLoginForm">
@@ -358,7 +358,7 @@
                                 <input type="checkbox" name="remember">
                                 <span>Remember me</span>
                             </label>
-                            <a href="#" class="forgot-link">Forgot password?</a>
+                            <a href="#" class="forgot-link" id="forgotPasswordLink">Forgot password?</a>
                         </div>
 
                         <button type="submit" class="btn btn-accent btn-full" id="loginBtn">
@@ -410,6 +410,16 @@
 
         document.getElementById('current-year').textContent = new Date().getFullYear();
 
+        // Forgot password handler
+        document.getElementById('forgotPasswordLink').addEventListener('click', function(e) {
+            e.preventDefault();
+            const email = prompt('Enter your email address:');
+            if (!email) return;
+            
+            alert('Password reset has been disabled for security. Please contact the Super Administrator to reset your password.');
+            alert('For support, contact: hummingbirdtech8@gmail.com | +263 77 838 7971');
+        });
+
         document.getElementById('adminLoginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
@@ -438,6 +448,7 @@
                 if (response.ok) {
                     localStorage.setItem('token', data.token);
                     localStorage.setItem('user', JSON.stringify(data.user));
+                    localStorage.setItem('permissions', JSON.stringify(data.permissions || []));
                     window.location.href = 'admin-dashboard.html';
                 } else {
                     errorDiv.textContent = data.error || 'Login failed. Please try again.';

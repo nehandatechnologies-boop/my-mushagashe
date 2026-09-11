@@ -2,7 +2,7 @@ const bcrypt = require('bcryptjs');
 const User = require('../models/User');
 const { generateToken } = require('../middleware/auth');
 const { generateToken: generateEmailToken, sendVerificationEmail, sendPasswordResetEmail } = require('../config/email');
-const { supabase } = require('../config/supabaseAuth');
+const { supabase, isConfigured: supabaseConfigured } = require('../config/supabaseAuth');
 const Permission = require('../models/Permission');
 
 // Admin login
@@ -36,6 +36,9 @@ const adminLogin = async (req, res) => {
     }
 
     if (user.status !== 'active') {
+      if (user.status === 'suspended') {
+        return res.status(403).json({ error: 'Your administrator account has been suspended. Please contact the Super Administrator.' });
+      }
       return res.status(403).json({ error: 'Account is not active' });
     }
 
@@ -114,8 +117,8 @@ const lecturerLogin = async (req, res) => {
       return res.status(403).json({ error: 'Account is not active' });
     }
 
-    // Try Supabase Auth first if auth_type is 'supabase'
-    if (user.auth_type === 'supabase') {
+    // Try Supabase Auth first if auth_type is 'supabase' and Supabase is configured
+    if (user.auth_type === 'supabase' && supabaseConfigured) {
       try {
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
           email: trimmedEmail,
@@ -213,8 +216,8 @@ const studentLogin = async (req, res) => {
       return res.status(403).json({ error: 'Account is not active' });
     }
 
-    // Try Supabase Auth first if user has email and auth_type is 'supabase'
-    if (user.email && user.auth_type === 'supabase') {
+    // Try Supabase Auth first if user has email and auth_type is 'supabase' and Supabase is configured
+    if (user.email && user.auth_type === 'supabase' && supabaseConfigured) {
       try {
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
           email: user.email,
@@ -505,6 +508,12 @@ const resendVerificationEmail = async (req, res) => {
 // Request password reset (generic) - DISABLED - Admin only
 const requestPasswordReset = async (req, res) => {
   try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
     // Password reset is now admin-only. Direct user reset has been disabled.
     return res.status(403).json({ 
       error: 'Password reset has been disabled for security. Please contact Mushagashe administration to reset your password.',
@@ -512,6 +521,65 @@ const requestPasswordReset = async (req, res) => {
     });
   } catch (error) {
     console.error('Request password reset error:', error);
+    res.status(500).json({ error: 'Failed to process password reset request' });
+  }
+};
+
+// Request password reset (admin only - SUPER_ADMIN can reset any admin password)
+const requestAdminPasswordReset = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+
+    // Only SUPER_ADMIN can reset admin passwords
+    if (req.user.role !== 'SUPER_ADMIN' && req.user.role !== 'super_admin') {
+      return res.status(403).json({ error: 'Only Super Administrator can reset admin passwords' });
+    }
+
+    // Find user by email
+    const user = await User.findByEmail(email);
+    
+    if (!user) {
+      // Don't reveal whether email exists
+      return res.json({ message: 'If an administrator account exists with this email, password reset instructions will be sent.' });
+    }
+
+    // Check if user is an admin
+    const isAdmin = user.role === 'admin' || 
+                   user.role === 'super_admin' ||
+                   user.role === 'SUPER_ADMIN' ||
+                   user.role === 'ACADEMIC_ADMIN' ||
+                   user.role === 'FINANCE_ADMIN' ||
+                   user.role === 'ADMISSIONS_ADMIN' ||
+                   user.role === 'LECTURER_ADMIN';
+
+    if (!isAdmin) {
+      return res.json({ message: 'If an administrator account exists with this email, password reset instructions will be sent.' });
+    }
+
+    // Generate reset token
+    const resetToken = generateEmailToken();
+    const resetTokenExpires = new Date(Date.now() + 1 * 60 * 60 * 1000); // 1 hour
+
+    // Update user with reset token
+    await User.update(user.id, {
+      reset_password_token: resetToken,
+      reset_password_expires: resetTokenExpires
+    });
+
+    // Send password reset email
+    const emailSent = await sendPasswordResetEmail(email, resetToken);
+
+    if (emailSent) {
+      res.json({ message: 'Password reset instructions sent successfully' });
+    } else {
+      res.status(500).json({ error: 'Failed to send password reset email' });
+    }
+  } catch (error) {
+    console.error('Request admin password reset error:', error);
     res.status(500).json({ error: 'Failed to process password reset request' });
   }
 };
@@ -569,6 +637,20 @@ const resetPassword = async (req, res) => {
   }
 };
 
+// Logout
+const logout = async (req, res) => {
+  try {
+    // For JWT-based auth, logout is primarily client-side
+    // The token will be removed from localStorage
+    // Optionally, we could implement a token blacklist here
+    
+    res.json({ message: 'Logged out successfully' });
+  } catch (error) {
+    console.error('Logout error:', error);
+    res.status(500).json({ error: 'Logout failed' });
+  }
+};
+
 module.exports = {
   adminLogin,
   lecturerLogin,
@@ -582,5 +664,7 @@ module.exports = {
   verifyEmail,
   resendVerificationEmail,
   requestPasswordReset,
-  resetPassword
+  requestAdminPasswordReset,
+  resetPassword,
+  logout
 };
