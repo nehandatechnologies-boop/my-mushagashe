@@ -168,6 +168,11 @@ INSERT INTO permissions (name, description, category) VALUES
   ('settings.edit', 'Edit system settings', 'settings')
 ON CONFLICT (name) DO NOTHING;
 
+-- Dashboard Permissions
+INSERT INTO permissions (name, description, category) VALUES
+  ('dashboard.view', 'View dashboard and statistics', 'dashboard')
+ON CONFLICT (name) DO NOTHING;
+
 -- ============================================
 -- ASSIGN PERMISSIONS TO SUPER_ADMIN (ALL PERMISSIONS)
 -- ============================================
@@ -186,8 +191,12 @@ SELECT r.id, p.id
 FROM roles r
 CROSS JOIN permissions p
 WHERE r.name = 'ACADEMIC_ADMIN'
-AND p.category IN ('students', 'lecturers', 'courses', 'subjects', 'results', 'intakes', 'announcements')
+AND (
+  p.category IN ('students', 'lecturers', 'courses', 'subjects', 'results', 'intakes', 'announcements')
+  OR p.name = 'dashboard.view'
+)
 AND p.name IN (
+  'dashboard.view',
   'students.view', 'students.create', 'students.edit', 'students.approve', 'students.suspend',
   'lecturers.view', 'lecturers.create', 'lecturers.edit',
   'courses.view', 'courses.create', 'courses.edit',
@@ -207,6 +216,7 @@ FROM roles r
 CROSS JOIN permissions p
 WHERE r.name = 'FINANCE_ADMIN'
 AND p.name IN (
+  'dashboard.view',
   'students.view',
   'fees.view', 'fees.create', 'fees.edit',
   'payments.view', 'payments.create', 'payments.edit',
@@ -223,6 +233,7 @@ FROM roles r
 CROSS JOIN permissions p
 WHERE r.name = 'ADMISSIONS_ADMIN'
 AND p.name IN (
+  'dashboard.view',
   'students.view', 'students.create', 'students.edit', 'students.approve', 'students.suspend',
   'intakes.view', 'intakes.create', 'intakes.edit',
   'announcements.view'
@@ -238,6 +249,7 @@ FROM roles r
 CROSS JOIN permissions p
 WHERE r.name = 'LECTURER_ADMIN'
 AND p.name IN (
+  'dashboard.view',
   'students.view',
   'courses.view',
   'subjects.view',

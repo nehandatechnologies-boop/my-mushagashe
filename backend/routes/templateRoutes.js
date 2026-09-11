@@ -3,7 +3,8 @@ const router = express.Router();
 const multer = require('multer');
 const path = require('path');
 const templateController = require('../controllers/templateController');
-const { authenticate, adminOnly } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
+const { requirePermission } = require('../middleware/rbac');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -32,13 +33,13 @@ const upload = multer({
   }
 });
 
-// Upload PDF template (admin only)
-router.post('/upload', authenticate, adminOnly, upload.single('template'), templateController.uploadTemplate);
+// Upload PDF template (requires settings.edit permission)
+router.post('/upload', authenticate, requirePermission('settings.edit'), upload.single('template'), templateController.uploadTemplate);
 
-// Get template info (admin only)
-router.get('/info', authenticate, adminOnly, templateController.getTemplateInfo);
+// Get template info (requires settings.view permission)
+router.get('/info', authenticate, requirePermission('settings.view'), templateController.getTemplateInfo);
 
-// Delete template (admin only)
-router.delete('/delete', authenticate, adminOnly, templateController.deleteTemplate);
+// Delete template (requires settings.edit permission)
+router.delete('/delete', authenticate, requirePermission('settings.edit'), templateController.deleteTemplate);
 
 module.exports = router;

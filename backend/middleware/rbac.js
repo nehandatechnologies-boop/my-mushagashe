@@ -11,26 +11,27 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 async function getRolePermissions(roleName) {
   const cacheKey = `role_${roleName}`;
   const cached = permissionCache.get(cacheKey);
-  
+
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
     return cached.permissions;
   }
-  
+
   const { data, error } = await supabase
     .from('role_permissions')
-    .select('permissions(name, description, category)')
-    .innerJoin('permissions', 'role_permissions.permission_id', 'permissions.id')
-    .innerJoin('roles', 'role_permissions.role_id', 'roles.id')
+    .select(`
+      permissions (name, description, category),
+      roles (name)
+    `)
     .eq('roles.name', roleName);
-  
+
   if (error) {
     console.error('Error fetching role permissions:', error);
     return [];
   }
-  
+
   const permissions = data.map(rp => rp.permissions);
   permissionCache.set(cacheKey, { permissions, timestamp: Date.now() });
-  
+
   return permissions;
 }
 

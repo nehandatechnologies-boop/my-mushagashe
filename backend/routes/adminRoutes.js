@@ -23,34 +23,45 @@ const validateAdminUpdate = [
 router.use(authenticate);
 router.use(requireRole('SUPER_ADMIN'));
 
-// Get all administrators
+// Administrator-specific routes
+router.get('/administrators', adminController.getAllAdmins);
+router.post('/administrators', validateAdminCreate, adminController.createAdmin);
+router.get('/administrators/:id(\\d+)', adminController.getAdminById);
+router.put('/administrators/:id(\\d+)', validateAdminUpdate, adminController.updateAdmin);
+router.put('/administrators/:id(\\d+)/suspend', adminController.suspendAdmin);
+router.put('/administrators/:id(\\d+)/reactivate', adminController.reactivateAdmin);
+router.delete('/administrators/:id(\\d+)', adminController.deleteAdmin);
+router.put('/administrators/:id(\\d+)/reset-password', adminController.resetAdminPassword);
+
+// Legacy routes for backward compatibility
 router.get('/', adminController.getAllAdmins);
-
-// Get administrator by ID
-router.get('/:id', adminController.getAdminById);
-
-// Create new administrator
 router.post('/', validateAdminCreate, adminController.createAdmin);
 
-// Update administrator
-router.put('/:id', validateAdminUpdate, adminController.updateAdmin);
+// Get audit logs (must come before /:id)
+router.get('/audit-logs', adminController.getAuditLogs);
 
-// Suspend administrator
-router.put('/:id/suspend', adminController.suspendAdmin);
-
-// Reactivate administrator
-router.put('/:id/reactivate', adminController.reactivateAdmin);
-
-// Delete administrator
-router.delete('/:id', adminController.deleteAdmin);
-
-// Reset administrator password
-router.put('/:id/reset-password', adminController.resetAdminPassword);
-
-// Get audit logs
+// Get audit logs (alternative path for frontend compatibility)
 router.get('/audit/logs', adminController.getAuditLogs);
 
 // Get recent audit logs for dashboard
-router.get('/audit/logs/recent', adminController.getRecentAuditLogs);
+router.get('/audit-logs/recent', adminController.getRecentAuditLogs);
+
+// Get administrator by ID (must come after specific routes)
+router.get('/:id(\\d+)', adminController.getAdminById);
+
+// Update administrator
+router.put('/:id(\\d+)', validateAdminUpdate, adminController.updateAdmin);
+
+// Suspend administrator
+router.put('/:id(\\d+)/suspend', adminController.suspendAdmin);
+
+// Reactivate administrator
+router.put('/:id(\\d+)/reactivate', adminController.reactivateAdmin);
+
+// Delete administrator
+router.delete('/:id(\\d+)', adminController.deleteAdmin);
+
+// Reset administrator password
+router.put('/:id(\\d+)/reset-password', adminController.resetAdminPassword);
 
 module.exports = router;

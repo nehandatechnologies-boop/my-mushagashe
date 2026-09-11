@@ -5,7 +5,8 @@ const authController = require('../controllers/authController');
 const studentController = require('../controllers/studentController');
 const studentControllerSupabase = require('../controllers/studentControllerSupabase');
 const approvalController = require('../controllers/approvalController');
-const { authenticate, adminOnly } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
+const { requirePermission } = require('../middleware/rbac');
 const { authRateLimiter } = require('../middleware/security');
 const multer = require('multer');
 const path = require('path');
@@ -49,8 +50,8 @@ router.post('/student/login', authRateLimiter, validateLogin, authController.stu
 // Student registration with Supabase Auth - REMOVED - Admin only
 // router.post('/student/register-supabase', authRateLimiter, studentControllerSupabase.registerStudentSupabase);
 
-// Lecturer creation with Supabase Auth (admin only)
-router.post('/lecturer/create-supabase', authenticate, adminOnly, studentControllerSupabase.createLecturerSupabase);
+// Lecturer creation with Supabase Auth (requires lecturers.create permission)
+router.post('/lecturer/create-supabase', authenticate, requirePermission('lecturers.create'), studentControllerSupabase.createLecturerSupabase);
 
 // Get current user profile (authenticated)
 router.get('/profile', authenticate, authController.getProfile);
@@ -88,12 +89,12 @@ router.post('/reset-password', authController.resetPassword);
 // Logout (authenticated)
 router.post('/logout', authenticate, authController.logout);
 
-// Admin approval routes (admin only)
-router.get('/admin/pending-accounts', authenticate, adminOnly, approvalController.getPendingAccounts);
-router.get('/admin/accounts', authenticate, adminOnly, approvalController.getAllAccounts);
-router.post('/admin/accounts/:id/approve', authenticate, adminOnly, approvalController.approveAccount);
-router.post('/admin/accounts/:id/reject', authenticate, adminOnly, approvalController.rejectAccount);
-router.post('/admin/accounts/:id/suspend', authenticate, adminOnly, approvalController.suspendAccount);
-router.post('/admin/accounts/:id/reactivate', authenticate, adminOnly, approvalController.reactivateAccount);
+// Admin approval routes (require students.approve permission)
+router.get('/admin/pending-accounts', authenticate, requirePermission('students.approve'), approvalController.getPendingAccounts);
+router.get('/admin/accounts', authenticate, requirePermission('students.view'), approvalController.getAllAccounts);
+router.post('/admin/accounts/:id/approve', authenticate, requirePermission('students.approve'), approvalController.approveAccount);
+router.post('/admin/accounts/:id/reject', authenticate, requirePermission('students.approve'), approvalController.rejectAccount);
+router.post('/admin/accounts/:id/suspend', authenticate, requirePermission('students.suspend'), approvalController.suspendAccount);
+router.post('/admin/accounts/:id/reactivate', authenticate, requirePermission('students.suspend'), approvalController.reactivateAccount);
 
 module.exports = router;

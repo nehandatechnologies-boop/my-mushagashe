@@ -1899,7 +1899,7 @@ async function loadAdministrators() {
         const roleFilter = adminRoleFilter ? adminRoleFilter.value : '';
         const statusFilter = adminStatusFilter ? adminStatusFilter.value : '';
         
-        let endpoint = '/admin/administrators';
+        let endpoint = '/api/admins/administrators';
         const params = [];
         if (search) params.push(`search=${encodeURIComponent(search)}`);
         if (roleFilter) params.push(`role=${roleFilter}`);
@@ -2013,7 +2013,7 @@ if (addAdminBtn) {
 
 window.editAdministrator = async function(id) {
     try {
-        const admin = await apiRequest(`/admin/administrators/${id}`);
+        const admin = await apiRequest(`/api/admins/administrators/${id}`);
         const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
         const canCreateSuperAdmin = currentUser.role === 'SUPER_ADMIN';
         
@@ -2082,7 +2082,7 @@ window.deleteAdministrator = async function(id) {
     }
     
     try {
-        await apiRequest(`/admin/administrators/${id}`, { method: 'DELETE' });
+        await apiRequest(`/api/admins/administrators/${id}`, { method: 'DELETE' });
         showToast('Administrator deleted successfully');
         loadAdministrators();
     } catch (error) {
@@ -2095,7 +2095,7 @@ window.resetAdminPassword = async function(id) {
     if (!confirm('Are you sure you want to reset this administrator\'s password? A new temporary password will be generated.')) return;
     
     try {
-        const response = await fetch(`${API_BASE}/admin/administrators/${id}/reset-password`, {
+        const response = await fetch(`${API_BASE}/api/admins/administrators/${id}/reset-password`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
@@ -2142,7 +2142,7 @@ async function loadAuditLogs() {
         const entityFilter = auditEntityFilter ? auditEntityFilter.value : '';
         const dateFilter = auditDateFilter ? auditDateFilter.value : '';
         
-        let endpoint = '/admin/audit-logs';
+        let endpoint = '/api/admins/audit/logs';
         const params = [];
         if (search) params.push(`search=${encodeURIComponent(search)}`);
         if (actionFilter) params.push(`action=${actionFilter}`);
@@ -2187,7 +2187,7 @@ async function loadIntakes() {
         const search = intakeSearch ? intakeSearch.value : '';
         const statusFilter = intakeStatusFilter ? intakeStatusFilter.value : '';
         
-        let endpoint = '/admin/intakes';
+        let endpoint = '/api/intakes';
         const params = [];
         if (search) params.push(`search=${encodeURIComponent(search)}`);
         if (statusFilter) params.push(`status=${statusFilter}`);
@@ -2266,7 +2266,7 @@ if (addIntakeBtn) {
 
 window.editIntake = async function(id) {
     try {
-        const intake = await apiRequest(`/admin/intakes/${id}`);
+        const intake = await apiRequest(`/api/intakes/${id}`);
         
         showModal(`
             <div class="modal-header">
@@ -2313,7 +2313,7 @@ window.deleteIntake = async function(id) {
     }
     
     try {
-        await apiRequest(`/admin/intakes/${id}`, { method: 'DELETE' });
+        await apiRequest(`/api/intakes/${id}`, { method: 'DELETE' });
         showToast('Intake deleted successfully');
         loadIntakes();
     } catch (error) {
@@ -2802,6 +2802,9 @@ modalContainer.addEventListener('submit', async (e) => {
         case 'editIntakeForm':
             await handleEditIntakeSubmit(form);
             break;
+        case 'importExcelForm':
+            // Import form has its own event listener, skip here
+            break;
         default:
             console.warn(`Unknown form ID: ${formId}`);
     }
@@ -3164,7 +3167,7 @@ async function handleAddAdminSubmit(form) {
     const adminData = Object.fromEntries(formData);
     
     try {
-        await apiRequest('/admin/administrators', {
+        await apiRequest('/api/admins/administrators', {
             method: 'POST',
             body: JSON.stringify(adminData)
         });
@@ -3189,7 +3192,7 @@ async function handleEditAdminSubmit(form) {
     }
     
     try {
-        await apiRequest(`/admin/administrators/${adminId}`, {
+        await apiRequest(`/api/admins/administrators/${adminId}`, {
             method: 'PUT',
             body: JSON.stringify(updateData)
         });
@@ -3207,7 +3210,7 @@ async function handleAddIntakeSubmit(form) {
     const intakeData = Object.fromEntries(formData);
     
     try {
-        await apiRequest('/admin/intakes', {
+        await apiRequest('/api/intakes', {
             method: 'POST',
             body: JSON.stringify(intakeData)
         });
@@ -3232,7 +3235,7 @@ async function handleEditIntakeSubmit(form) {
     }
     
     try {
-        await apiRequest(`/admin/intakes/${intakeId}`, {
+        await apiRequest(`/api/intakes/${intakeId}`, {
             method: 'PUT',
             body: JSON.stringify(updateData)
         });

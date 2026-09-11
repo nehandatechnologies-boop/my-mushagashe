@@ -9,11 +9,12 @@ const { auditActions } = require('../services/auditService');
  */
 const getAllAdmins = async (req, res) => {
   try {
-    const admins = await User.findAll({ role: 'admin' });
-    
+    // Query all users and filter for admin roles
+    const allUsers = await User.findAll({});
+
     // Filter for admin roles (including new RBAC roles)
-    const allAdmins = admins.filter(user => 
-      user.role === 'admin' || 
+    const allAdmins = allUsers.filter(user =>
+      user.role === 'admin' ||
       user.role === 'super_admin' ||
       user.role === 'SUPER_ADMIN' ||
       user.role === 'ACADEMIC_ADMIN' ||
@@ -413,7 +414,12 @@ const getAuditLogs = async (req, res) => {
     res.json(logs);
   } catch (error) {
     console.error('Get audit logs error:', error);
-    res.status(500).json({ error: 'Failed to fetch audit logs' });
+    // If table doesn't exist, return empty array instead of 500
+    if (error.code === 'PGRST205' || error.message?.includes('audit_logs')) {
+      res.json([]);
+    } else {
+      res.status(500).json({ error: 'Failed to fetch audit logs' });
+    }
   }
 };
 
@@ -427,7 +433,12 @@ const getRecentAuditLogs = async (req, res) => {
     res.json(logs);
   } catch (error) {
     console.error('Get recent audit logs error:', error);
-    res.status(500).json({ error: 'Failed to fetch recent audit logs' });
+    // If table doesn't exist, return empty array instead of 500
+    if (error.code === 'PGRST205' || error.message?.includes('audit_logs')) {
+      res.json([]);
+    } else {
+      res.status(500).json({ error: 'Failed to fetch recent audit logs' });
+    }
   }
 };
 

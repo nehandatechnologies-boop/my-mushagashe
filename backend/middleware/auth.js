@@ -33,23 +33,15 @@ const authenticate = async (req, res, next) => {
 
     const token = authHeader.substring(7);
     const decoded = verifyToken(token);
-    
-    console.log('Auth middleware - decoded userId:', decoded.userId);
-    
+
     // Get fresh user data
     const user = await User.findById(decoded.userId);
-    
-    console.log('Auth middleware - user found:', user ? 'yes' : 'no');
-    if (user) {
-      console.log('Auth middleware - user status:', user.status);
-    }
-    
+
     if (!user) {
       return res.status(401).json({ error: 'User not found' });
     }
 
     if (user.status !== 'active') {
-      console.log('Auth middleware - user not active, status:', user.status);
       return res.status(403).json({ error: 'Account is not active' });
     }
 
@@ -64,17 +56,13 @@ const authenticate = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('Authentication error:', error);
-    console.error('Error name:', error.name);
-    console.error('Error message:', error.message);
-    console.error('Error stack:', error.stack);
     if (error.name === 'JsonWebTokenError') {
       return res.status(401).json({ error: 'Invalid token' });
     }
     if (error.name === 'TokenExpiredError') {
       return res.status(401).json({ error: 'Token expired' });
     }
-    console.error('Authentication error:', error);
+    console.error('Authentication error:', error.message);
     return res.status(500).json({ error: 'Authentication failed' });
   }
 };
@@ -94,8 +82,11 @@ const authorize = (...roles) => {
   };
 };
 
-// Admin only middleware
-const adminOnly = authorize('admin');
+// Admin only middleware - supports both legacy 'admin' and new RBAC roles
+const adminOnly = (...roles) => {
+  const allowedRoles = roles.length > 0 ? roles : ['admin', 'super_admin', 'SUPER_ADMIN', 'ACADEMIC_ADMIN', 'FINANCE_ADMIN', 'ADMISSIONS_ADMIN', 'LECTURER_ADMIN'];
+  return authorize(...allowedRoles);
+};
 
 // Lecturer only middleware
 const lecturerOnly = authorize('lecturer');
