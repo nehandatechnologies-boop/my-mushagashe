@@ -34,6 +34,14 @@ class User {
       }
     });
 
+    // If password is not provided, generate a secure random password
+    if (!insertData.password) {
+      const crypto = require('crypto');
+      const bcrypt = require('bcryptjs');
+      const randomPassword = crypto.randomBytes(16).toString('base64').substring(0, 12);
+      insertData.password = bcrypt.hashSync(randomPassword, 10);
+    }
+
     const columns = Object.keys(insertData).join(', ');
     const placeholders = Object.keys(insertData).map(() => '?').join(', ');
     const values = Object.values(insertData);
@@ -170,6 +178,7 @@ class User {
   }
 
   static async upsertByStudentNumber(userData) {
+    const database = getDb();
     const {
       full_name, email, student_number, password, role, phone, gender,
       national_id, date_of_birth, address, guardian_name, guardian_phone,
@@ -215,7 +224,7 @@ class User {
       const updated = database.prepare('SELECT * FROM users WHERE id = ?').get(existing.id);
       return { ...updated, action: 'updated' };
     } else {
-      // Create new student
+      // Create new student - password will be generated in create() if not provided
       const result = await this.create(userData);
       return { ...result, action: 'created' };
     }

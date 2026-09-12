@@ -1,4 +1,5 @@
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const User = require('../models/User');
 const XLSX = require('xlsx');
 const { generateToken, sendVerificationEmail } = require('../config/email');
@@ -727,7 +728,7 @@ const importStudentsFromExcel = async (req, res) => {
           continue;
         }
 
-        // Hash password if provided
+        // Prepare student data - password will be generated automatically for new students
         const studentData = {
           full_name: student.full_name,
           student_number: student.student_number,
@@ -745,6 +746,8 @@ const importStudentsFromExcel = async (req, res) => {
           status: 'active'
         };
 
+        // Only include password if it's provided in the Excel
+        // Otherwise, the User model will generate a secure random password for new students
         if (student.password) {
           studentData.password = bcrypt.hashSync(student.password, 10);
         }
