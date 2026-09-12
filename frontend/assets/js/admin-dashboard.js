@@ -233,8 +233,8 @@ async function loadDashboardStatistics() {
         
         document.getElementById('activeStudents').textContent = stats.students.active || 0;
         document.getElementById('suspendedStudents').textContent = stats.students.suspended || 0;
-        document.getElementById('maleStudents').textContent = stats.students.male || 0;
-        document.getElementById('femaleStudents').textContent = stats.students.female || 0;
+        document.getElementById('maleStudents').textContent = stats.students.male_count || 0;
+        document.getElementById('femaleStudents').textContent = stats.students.female_count || 0;
         
         console.log('STEP 6: statistics rendering completed');
         
@@ -693,6 +693,44 @@ function hideModal() {
 // Student CRUD operations
 let isImporting = false;
 
+// Export students to Excel
+const exportStudentsBtn = document.getElementById('exportStudentsBtn');
+if (exportStudentsBtn) {
+    exportStudentsBtn.addEventListener('click', async () => {
+        try {
+            showToast('Downloading students...', 'info');
+
+            const response = await fetch(`${API_BASE}/students/export/excel`, {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Export failed');
+            }
+
+            // Get the blob and create download link
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `students_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            showToast('Students exported successfully');
+        } catch (error) {
+            console.error('Export error:', error);
+            showToast('Failed to export students', 'error');
+        }
+    });
+}
+
 const importExcelBtn = document.getElementById('importExcelBtn');
 if (importExcelBtn) {
     importExcelBtn.addEventListener('click', () => {
@@ -731,14 +769,16 @@ if (importExcelBtn) {
             const submitBtn = document.getElementById('importSubmitBtn');
             if (submitBtn) {
                 submitBtn.disabled = true;
-                submitBtn.textContent = 'Importing...';
+                submitBtn.textContent = 'Analyzing...';
             }
 
             const formData = new FormData();
             formData.append('file', file);
+            formData.append('preview', 'true');
 
             try {
-                const response = await fetch(`${API_BASE}/students/import/excel`, {
+                // First, request preview
+                const previewResponse = await fetch(`${API_BASE}/students/import/excel`, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`
@@ -746,42 +786,112 @@ if (importExcelBtn) {
                     body: formData
                 });
 
-                const data = await response.json();
+                const previewData = await previewResponse.json();
 
-                if (!response.ok) {
-                    throw new Error(data.error || 'Import failed');
+                if (!previewResponse.ok) {
+                    throw new Error(previewData.error || 'Preview failed');
                 }
 
-                // Show detailed results
-                let message = `Import complete: ${data.imported} imported`;
-                if (data.skipped_existing > 0) {
-                    message += `, ${data.skipped_existing} already exist`;
-                }
-                if (data.skipped_duplicates > 0) {
-                    message += `, ${data.skipped_duplicates} spreadsheet duplicates`;
-                }
-                if (data.errors && data.errors.length > 0) {
-                    message += `, ${data.errors.length} errors`;
-                }
-                showToast(message);
+                // Show preview and ask for confirmation
+                const previewHtml = `
+                    <div class="modal-header">
+                        <h3>Import Preview</h3>
+                        <button class="modal-close" onclick="hideModal()">&times;</button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="import-preview">
+                            <p><strong>Total rows detected:</strong> ${previewData.total_rows}</p>
+                            <p><strong>New students:</strong> ${previewData.new_students}</p>
+                            <p><strong>Existing students to update:</strong> ${previewData.existing_students}</p>
+                            <p><strong>Unmatched courses:</strong> ${previewData.unmatched_courses}</p>
+                            <p><strong>Errors:</strong> ${previewData.errors}</p>
+                            ${previewData.sample_new.length > 0 ? `
+                                <h4>Sample new students:</h4>
+                                <ul>${previewData.sample_new.map(s => `<li>${s.student_number} - ${s.full_name} (${s.course_name || 'No course'})</li>`).join('')}</ul>
+                            ` : ''}
+                            ${previewData.sample_existing.length > 0 ? `
+                                <h4>Sample existing students to update:</h4>
+                                <ul>${previewData.sample_existing.map(s => `<li>${s.student_number} - ${s.full_name} (${s.course_name || 'No course'})</li>`).join('')}</ul>
+                            ` : ''}
+                            ${previewData.sample_unmatched.length > 0 ? `
+                                <h4>Sample unmatched courses:</h4>
+                                <ul>${previewData.sample_unmatched.map(s => `<li>${s.student_number} - ${s.full_name} - Course: "${s.raw_course}"</li>`).join('')}</ul>
+                            ` : ''}
+                            ${previewData.sample_errors.length > 0 ? `
+                                <h4>Sample errors:</h4>
+                                <ul>${previewData.sample_errors.map(e => `<li>Row ${e.row}: ${e.student_number} - ${e.error}</li>`).join('')}</ul>
+                            ` : ''}
+                        </div>
+                        <div class="modal-actions">
+                            <button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
+                            <button type="button" class="btn btn-primary" id="confirmImportBtn">Confirm Import</button>
+                        </div>
+                    </div>
+                `;
 
-                if (data.errors && data.errors.length > 0) {
-                    console.warn(`Import errors: ${data.errors.length} rows failed`);
-                    // Log detailed errors with row numbers
-                    data.errors.slice(0, 10).forEach(err => {
-                        console.warn(`Row ${err.row}: ${err.student_number} - ${err.full_name} - ${err.field}: ${err.error}`);
-                    });
-                    if (data.errors.length > 10) {
-                        console.warn(`... and ${data.errors.length - 10} more errors`);
+                showModal(previewHtml);
+
+                // Handle confirm button
+                document.getElementById('confirmImportBtn').addEventListener('click', async () => {
+                    if (submitBtn) {
+                        submitBtn.textContent = 'Importing...';
                     }
-                }
 
-                hideModal();
-                loadStudents();
+                    const importFormData = new FormData();
+                    importFormData.append('file', file);
+                    importFormData.append('preview', 'false');
+
+                    try {
+                        const importResponse = await fetch(`${API_BASE}/students/import/excel`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: importFormData
+                        });
+
+                        const importData = await importResponse.json();
+
+                        if (!importResponse.ok) {
+                            throw new Error(importData.error || 'Import failed');
+                        }
+
+                        // Show detailed results
+                        let message = `Import complete: ${importData.created} created, ${importData.updated} updated`;
+                        if (importData.skipped_unmatched_courses > 0) {
+                            message += `, ${importData.skipped_unmatched_courses} unmatched courses`;
+                        }
+                        if (importData.errors && importData.errors.length > 0) {
+                            message += `, ${importData.errors.length} errors`;
+                        }
+                        showToast(message);
+
+                        if (importData.errors && importData.errors.length > 0) {
+                            console.warn(`Import errors: ${importData.errors.length} rows failed`);
+                            importData.errors.slice(0, 10).forEach(err => {
+                                console.warn(`Row ${err.row}: ${err.student_number} - ${err.full_name} - ${err.field}: ${err.error}`);
+                            });
+                            if (importData.errors.length > 10) {
+                                console.warn(`... and ${importData.errors.length - 10} more errors`);
+                            }
+                        }
+
+                        hideModal();
+                        loadStudents();
+                    } catch (error) {
+                        console.error('Import error:', error);
+                        showToast('Failed to import students', 'error');
+                    } finally {
+                        isImporting = false;
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = 'Import Students';
+                        }
+                    }
+                });
             } catch (error) {
-                console.error('Import error:', error);
-                showToast('Failed to import students', 'error');
-            } finally {
+                console.error('Preview error:', error);
+                showToast('Failed to analyze file', 'error');
                 isImporting = false;
                 if (submitBtn) {
                     submitBtn.disabled = false;

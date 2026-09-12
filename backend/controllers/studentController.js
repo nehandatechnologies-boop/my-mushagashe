@@ -1,17 +1,13 @@
 const bcrypt = require('bcryptjs');
 const User = require('../models/User');
-const Fee = require('../models/Fee');
 const XLSX = require('xlsx');
 const { generateToken, sendVerificationEmail } = require('../config/email');
-const { supabaseAdmin } = require('../config/supabaseAuth');
 
 // Public student registration - REMOVED - Admin only
 // const registerStudent = async (req, res) => { ... };
 
-// Create new student (admin only) - Modified to use Supabase Admin API
+// Create new student (admin only)
 const createStudent = async (req, res) => {
-  let createdSupabaseUserId = null;
-
   try {
     const {
       full_name, email, student_number, password, phone, gender,
@@ -46,37 +42,15 @@ const createStudent = async (req, res) => {
       }
     }
 
-    // Check if Supabase Admin is available
-    if (!supabaseAdmin) {
-      return res.status(500).json({ error: 'Admin operations not available. Service role key not configured.' });
-    }
+    // Hash password
+    const hashedPassword = bcrypt.hashSync(trimmedPassword, 10);
 
-    // Create Supabase Auth user using admin API (bypasses email confirmation)
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: trimmedEmail || `${trimmedStudentNumber}@mushagashe.local`,
-      password: trimmedPassword,
-      email_confirm: true, // Auto-confirm for admin-created users
-      user_metadata: {
-        full_name: full_name,
-        student_number: trimmedStudentNumber,
-        role: 'student'
-      }
-    });
-
-    if (authError) {
-      console.error('Supabase admin auth error:', authError);
-      return res.status(400).json({ error: authError.message || 'Failed to create authentication account' });
-    }
-
-    createdSupabaseUserId = authData.user.id;
-    console.log('Supabase Auth user created successfully, ID:', createdSupabaseUserId);
-
-    // Create custom users table entry with profile data
+    // Create student
     const studentData = {
       full_name,
       email: trimmedEmail,
       student_number: trimmedStudentNumber,
-      password: null, // Password managed by Supabase Auth
+      password: hashedPassword,
       role: 'student',
       phone,
       gender,
@@ -87,9 +61,7 @@ const createStudent = async (req, res) => {
       guardian_phone,
       intake_year,
       course_id,
-      status: 'active', // Admin-created accounts are active
-      auth_type: 'supabase',
-      supabase_user_id: createdSupabaseUserId
+      status: 'active'
     };
 
     const result = await User.create(studentData);
@@ -102,19 +74,8 @@ const createStudent = async (req, res) => {
     });
   } catch (error) {
     console.error('Create student error:', error);
-    
-    // ROLLBACK: Delete Supabase Auth user if database profile creation failed
-    if (createdSupabaseUserId && supabaseAdmin) {
-      try {
-        console.log('Rolling back: Deleting Supabase Auth user:', createdSupabaseUserId);
-        await supabaseAdmin.auth.admin.deleteUser(createdSupabaseUserId);
-        console.log('Rollback successful: Supabase Auth user deleted');
-      } catch (rollbackError) {
-        console.error('Rollback failed: Could not delete Supabase Auth user:', rollbackError);
-      }
-    }
 
-    if (error.message.includes('UNIQUE') || error.code === '23505') {
+    if (error.message.includes('UNIQUE') || error.code === 'SQLITE_CONSTRAINT') {
       return res.status(400).json({ error: 'Student number or email already exists' });
     }
     res.status(500).json({ error: 'Failed to create student' });
@@ -242,49 +203,9 @@ const deleteStudent = async (req, res) => {
     if (student.role !== 'student') {
       return res.status(400).json({ error: 'User is not a student' });
     }
-    
-    // Delete dependent records first to avoid foreign key constraint violations
-    const supabase = require('../config/supabase');
-    
-    // Delete fees associated with this student
-    const { error: feesError } = await supabase
-      .from('fees')
-      .delete()
-      .eq('user_id', id);
-    
-    if (feesError) {
-      console.error('Error deleting fees:', feesError);
-    }
-    
-    // Delete results associated with this student
-    const { error: resultsError } = await supabase
-      .from('results')
-      .delete()
-      .eq('user_id', id);
-    
-    if (resultsError) {
-      console.error('Error deleting results:', resultsError);
-    }
-    
-    // Delete announcements created by this student (if any)
-    const { error: announcementsError } = await supabase
-      .from('announcements')
-      .delete()
-      .eq('created_by', id);
-    
-    if (announcementsError) {
-      console.error('Error deleting announcements:', announcementsError);
-    }
-    
-    // Delete audit logs for this student
-    const { error: auditLogsError } = await supabase
-      .from('audit_logs')
-      .delete()
-      .eq('user_id', id);
-    
-    if (auditLogsError) {
-      console.error('Error deleting audit logs:', auditLogsError);
-    }
+
+    // Delete dependent records first
+    await User.deleteDependentRecords(id);
 
     await User.delete(id);
 
@@ -342,7 +263,7 @@ const resetPassword = async (req, res) => {
 
     // If we generated a temporary password, return it
     if (!new_password) {
-      res.json({ 
+      res.json({
         message: 'Password reset successfully',
         temporary_password: passwordToSet
       });
@@ -444,43 +365,18 @@ const createLecturer = async (req, res) => {
 
     const lecturerData = {
       full_name, email, password: hashedPassword, role: 'lecturer',
-      phone, gender, course_id, status: 'active', email_verified: false
+      phone, gender, course_id, status: 'active'
     };
 
-    // Generate verification token if email provided
-    if (email) {
-      const { generateToken: generateEmailToken, sendVerificationEmail } = require('../config/email');
-      const verificationToken = generateEmailToken();
-      const verificationTokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
-      
-      lecturerData.verification_token = verificationToken;
-      lecturerData.verification_token_expires = verificationTokenExpires;
+    const result = await User.create(lecturerData);
 
-      const result = await User.create(lecturerData);
-
-      // Send verification email
-      try {
-        await sendVerificationEmail(email, verificationToken);
-      } catch (emailError) {
-        console.error('Failed to send verification email:', emailError);
-        // Continue with creation even if email fails
-      }
-
-      res.status(201).json({
-        message: 'Lecturer created successfully. A verification email has been sent to the provided email address.',
-        id: result.id
-      });
-    } else {
-      const result = await User.create(lecturerData);
-
-      res.status(201).json({
-        message: 'Lecturer created successfully',
-        id: result.id
-      });
-    }
+    res.status(201).json({
+      message: 'Lecturer created successfully',
+      id: result.id
+    });
   } catch (error) {
     console.error('Create lecturer error:', error);
-    if (error.message.includes('UNIQUE')) {
+    if (error.message.includes('UNIQUE') || error.code === 'SQLITE_CONSTRAINT') {
       return res.status(400).json({ error: 'Email already exists' });
     }
     res.status(500).json({ error: 'Failed to create lecturer' });
@@ -569,7 +465,7 @@ const updateLecturer = async (req, res) => {
     res.json(lecturerWithoutPassword);
   } catch (error) {
     console.error('Update lecturer error:', error);
-    if (error.message.includes('UNIQUE')) {
+    if (error.message.includes('UNIQUE') || error.code === 'SQLITE_CONSTRAINT') {
       return res.status(400).json({ error: 'Email already exists' });
     }
     res.status(500).json({ error: 'Failed to update lecturer' });
@@ -652,15 +548,20 @@ const importStudentsFromExcel = async (req, res) => {
 
     console.log(`[IMPORT] Processing ${data.length} rows from worksheet: ${selectedSheetName}`);
 
-    const importedStudents = [];
+    const preview = req.body.preview === 'true';
+
+    // Load all courses for matching
+    const Course = require('../models/Course');
+    const allCourses = await Course.findAll({});
+
+    // Process rows for preview or actual import
+    const processed = [];
     const errors = [];
-    const skippedExisting = [];
-    const skippedDuplicates = [];
     const processedStudentNumbers = new Set();
 
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
-      const rowNum = i + 2; // Excel rows are 1-indexed, plus header row
+      const rowNum = i + 2;
 
       try {
         // Skip completely empty rows
@@ -669,7 +570,7 @@ const importStudentsFromExcel = async (req, res) => {
           continue;
         }
 
-        // Normalize headers: map various cases to consistent field names
+        // Normalize headers
         const normalizeHeader = (row, possibleHeaders) => {
           for (const header of possibleHeaders) {
             if (row[header] !== undefined && row[header] !== null && row[header] !== '') {
@@ -679,15 +580,51 @@ const importStudentsFromExcel = async (req, res) => {
           return null;
         };
 
-        // Map Excel columns to database fields with case-insensitive matching
+        // Normalize gender
+        const normalizeGender = (gender) => {
+          if (!gender) return null;
+          const normalized = gender.toString().trim().toLowerCase();
+          if (normalized === 'male' || normalized === 'm') return 'male';
+          if (normalized === 'female' || normalized === 'f') return 'female';
+          return null;
+        };
+
+        // Find course
+        const findCourseId = (courseName) => {
+          if (!courseName) return null;
+          const normalized = courseName.toString().trim().toLowerCase();
+
+          const byCode = allCourses.find(c => 
+            c.course_code && c.course_code.toLowerCase() === normalized
+          );
+          if (byCode) return { id: byCode.id, name: byCode.course_name, matchedBy: 'code' };
+
+          const byName = allCourses.find(c => 
+            c.course_name && c.course_name.toLowerCase() === normalized
+          );
+          if (byName) return { id: byName.id, name: byName.course_name, matchedBy: 'name' };
+
+          const byPartial = allCourses.find(c => 
+            c.course_name && c.course_name.toLowerCase().includes(normalized) ||
+            normalized.includes(c.course_name.toLowerCase())
+          );
+          if (byPartial) return { id: byPartial.id, name: byPartial.course_name, matchedBy: 'partial' };
+
+          return null;
+        };
+
+        const rawCourse = normalizeHeader(row, ['COURSE', 'Course', 'course', 'PROGRAMME', 'Programme', 'programme'])?.trim();
+        const courseMatch = findCourseId(rawCourse);
+
         const studentData = {
           full_name: normalizeHeader(row, ['FULL NAME', 'Full Name', 'full_name', 'Full_Name', 'Name', 'NAME'])?.trim(),
           student_number: normalizeHeader(row, ['STUDENT NUMBER', 'Student Number', 'student_number', 'Student_Number', 'StudentNo', 'Student No.', 'STUDENT NO'])?.trim(),
-          course: normalizeHeader(row, ['COURSE', 'Course', 'course'])?.trim(),
+          course_id: courseMatch ? courseMatch.id : null,
+          course_name: courseMatch ? courseMatch.name : rawCourse,
           email: normalizeHeader(row, ['EMAIL', 'Email', 'email'])?.trim(),
           password: normalizeHeader(row, ['PASSWORD', 'Password', 'password'])?.trim(),
           phone: normalizeHeader(row, ['PHONE NUMBER', 'Phone Number', 'phone', 'Phone'])?.trim(),
-          gender: normalizeHeader(row, ['GENDER', 'Gender', 'gender'])?.trim(),
+          gender: normalizeGender(normalizeHeader(row, ['GENDER', 'Gender', 'gender', 'SEX', 'Sex', 'sex'])),
           national_id: normalizeHeader(row, ['NATIONAL ID', 'National ID', 'national_id'])?.trim(),
           date_of_birth: normalizeHeader(row, ['DATE OF BIRTH', 'Date of Birth', 'date_of_birth'])?.trim(),
           address: normalizeHeader(row, ['ADDRESS', 'Address', 'address'])?.trim(),
@@ -710,9 +647,9 @@ const importStudentsFromExcel = async (req, res) => {
           continue;
         }
 
-        // Check for duplicate within this spreadsheet
+        // Check for duplicate within spreadsheet
         if (processedStudentNumbers.has(studentData.student_number)) {
-          skippedDuplicates.push({
+          errors.push({
             row: rowNum,
             student_number: studentData.student_number,
             full_name: studentData.full_name,
@@ -722,80 +659,133 @@ const importStudentsFromExcel = async (req, res) => {
           continue;
         }
 
-        // Mark this student number as processed
         processedStudentNumbers.add(studentData.student_number);
 
-        // Check if student number already exists in database
+        // Check if student exists
         const existingStudent = await User.findByStudentNumber(studentData.student_number);
-        if (existingStudent) {
-          skippedExisting.push({
-            row: rowNum,
-            student_number: studentData.student_number,
-            full_name: studentData.full_name,
-            field: 'existing_record',
-            error: 'Student number already exists in database'
+
+        processed.push({
+          row: rowNum,
+          student_number: studentData.student_number,
+          full_name: studentData.full_name,
+          course_id: studentData.course_id,
+          course_name: studentData.course_name,
+          gender: studentData.gender,
+          email: studentData.email,
+          phone: studentData.phone,
+          existing: !!existingStudent,
+          course_matched: !!courseMatch,
+          raw_course: rawCourse
+        });
+      } catch (error) {
+        errors.push({
+          row: rowNum,
+          student_number: row['STUDENT NUMBER'] || row['Student Number'] || 'unknown',
+          full_name: row['FULL NAME'] || row['Full Name'] || 'unknown',
+          field: 'processing',
+          error: error.message
+        });
+      }
+    }
+
+    // If preview mode, return preview data
+    if (preview) {
+      const newStudents = processed.filter(p => !p.existing);
+      const existingStudents = processed.filter(p => p.existing);
+      const unmatchedCourses = processed.filter(p => !p.course_matched && p.raw_course);
+
+      return res.json({
+        preview: true,
+        total_rows: processed.length,
+        new_students: newStudents.length,
+        existing_students: existingStudents.length,
+        unmatched_courses: unmatchedCourses.length,
+        errors: errors.length,
+        sample_new: newStudents.slice(0, 5),
+        sample_existing: existingStudents.slice(0, 5),
+        sample_unmatched: unmatchedCourses.slice(0, 5),
+        sample_errors: errors.slice(0, 5)
+      });
+    }
+
+    // Actual import - perform UPSERT
+    const created = [];
+    const updated = [];
+    const skippedUnmatchedCourses = [];
+
+    for (const student of processed) {
+      try {
+        // Skip unmatched courses
+        if (!student.course_matched && student.raw_course) {
+          skippedUnmatchedCourses.push({
+            row: student.row,
+            student_number: student.student_number,
+            full_name: student.full_name,
+            field: 'course',
+            error: `Course "${student.raw_course}" not found in database`
           });
           continue;
         }
 
-        // Check if email already exists (if provided)
-        if (studentData.email) {
-          const existingEmail = await User.findByEmail(studentData.email);
-          if (existingEmail) {
-            errors.push({
-              row: rowNum,
-              student_number: studentData.student_number,
-              full_name: studentData.full_name,
-              field: 'email',
-              error: 'Email already exists'
-            });
-            continue;
-          }
-        }
-
-        // Hash password
-        const hashedPassword = bcrypt.hashSync(studentData.password || 'password123', 10);
-        studentData.password = hashedPassword;
-
-        // Create student
-        const result = await User.create(studentData);
-        importedStudents.push({
-          id: result.id,
-          student_number: studentData.student_number,
-          full_name: studentData.full_name
-        });
-      } catch (error) {
-        // Extract student info from raw row for error reporting
-        const normalizeHeader = (row, possibleHeaders) => {
-          for (const header of possibleHeaders) {
-            if (row[header] !== undefined && row[header] !== null && row[header] !== '') {
-              return row[header];
-            }
-          }
-          return null;
+        // Hash password if provided
+        const studentData = {
+          full_name: student.full_name,
+          student_number: student.student_number,
+          course_id: student.course_id,
+          email: student.email,
+          phone: student.phone,
+          gender: student.gender,
+          national_id: student.national_id,
+          date_of_birth: student.date_of_birth,
+          address: student.address,
+          guardian_name: student.guardian_name,
+          guardian_phone: student.guardian_phone,
+          intake_year: student.intake_year,
+          role: 'student',
+          status: 'active'
         };
 
-        const errorStudentNumber = normalizeHeader(row, ['STUDENT NUMBER', 'Student Number', 'student_number', 'Student_Number', 'StudentNo', 'Student No.', 'STUDENT NO'])?.trim();
-        const errorFullName = normalizeHeader(row, ['FULL NAME', 'Full Name', 'full_name', 'Full_Name', 'Name', 'NAME'])?.trim();
+        if (student.password) {
+          studentData.password = bcrypt.hashSync(student.password, 10);
+        }
 
+        // UPSERT using student number
+        const result = await User.upsertByStudentNumber(studentData);
+
+        if (result.action === 'created') {
+          created.push({
+            id: result.id,
+            student_number: student.student_number,
+            full_name: student.full_name,
+            course_id: student.course_id
+          });
+        } else {
+          updated.push({
+            id: result.id,
+            student_number: student.student_number,
+            full_name: student.full_name,
+            course_id: student.course_id
+          });
+        }
+      } catch (error) {
         errors.push({
-          row: rowNum,
-          student_number: errorStudentNumber,
-          full_name: errorFullName,
+          row: student.row,
+          student_number: student.student_number,
+          full_name: student.full_name,
           field: 'database',
           error: error.message
         });
       }
     }
 
-    console.log(`[IMPORT] Complete: ${importedStudents.length} imported, ${skippedExisting.length} existing, ${skippedDuplicates.length} spreadsheet duplicates, ${errors.length} errors`);
+    console.log(`[IMPORT] Complete: ${created.length} created, ${updated.length} updated, ${skippedUnmatchedCourses.length} unmatched courses, ${errors.length} errors`);
 
     res.status(201).json({
-      message: `Imported ${importedStudents.length} students successfully`,
-      imported: importedStudents,
-      skipped_existing: skippedExisting.length,
-      skipped_duplicates: skippedDuplicates.length,
-      errors: errors
+      message: `Import complete: ${created.length} created, ${updated.length} updated`,
+      created: created,
+      updated: updated,
+      skipped_unmatched_courses: skippedUnmatchedCourses.length,
+      errors: [...errors, ...skippedUnmatchedCourses]
     });
   } catch (error) {
     console.error('Import students error:', error);
@@ -910,6 +900,53 @@ const deleteProfilePicture = async (req, res) => {
   }
 };
 
+// Export students to Excel (admin only)
+const exportStudentsToExcel = async (req, res) => {
+  try {
+    const students = await User.findAll({ role: 'student' });
+
+    if (!students || students.length === 0) {
+      return res.status(404).json({ error: 'No students to export' });
+    }
+
+    // Prepare export data with safe fields only
+    const exportData = students.map(student => ({
+      'Student Number': student.student_number || '',
+      'Full Name': student.full_name || '',
+      'Email': student.email || '',
+      'Phone': student.phone || '',
+      'Gender': student.gender || '',
+      'National ID': student.national_id || '',
+      'Date of Birth': student.date_of_birth || '',
+      'Address': student.address || '',
+      'Guardian Name': student.guardian_name || '',
+      'Guardian Phone': student.guardian_phone || '',
+      'Intake Year': student.intake_year || '',
+      'Course': student.course_name || '',
+      'Course Code': student.course_code || '',
+      'Status': student.status || ''
+    }));
+
+    // Create Excel workbook
+    const workbook = XLSX.utils.book_new();
+    const worksheet = XLSX.utils.json_to_sheet(exportData);
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Students');
+
+    // Generate buffer
+    const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
+
+    // Set headers for download
+    const filename = `students_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+
+    res.send(excelBuffer);
+  } catch (error) {
+    console.error('Export students error:', error);
+    res.status(500).json({ error: 'Failed to export students' });
+  }
+};
+
 module.exports = {
   // registerStudent - REMOVED - Admin only
   createStudent,
@@ -930,5 +967,6 @@ module.exports = {
   deleteLecturer,
   importStudentsFromExcel,
   uploadProfilePicture,
-  deleteProfilePicture
+  deleteProfilePicture,
+  exportStudentsToExcel
 };

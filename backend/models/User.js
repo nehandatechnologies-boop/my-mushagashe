@@ -1,7 +1,18 @@
-const supabase = require('../config/supabase');
+const Database = require('better-sqlite3');
+const path = require('path');
+
+let db;
+function getDb() {
+  if (!db) {
+    const dbPath = process.env.DB_PATH || path.join(__dirname, '../database/mushagashe.db');
+    db = new Database(dbPath);
+  }
+  return db;
+}
 
 class User {
   static async create(userData) {
+    const database = getDb();
     const {
       full_name, email, student_number, password, role, phone, gender,
       national_id, date_of_birth, address, guardian_name, guardian_phone,
@@ -23,129 +34,108 @@ class User {
       }
     });
 
-    const { data, error } = await supabase
-      .from('users')
-      .insert(insertData)
-      .select()
-      .single();
+    const columns = Object.keys(insertData).join(', ');
+    const placeholders = Object.keys(insertData).map(() => '?').join(', ');
+    const values = Object.values(insertData);
 
-    if (error) throw error;
-    return data;
+    const stmt = database.prepare(`INSERT INTO users (${columns}) VALUES (${placeholders})`);
+    const result = stmt.run(...values);
+
+    // Return the created record
+    const created = database.prepare('SELECT * FROM users WHERE id = ?').get(result.lastInsertRowid);
+    return created;
   }
 
   static async findById(id) {
-    const { data, error } = await supabase
-      .from('users')
-      .select(`
-        *,
-        courses:course_id (
-          course_name,
-          course_code
-        )
-      `)
-      .eq('id', id)
-      .single();
+    const database = getDb();
+    const user = database.prepare('SELECT * FROM users WHERE id = ?').get(id);
 
-    if (error) {
-      if (error.code === 'PGRST116') return null; // Not found
-      throw error;
+    if (!user) return null;
+
+    // Join with courses table to get course details
+    if (user.course_id) {
+      const course = database.prepare('SELECT course_name, course_code FROM courses WHERE id = ?').get(user.course_id);
+      if (course) {
+        user.course_name = course.course_name;
+        user.course_code = course.course_code;
+      }
     }
 
-    // Flatten the nested data
-    if (data && data.courses) {
-      data.course_name = data.courses.course_name;
-      data.course_code = data.courses.course_code;
-      delete data.courses;
-    }
-
-    return data;
+    return user;
   }
 
   static async findByEmail(email) {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .single();
-
-    if (error) {
-      if (error.code === 'PGRST116') return null; // Not found
-      throw error;
-    }
-    return data;
+    const database = getDb();
+    const user = database.prepare('SELECT * FROM users WHERE email = ?').get(email);
+    return user || null;
   }
 
   static async findByStudentNumber(studentNumber) {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('student_number', studentNumber)
-      .single();
-
-    if (error) {
-      if (error.code === 'PGRST116') return null; // Not found
-      throw error;
-    }
-    return data;
+    const database = getDb();
+    const user = database.prepare('SELECT * FROM users WHERE student_number = ?').get(studentNumber);
+    return user || null;
   }
 
   static async findAll(filters = {}) {
-    let query = supabase
-      .from('users')
-      .select(`
-        *,
-        courses:course_id (
-          course_name,
-          course_code
-        )
-      `);
+    const database = getDb();
+    let query = 'SELECT * FROM users WHERE 1=1';
+    const params = [];
 
     if (filters.role) {
-      query = query.eq('role', filters.role);
+      query += ' AND role = ?';
+      params.push(filters.role);
     }
 
     if (filters.status) {
-      query = query.eq('status', filters.status);
+      query += ' AND status = ?';
+      params.push(filters.status);
     }
 
     if (filters.course_id) {
-      query = query.eq('course_id', filters.course_id);
+      query += ' AND course_id = ?';
+      params.push(filters.course_id);
     }
 
     if (filters.intake) {
-      query = query.eq('intake', filters.intake);
+      query += ' AND intake = ?';
+      params.push(filters.intake);
     }
 
     if (filters.search) {
-      query = query.or(`full_name.ilike.%${filters.search}%,email.ilike.%${filters.search}%,student_number.ilike.%${filters.search}%`);
+      query += ' AND (full_name LIKE ? OR email LIKE ? OR student_number LIKE ?)';
+      const searchPattern = `%${filters.search}%`;
+      params.push(searchPattern, searchPattern, searchPattern);
     }
 
-    query = query.order('created_at', { ascending: false });
+    query += ' ORDER BY created_at DESC';
 
     if (filters.limit) {
-      query = query.limit(filters.limit);
+      query += ' LIMIT ?';
+      params.push(filters.limit);
     }
 
     if (filters.offset) {
-      query = query.range(filters.offset, filters.offset + (filters.limit || 10) - 1);
+      query += ' OFFSET ?';
+      params.push(filters.offset);
     }
 
-    const { data, error } = await query;
+    const users = database.prepare(query).all(...params);
 
-    if (error) throw error;
-
-    // Flatten the nested data
-    return data.map(user => {
-      if (user.courses) {
-        user.course_name = user.courses.course_name;
-        user.course_code = user.courses.course_code;
-        delete user.courses;
+    // Join with courses table for each user
+    return users.map(user => {
+      if (user.course_id) {
+        const course = database.prepare('SELECT course_name, course_code FROM courses WHERE id = ?').get(user.course_id);
+        if (course) {
+          user.course_name = course.course_name;
+          user.course_code = course.course_code;
+        }
       }
       return user;
     });
   }
 
   static async update(id, userData) {
+    const database = getDb();
     const {
       full_name, email, student_number, password, phone, gender,
       national_id, date_of_birth, address, guardian_name, guardian_phone,
@@ -167,70 +157,128 @@ class User {
       }
     });
 
-    const { data, error } = await supabase
-      .from('users')
-      .update(updateData)
-      .eq('id', id)
-      .select()
-      .single();
+    const setClause = Object.keys(updateData).map(key => `${key} = ?`).join(', ');
+    const values = Object.values(updateData);
+    values.push(id);
 
-    if (error) throw error;
-    return data;
+    const stmt = database.prepare(`UPDATE users SET ${setClause} WHERE id = ?`);
+    stmt.run(...values);
+
+    // Return the updated record
+    const updated = database.prepare('SELECT * FROM users WHERE id = ?').get(id);
+    return updated;
+  }
+
+  static async upsertByStudentNumber(userData) {
+    const {
+      full_name, email, student_number, password, role, phone, gender,
+      national_id, date_of_birth, address, guardian_name, guardian_phone,
+      intake, intake_year, course_id, status
+    } = userData;
+
+    if (!student_number) {
+      throw new Error('Student number is required for upsert');
+    }
+
+    // Check if student exists
+    const existing = await this.findByStudentNumber(student_number);
+
+    if (existing) {
+      // Update existing student
+      const updateData = {
+        full_name, email, phone, gender,
+        national_id, date_of_birth, address, guardian_name, guardian_phone,
+        intake, intake_year, course_id, status
+      };
+
+      // Only update password if provided
+      if (password) {
+        updateData.password = password;
+      }
+
+      // Remove undefined values and convert empty strings to null
+      Object.keys(updateData).forEach(key => {
+        if (updateData[key] === undefined) {
+          delete updateData[key];
+        } else if (updateData[key] === '') {
+          updateData[key] = null;
+        }
+      });
+
+      const setClause = Object.keys(updateData).map(key => `${key} = ?`).join(', ');
+      const values = Object.values(updateData);
+      values.push(existing.id);
+
+      const stmt = database.prepare(`UPDATE users SET ${setClause} WHERE id = ?`);
+      stmt.run(...values);
+
+      const updated = database.prepare('SELECT * FROM users WHERE id = ?').get(existing.id);
+      return { ...updated, action: 'updated' };
+    } else {
+      // Create new student
+      const result = await this.create(userData);
+      return { ...result, action: 'created' };
+    }
   }
 
   static async updatePassword(id, newPassword) {
-    const { data, error } = await supabase
-      .from('users')
-      .update({ password: newPassword })
-      .eq('id', id)
-      .select()
-      .single();
+    const database = getDb();
+    const stmt = database.prepare('UPDATE users SET password = ? WHERE id = ?');
+    stmt.run(newPassword, id);
 
-    if (error) throw error;
-    return data;
+    const updated = database.prepare('SELECT * FROM users WHERE id = ?').get(id);
+    return updated;
+  }
+
+  static async deleteDependentRecords(id) {
+    const database = getDb();
+    // Delete fees
+    database.prepare('DELETE FROM fees WHERE user_id = ?').run(id);
+
+    // Delete results
+    database.prepare('DELETE FROM results WHERE user_id = ?').run(id);
+
+    // Delete announcements
+    database.prepare('DELETE FROM announcements WHERE created_by = ?').run(id);
+
+    // Delete audit logs
+    database.prepare('DELETE FROM audit_logs WHERE user_id = ?').run(id);
   }
 
   static async delete(id) {
+    const database = getDb();
     console.log('[USER.DELETE] Attempting to delete user ID:', id);
-    const { error } = await supabase
-      .from('users')
-      .delete()
-      .eq('id', id);
+    const stmt = database.prepare('DELETE FROM users WHERE id = ?');
+    const result = stmt.run(id);
 
-    if (error) {
-      console.error('[USER.DELETE] SUPABASE ERROR:', error);
-      console.error('[USER.DELETE] ERROR CODE:', error.code);
-      console.error('[USER.DELETE] ERROR MESSAGE:', error.message);
-      console.error('[USER.DELETE] ERROR DETAILS:', error.details);
-      console.error('[USER.DELETE] ERROR HINT:', error.hint);
-      throw error;
-    }
     console.log('[USER.DELETE] Delete successful for ID:', id);
-    return true;
+    return result.changes > 0;
   }
 
   static async getStatistics() {
-    const { data, error } = await supabase
-      .from('users')
-      .select('role, status, gender');
+    const database = getDb();
+    const users = database.prepare('SELECT role, status, gender FROM users').all();
+    const students = users.filter(u => u.role === 'student');
 
-    if (error) throw error;
+    // Normalize gender for counting (case-insensitive)
+    const normalizeGender = (gender) => {
+      if (!gender) return null;
+      return gender.toString().trim().toLowerCase();
+    };
 
-    const students = data.filter(u => u.role === 'student');
-    
     const stats = {
       total: students.length,
-      male_count: students.filter(u => u.gender === 'male').length,
-      female_count: students.filter(u => u.gender === 'female').length,
+      male_count: students.filter(u => normalizeGender(u.gender) === 'male').length,
+      female_count: students.filter(u => normalizeGender(u.gender) === 'female').length,
       active_count: students.filter(u => u.status === 'active').length,
       suspended_count: students.filter(u => u.status === 'suspended').length,
       // Keep legacy fields for backward compatibility
-      total_users: data.length,
+      total_users: users.length,
       total_students: students.length,
-      total_lecturers: data.filter(u => u.role === 'lecturer').length,
-      total_admins: data.filter(u => u.role === 'admin').length,
-      active_users: data.filter(u => u.status === 'active').length,
-      suspended_users: data.filter(u => u.status === 'suspended').length
+      total_lecturers: users.filter(u => u.role === 'lecturer').length,
+      total_admins: users.filter(u => u.role === 'admin').length,
+      active_users: users.filter(u => u.status === 'active').length,
+      suspended_users: users.filter(u => u.status === 'suspended').length
     };
 
     return stats;
