@@ -712,7 +712,7 @@ function showProfilePictureModal() {
             showToast(error.message || 'Failed to upload profile picture', 'error');
         }
     });
-});
+} // End of showProfilePictureModal function
 
 function updateProfilePicture(url) {
     const sidebarAvatar = document.getElementById('sidebarAvatar');

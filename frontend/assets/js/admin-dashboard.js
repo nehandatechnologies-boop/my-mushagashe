@@ -477,7 +477,7 @@ async function loadFees() {
                 <td>${fee.fee_category}</td>
                 <td>$${fee.amount.toFixed(2)}</td>
                 <td>$${(fee.amount_paid || 0).toFixed(2)}</td>
-                <td>$${balance.toFixed(2)}</td>
+                <td>$${balance !== null && balance !== undefined ? balance.toFixed(2) : '0.00'}</td>
                 <td><span class="status-badge status-${fee.status}">${fee.status}</span></td>
                 <td>
                     <button class="action-btn edit" onclick="editFee(${fee.id})">Edit</button>
@@ -1558,7 +1558,7 @@ async function editFee(id) {
                 <div class="fee-summary">
                     <p><strong>Total Amount:</strong> $${fee.amount.toFixed(2)}</p>
                     <p><strong>Amount Paid:</strong> $${fee.amount_paid.toFixed(2)}</p>
-                    <p><strong>Balance:</strong> $${balance.toFixed(2)}</p>
+                    <p><strong>Balance:</strong> $${balance !== null && balance !== undefined ? balance.toFixed(2) : '0.00'}</p>
                     <p><strong>Status:</strong> ${fee.status}</p>
                 </div>
                 ${historyHtml}

@@ -271,7 +271,7 @@ async function loadFees() {
                 <td>${fee.description || fee.fee_category}</td>
                 <td>$${fee.amount.toFixed(2)}</td>
                 <td>$${(fee.amount_paid || 0).toFixed(2)}</td>
-                <td>$${fee.balance.toFixed(2)}</td>
+                <td>$${fee.balance !== null && fee.balance !== undefined ? fee.balance.toFixed(2) : '0.00'}</td>
                 <td><span class="status-badge status-${fee.status}">${fee.status}</span></td>
                 <td>${fee.due_date ? new Date(fee.due_date).toLocaleDateString() : 'N/A'}</td>
             </tr>

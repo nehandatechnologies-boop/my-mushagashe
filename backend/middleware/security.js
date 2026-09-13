@@ -39,6 +39,7 @@ const apiRateLimiter = rateLimit({
            req.path.startsWith('/js/') ||
            req.path.startsWith('/fonts/') ||
            req.path === '/health' ||
+           req.method === 'OPTIONS' ||
            req.path.endsWith('.css') ||
            req.path.endsWith('.js') ||
            req.path.endsWith('.jpg') ||
@@ -90,7 +91,7 @@ const authRateLimiter = rateLimit({
 const corsOptions = {
   origin: process.env.FRONTEND_URL || '*',
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 

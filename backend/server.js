@@ -34,8 +34,8 @@ const intakeRoutes = require('./routes/intakeRoutes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Trust proxy for Render deployment
-app.set('trust proxy', true);
+// Trust proxy for Render deployment - trust first proxy only (safer than true)
+app.set('trust proxy', 1);
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, 'uploads');
