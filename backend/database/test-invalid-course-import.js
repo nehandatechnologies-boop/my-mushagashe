@@ -3,14 +3,14 @@ const fs = require('fs');
 const path = require('path');
 
 // Read the Excel file
-const filePath = path.join(__dirname, 'test_duplicate_students.xlsx');
+const filePath = path.join(__dirname, 'test_invalid_course.xlsx');
 const fileBuffer = fs.readFileSync(filePath);
 const boundary = '----WebKitFormBoundary' + Date.now();
 
 // Create multipart form data
 let body = '';
 body += `--${boundary}\r\n`;
-body += `Content-Disposition: form-data; name="file"; filename="test_duplicate_students.xlsx"\r\n`;
+body += `Content-Disposition: form-data; name="file"; filename="test_invalid_course.xlsx"\r\n`;
 body += `Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet\r\n\r\n`;
 const bodyBuffer = Buffer.concat([
   Buffer.from(body),
@@ -40,7 +40,7 @@ const loginReq = http.request({
     const response = JSON.parse(data);
     const token = response.token;
 
-    console.log('Got token, now importing duplicate student numbers...');
+    console.log('Got token, now importing invalid course ID...');
 
     // Import with preview
     const importReq = http.request({

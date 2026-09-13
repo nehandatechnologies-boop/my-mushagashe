@@ -59,6 +59,9 @@ router.get('/profile', authenticate, authController.getProfile);
 // Get current user's profile picture URL (authenticated)
 router.get('/profile-picture', authenticate, authController.getProfilePicture);
 
+// Check if user must change password (authenticated)
+router.get('/check-password-change-required', authenticate, authController.checkPasswordChangeRequired);
+
 // Update profile (authenticated)
 router.put('/profile', authenticate, authController.updateProfile);
 

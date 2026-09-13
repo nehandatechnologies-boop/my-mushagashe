@@ -16,13 +16,13 @@ class User {
     const {
       full_name, email, student_number, password, role, phone, gender,
       national_id, date_of_birth, address, guardian_name, guardian_phone,
-      intake, intake_year, course_id, status
+      intake, intake_year, course_id, status, must_change_password
     } = userData;
 
     const insertData = {
       full_name, email, student_number, password, role, phone, gender,
       national_id, date_of_birth, address, guardian_name, guardian_phone,
-      intake, intake_year, course_id, status
+      intake, intake_year, course_id, status, must_change_password
     };
 
     // Remove undefined values and convert empty strings to null
@@ -34,12 +34,21 @@ class User {
       }
     });
 
-    // If password is not provided, generate a secure random password
-    if (!insertData.password) {
+    // Handle password: hash if provided, generate if not
+    if (insertData.password) {
+      const bcrypt = require('bcryptjs');
+      console.log('[USER.CREATE] Hashing provided password for student:', insertData.student_number);
+      insertData.password = bcrypt.hashSync(insertData.password, 10);
+      // Set must_change_password to true for imported passwords
+      insertData.must_change_password = 1;
+    } else {
       const crypto = require('crypto');
       const bcrypt = require('bcryptjs');
       const randomPassword = crypto.randomBytes(16).toString('base64').substring(0, 12);
+      console.log('[USER.CREATE] Generating random password for student:', insertData.student_number);
       insertData.password = bcrypt.hashSync(randomPassword, 10);
+      // Set must_change_password to true for auto-generated passwords
+      insertData.must_change_password = 1;
     }
 
     const columns = Object.keys(insertData).join(', ');
@@ -147,13 +156,13 @@ class User {
     const {
       full_name, email, student_number, password, phone, gender,
       national_id, date_of_birth, address, guardian_name, guardian_phone,
-      intake_year, course_id, status
+      intake_year, course_id, status, must_change_password
     } = userData;
 
     const updateData = {
       full_name, email, student_number, password, phone, gender,
       national_id, date_of_birth, address, guardian_name, guardian_phone,
-      intake_year, course_id, status
+      intake_year, course_id, status, must_change_password
     };
 
     // Remove undefined values and convert empty strings to null
@@ -182,7 +191,7 @@ class User {
     const {
       full_name, email, student_number, password, role, phone, gender,
       national_id, date_of_birth, address, guardian_name, guardian_phone,
-      intake, intake_year, course_id, status
+      intake, intake_year, course_id, status, must_change_password
     } = userData;
 
     if (!student_number) {
@@ -200,9 +209,13 @@ class User {
         intake, intake_year, course_id, status
       };
 
-      // Only update password if provided
+      // Handle password: hash if provided
       if (password) {
-        updateData.password = password;
+        const bcrypt = require('bcryptjs');
+        console.log('[USER.UPSERT] Hashing provided password for existing student:', student_number);
+        updateData.password = bcrypt.hashSync(password, 10);
+        // When password is updated via Excel import, set must_change_password = true
+        updateData.must_change_password = 1;
       }
 
       // Remove undefined values and convert empty strings to null

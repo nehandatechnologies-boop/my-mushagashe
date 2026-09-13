@@ -509,7 +509,7 @@ const importStudentsFromExcel = async (req, res) => {
     // Detect the correct worksheet with student import headers
     console.log(`[IMPORT] Available worksheets: ${workbook.SheetNames.join(', ')}`);
 
-    const keyHeaders = ['FULL NAME', 'STUDENT NUMBER', 'COURSE'];
+    const keyHeaders = ['FULL NAME', 'STUDENT NUMBER', 'COURSE ID'];
     let selectedSheetName = null;
     let selectedWorksheet = null;
 
@@ -537,7 +537,7 @@ const importStudentsFromExcel = async (req, res) => {
     }
 
     if (!selectedWorksheet) {
-      return res.status(400).json({ error: 'No valid student import worksheet found. Please ensure your Excel file contains headers: FULL NAME, STUDENT NUMBER, COURSE' });
+      return res.status(400).json({ error: 'No valid student import worksheet found. Please ensure your Excel file contains headers: FULL NAME, STUDENT NUMBER, COURSE ID' });
     }
 
     // Parse the selected worksheet
@@ -590,21 +590,34 @@ const importStudentsFromExcel = async (req, res) => {
           return null;
         };
 
-        // Find course
-        const findCourseId = (courseName) => {
-          if (!courseName) return null;
-          const normalized = courseName.toString().trim().toLowerCase();
+        // Find course by ID (from Excel Course ID column) or by name
+        const findCourseId = (courseIdFromExcel, courseNameFromExcel) => {
+          // First, try to use Course ID directly if provided
+          if (courseIdFromExcel) {
+            const courseIdNum = parseInt(courseIdFromExcel);
+            if (!isNaN(courseIdNum)) {
+              const byId = allCourses.find(c => c.id === courseIdNum);
+              if (byId) return { id: byId.id, name: byId.course_name, matchedBy: 'id' };
+            }
+          }
 
+          // If no valid Course ID, try matching by name
+          if (!courseNameFromExcel) return null;
+          const normalized = courseNameFromExcel.toString().trim().toLowerCase();
+
+          // Try exact match on course code
           const byCode = allCourses.find(c => 
             c.course_code && c.course_code.toLowerCase() === normalized
           );
           if (byCode) return { id: byCode.id, name: byCode.course_name, matchedBy: 'code' };
 
+          // Try exact match on course name
           const byName = allCourses.find(c => 
             c.course_name && c.course_name.toLowerCase() === normalized
           );
           if (byName) return { id: byName.id, name: byName.course_name, matchedBy: 'name' };
 
+          // Try partial match on course name
           const byPartial = allCourses.find(c => 
             c.course_name && c.course_name.toLowerCase().includes(normalized) ||
             normalized.includes(c.course_name.toLowerCase())
@@ -614,24 +627,25 @@ const importStudentsFromExcel = async (req, res) => {
           return null;
         };
 
-        const rawCourse = normalizeHeader(row, ['COURSE', 'Course', 'course', 'PROGRAMME', 'Programme', 'programme'])?.trim();
-        const courseMatch = findCourseId(rawCourse);
+        const rawCourseId = normalizeHeader(row, ['COURSE ID', 'Course ID', 'course_id', 'Course_ID'])?.toString().trim();
+        const rawCourseName = normalizeHeader(row, ['COURSE', 'Course', 'course', 'PROGRAMME', 'Programme', 'programme'])?.toString().trim();
+        const courseMatch = findCourseId(rawCourseId, rawCourseName);
 
         const studentData = {
-          full_name: normalizeHeader(row, ['FULL NAME', 'Full Name', 'full_name', 'Full_Name', 'Name', 'NAME'])?.trim(),
-          student_number: normalizeHeader(row, ['STUDENT NUMBER', 'Student Number', 'student_number', 'Student_Number', 'StudentNo', 'Student No.', 'STUDENT NO'])?.trim(),
+          full_name: normalizeHeader(row, ['FULL NAME', 'Full Name', 'full_name', 'Full_Name', 'Name', 'NAME'])?.toString().trim() || null,
+          student_number: normalizeHeader(row, ['STUDENT NUMBER', 'Student Number', 'student_number', 'Student_Number', 'StudentNo', 'Student No.', 'STUDENT NO'])?.toString().trim() || null,
           course_id: courseMatch ? courseMatch.id : null,
-          course_name: courseMatch ? courseMatch.name : rawCourse,
-          email: normalizeHeader(row, ['EMAIL', 'Email', 'email'])?.trim(),
-          password: normalizeHeader(row, ['PASSWORD', 'Password', 'password'])?.trim(),
-          phone: normalizeHeader(row, ['PHONE NUMBER', 'Phone Number', 'phone', 'Phone'])?.trim(),
+          course_name: courseMatch ? courseMatch.name : (rawCourseName?.toString().trim() || null),
+          email: normalizeHeader(row, ['EMAIL', 'Email', 'email'])?.toString().trim() || null,
+          password: normalizeHeader(row, ['PASSWORD', 'Password', 'password'])?.toString().trim() || null,
+          phone: normalizeHeader(row, ['PHONE NUMBER', 'Phone Number', 'phone', 'Phone'])?.toString().trim() || null,
           gender: normalizeGender(normalizeHeader(row, ['GENDER', 'Gender', 'gender', 'SEX', 'Sex', 'sex'])),
-          national_id: normalizeHeader(row, ['NATIONAL ID', 'National ID', 'national_id'])?.trim(),
-          date_of_birth: normalizeHeader(row, ['DATE OF BIRTH', 'Date of Birth', 'date_of_birth'])?.trim(),
-          address: normalizeHeader(row, ['ADDRESS', 'Address', 'address'])?.trim(),
-          guardian_name: normalizeHeader(row, ['GUARDIAN NAME', 'Guardian Name', 'guardian_name'])?.trim(),
-          guardian_phone: normalizeHeader(row, ['GUARDIAN PHONE', 'Guardian Phone', 'guardian_phone'])?.trim(),
-          intake_year: normalizeHeader(row, ['INTAKE YEAR', 'Intake Year', 'intake_year'])?.trim(),
+          national_id: normalizeHeader(row, ['NATIONAL ID', 'National ID', 'national_id'])?.toString().trim() || null,
+          date_of_birth: normalizeHeader(row, ['DATE OF BIRTH', 'Date of Birth', 'date_of_birth'])?.toString().trim() || null,
+          address: normalizeHeader(row, ['ADDRESS', 'Address', 'address'])?.toString().trim() || null,
+          guardian_name: normalizeHeader(row, ['GUARDIAN NAME', 'Guardian Name', 'guardian_name'])?.toString().trim() || null,
+          guardian_phone: normalizeHeader(row, ['GUARDIAN PHONE', 'Guardian Phone', 'guardian_phone'])?.toString().trim() || null,
+          intake_year: normalizeHeader(row, ['INTAKE YEAR', 'Intake Year', 'intake_year'])?.toString().trim() || null,
           role: 'student',
           status: 'active'
         };
@@ -674,9 +688,11 @@ const importStudentsFromExcel = async (req, res) => {
           gender: studentData.gender,
           email: studentData.email,
           phone: studentData.phone,
+          password: studentData.password,
+          raw_course_id: rawCourseId,
           existing: !!existingStudent,
           course_matched: !!courseMatch,
-          raw_course: rawCourse
+          raw_course: rawCourseName
         });
       } catch (error) {
         errors.push({
@@ -698,10 +714,14 @@ const importStudentsFromExcel = async (req, res) => {
       return res.json({
         preview: true,
         total_rows: processed.length,
-        new_students: newStudents.length,
-        existing_students: existingStudents.length,
-        unmatched_courses: unmatchedCourses.length,
-        errors: errors.length,
+        created: newStudents.length,
+        updated: existingStudents.length,
+        unchanged: 0,
+        skipped: unmatchedCourses.length,
+        failed: errors.length,
+        course_matched: processed.filter(p => p.course_matched).length,
+        course_unmatched: processed.filter(p => !p.course_matched && p.raw_course).length,
+        duplicate_spreadsheet_rows: 0,
         sample_new: newStudents.slice(0, 5),
         sample_existing: existingStudents.slice(0, 5),
         sample_unmatched: unmatchedCourses.slice(0, 5),
@@ -716,7 +736,19 @@ const importStudentsFromExcel = async (req, res) => {
 
     for (const student of processed) {
       try {
-        // Skip unmatched courses
+        // Reject invalid Course IDs
+        if (student.raw_course_id && !student.course_matched) {
+          errors.push({
+            row: student.row,
+            student_number: student.student_number,
+            full_name: student.full_name,
+            field: 'course',
+            error: `Course ID "${student.raw_course_id}" does not exist in database`
+          });
+          continue;
+        }
+
+        // Skip unmatched courses (when only course name is provided and doesn't match)
         if (!student.course_matched && student.raw_course) {
           skippedUnmatchedCourses.push({
             row: student.row,
@@ -728,7 +760,7 @@ const importStudentsFromExcel = async (req, res) => {
           continue;
         }
 
-        // Prepare student data - password will be generated automatically for new students
+        // Prepare student data
         const studentData = {
           full_name: student.full_name,
           student_number: student.student_number,
@@ -746,11 +778,27 @@ const importStudentsFromExcel = async (req, res) => {
           status: 'active'
         };
 
-        // Only include password if it's provided in the Excel
-        // Otherwise, the User model will generate a secure random password for new students
-        if (student.password) {
-          studentData.password = bcrypt.hashSync(student.password, 10);
+        // Handle password from Excel - pass the plaintext password, User model will hash it
+        if (student.password && student.password.trim() !== '') {
+          // Validate password
+          if (student.password.length < 6) {
+            errors.push({
+              row: student.row,
+              student_number: student.student_number,
+              full_name: student.full_name,
+              field: 'password',
+              error: 'Password must be at least 6 characters'
+            });
+            continue;
+          }
+          // Pass the plaintext password - User model will hash it and set must_change_password
+          studentData.password = student.password.trim();
+          console.log(`[IMPORT] Student ${student.student_number}: Password provided from Excel`);
+        } else {
+          console.log(`[IMPORT] Student ${student.student_number}: No password provided, will generate random password`);
         }
+        // If no password provided, the User model will generate a secure random password
+        // and set must_change_password = true automatically
 
         // UPSERT using student number
         const result = await User.upsertByStudentNumber(studentData);
@@ -785,8 +833,17 @@ const importStudentsFromExcel = async (req, res) => {
 
     res.status(201).json({
       message: `Import complete: ${created.length} created, ${updated.length} updated`,
-      created: created,
-      updated: updated,
+      total_rows: processed.length,
+      created: created.length,
+      updated: updated.length,
+      unchanged: 0,
+      skipped: skippedUnmatchedCourses.length,
+      failed: errors.length,
+      course_matched: processed.filter(p => p.course_matched).length,
+      course_unmatched: processed.filter(p => !p.course_matched && p.raw_course).length,
+      duplicate_spreadsheet_rows: 0,
+      created_students: created,
+      updated_students: updated,
       skipped_unmatched_courses: skippedUnmatchedCourses.length,
       errors: [...errors, ...skippedUnmatchedCourses]
     });
@@ -912,10 +969,10 @@ const exportStudentsToExcel = async (req, res) => {
       return res.status(404).json({ error: 'No students to export' });
     }
 
-    // Prepare export data with safe fields only
+    // Prepare export data with safe fields only - NO PASSWORDS
     const exportData = students.map(student => ({
-      'Student Number': student.student_number || '',
       'Full Name': student.full_name || '',
+      'Student Number': student.student_number || '',
       'Email': student.email || '',
       'Phone': student.phone || '',
       'Gender': student.gender || '',
@@ -925,9 +982,7 @@ const exportStudentsToExcel = async (req, res) => {
       'Guardian Name': student.guardian_name || '',
       'Guardian Phone': student.guardian_phone || '',
       'Intake Year': student.intake_year || '',
-      'Course': student.course_name || '',
-      'Course Code': student.course_code || '',
-      'Status': student.status || ''
+      'Course ID': student.course_id || ''
     }));
 
     // Create Excel workbook

@@ -6,13 +6,14 @@ const path = require('path');
 const fs = require('fs');
 
 // Import middleware
-const { 
-  securityHeaders, 
-  rateLimiter, 
-  corsOptions, 
-  requestSizeLimiter, 
+const {
+  securityHeaders,
+  rateLimiter,
+  apiRateLimiter,
+  corsOptions,
+  requestSizeLimiter,
   xssProtection,
-  sanitizeLogs 
+  sanitizeLogs
 } = require('./middleware/security');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 
@@ -46,7 +47,6 @@ if (!fs.existsSync(uploadsDir)) {
 app.use(securityHeaders);
 app.use(xssProtection);
 app.use(cors(corsOptions));
-app.use(rateLimiter);
 app.use(requestSizeLimiter);
 app.use(sanitizeLogs);
 
@@ -65,15 +65,18 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('combined'));
 }
 
-// Serve static files (uploads)
+// Serve static files BEFORE rate limiting to prevent static assets from being rate-limited
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Serve frontend static files - handle both local and deployment paths
-const frontendPath = process.env.NODE_ENV === 'production' 
-  ? path.join(__dirname, '../frontend') 
+const frontendPath = process.env.NODE_ENV === 'production'
+  ? path.join(__dirname, '../frontend')
   : path.join(__dirname, '../frontend');
 
 app.use(express.static(frontendPath));
+
+// Apply global rate limiter AFTER static files (with higher limits for overall traffic)
+app.use(rateLimiter);
 
 // Serve frontend pages
 app.get('/', (req, res) => {
@@ -109,6 +112,18 @@ app.get('/admin-dashboard.html', (req, res) => {
   res.sendFile(path.join(frontendPath, 'pages/admin-dashboard.html'));
 });
 
+// Health check endpoint (before API rate limiter)
+app.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    environment: process.env.NODE_ENV || 'development'
+  });
+});
+
+// Apply API-specific rate limiter to all API routes
+app.use('/api', apiRateLimiter);
+
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/students', studentRoutes);
@@ -122,15 +137,6 @@ app.use('/api/templates', templateRoutes);
 app.use('/api/subjects', subjectRoutes);
 app.use('/api/admins', adminRoutes);
 app.use('/api/intakes', intakeRoutes);
-
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    timestamp: new Date().toISOString(),
-    environment: process.env.NODE_ENV || 'development'
-  });
-});
 
 // 404 handler
 app.use(notFoundHandler);

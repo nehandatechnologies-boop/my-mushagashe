@@ -1,12 +1,12 @@
 const http = require('http');
 
-// First, login as admin to get a token
+// Login as admin
 const loginData = JSON.stringify({
   email: 'admin@mushagashe.edu',
   password: 'admin123'
 });
 
-const loginOptions = {
+const loginReq = http.request({
   hostname: 'localhost',
   port: 5000,
   path: '/api/auth/admin/login',
@@ -15,58 +15,38 @@ const loginOptions = {
     'Content-Type': 'application/json',
     'Content-Length': Buffer.byteLength(loginData)
   }
-};
-
-const loginReq = http.request(loginOptions, (loginRes) => {
-  let loginData = '';
-  loginRes.on('data', (chunk) => {
-    loginData += chunk;
-  });
+}, (loginRes) => {
+  let data = '';
+  loginRes.on('data', chunk => data += chunk);
   loginRes.on('end', () => {
-    try {
-      const loginResponse = JSON.parse(loginData);
-      console.log('Login successful');
+    const response = JSON.parse(data);
+    const token = response.token;
 
-      if (loginResponse.token) {
-        // Now test the dashboard statistics
-        const statsOptions = {
-          hostname: 'localhost',
-          port: 5000,
-          path: '/api/dashboard/statistics',
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${loginResponse.token}`
-          }
-        };
+    console.log('Got token, now fetching dashboard statistics...');
 
-        const statsReq = http.request(statsOptions, (statsRes) => {
-          let statsData = '';
-          statsRes.on('data', (chunk) => {
-            statsData += chunk;
-          });
-          statsRes.on('end', () => {
-            console.log('Dashboard Statistics Status:', statsRes.statusCode);
-            console.log('Dashboard Statistics Response:', statsData);
-          });
-        });
-
-        statsReq.on('error', (error) => {
-          console.error('Statistics Error:', error);
-        });
-
-        statsReq.end();
-      } else {
-        console.error('No token in login response');
+    // Get dashboard statistics
+    const statsReq = http.request({
+      hostname: 'localhost',
+      port: 5000,
+      path: '/api/dashboard/statistics',
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${token}`
       }
-    } catch (error) {
-      console.error('Error parsing login response:', error);
-    }
+    }, (statsRes) => {
+      let statsData = '';
+      statsRes.on('data', chunk => statsData += chunk);
+      statsRes.on('end', () => {
+        console.log('Status:', statsRes.statusCode);
+        console.log('Response:', statsData);
+      });
+    });
+
+    statsReq.on('error', (e) => console.error('Stats error:', e));
+    statsReq.end();
   });
 });
 
-loginReq.on('error', (error) => {
-  console.error('Login Error:', error);
-});
-
+loginReq.on('error', (e) => console.error('Login error:', e));
 loginReq.write(loginData);
 loginReq.end();

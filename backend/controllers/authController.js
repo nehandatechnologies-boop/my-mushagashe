@@ -49,6 +49,9 @@ const adminLogin = async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    // Check if user must change password
+    const mustChangePassword = user.must_change_password === 1;
+
     // Generate token
     const token = generateToken(user);
 
@@ -61,7 +64,8 @@ const adminLogin = async (req, res) => {
     res.json({
       token,
       user: userWithoutPassword,
-      permissions
+      permissions,
+      must_change_password: mustChangePassword
     });
   } catch (error) {
     console.error('Admin login error:', error);
@@ -250,6 +254,9 @@ const studentLogin = async (req, res) => {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    // Check if user must change password
+    const mustChangePassword = user.must_change_password === 1;
+
     // Generate custom JWT token
     const token = generateToken(user);
 
@@ -259,7 +266,8 @@ const studentLogin = async (req, res) => {
     res.json({
       token,
       auth_type: 'custom',
-      user: userWithoutPassword
+      user: userWithoutPassword,
+      must_change_password: mustChangePassword
     });
   } catch (error) {
     console.error('Student login error:', error);
@@ -285,7 +293,23 @@ const getProfile = async (req, res) => {
   }
 };
 
-// Get current user's profile picture URL
+// Check if user must change password
+const checkPasswordChangeRequired = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const mustChangePassword = user.must_change_password === 1;
+
+    res.json({ must_change_password: mustChangePassword });
+  } catch (error) {
+    console.error('Check password change required error:', error);
+    res.status(500).json({ error: 'Failed to check password change requirement' });
+  }
+};
 const getProfilePicture = async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -379,9 +403,9 @@ const changePassword = async (req, res) => {
     console.log('[CHANGE-PASSWORD] Hashing new password...');
     const hashedPassword = bcrypt.hashSync(new_password, 10);
 
-    // Update password
+    // Update password and clear must_change_password flag
     console.log('[CHANGE-PASSWORD] Updating password in database...');
-    await User.update(userId, { password: hashedPassword });
+    await User.update(userId, { password: hashedPassword, must_change_password: 0 });
     console.log('[CHANGE-PASSWORD] Password updated successfully');
 
     res.json({ message: 'Password changed successfully' });
@@ -666,5 +690,6 @@ module.exports = {
   requestPasswordReset,
   requestAdminPasswordReset,
   resetPassword,
-  logout
+  logout,
+  checkPasswordChangeRequired
 };

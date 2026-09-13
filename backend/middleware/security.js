@@ -21,10 +21,43 @@ const securityHeaders = helmet({
   crossOriginEmbedderPolicy: false,
 });
 
-// Rate limiting configuration
+// Rate limiting configuration for API requests only (NOT static assets)
+const apiRateLimiter = rateLimit({
+  windowMs: (parseInt(process.env.RATE_LIMIT_WINDOW) || 15) * 60 * 1000, // 15 minutes
+  max: parseInt(process.env.RATE_LIMIT_MAX) || 1000, // limit each IP to 1000 API requests per windowMs
+  message: {
+    error: 'Too many API requests from this IP, please try again later.'
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting for static assets
+    return req.path.startsWith('/assets/') ||
+           req.path.startsWith('/uploads/') ||
+           req.path.startsWith('/images/') ||
+           req.path.startsWith('/css/') ||
+           req.path.startsWith('/js/') ||
+           req.path.startsWith('/fonts/') ||
+           req.path === '/health' ||
+           req.path.endsWith('.css') ||
+           req.path.endsWith('.js') ||
+           req.path.endsWith('.jpg') ||
+           req.path.endsWith('.jpeg') ||
+           req.path.endsWith('.png') ||
+           req.path.endsWith('.gif') ||
+           req.path.endsWith('.svg') ||
+           req.path.endsWith('.ico') ||
+           req.path.endsWith('.woff') ||
+           req.path.endsWith('.woff2') ||
+           req.path.endsWith('.ttf') ||
+           req.path.endsWith('.eot');
+  }
+});
+
+// Global rate limiter for all requests (used as fallback, with higher limits)
 const rateLimiter = rateLimit({
   windowMs: (parseInt(process.env.RATE_LIMIT_WINDOW) || 15) * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX) || 10000, // limit each IP to 1000 requests per windowMs (increased for development)
+  max: parseInt(process.env.RATE_LIMIT_MAX) || 10000, // limit each IP to 10000 requests per windowMs (much higher for overall traffic)
   message: {
     error: 'Too many requests from this IP, please try again later.'
   },
@@ -35,11 +68,10 @@ const rateLimiter = rateLimit({
 // Stricter rate limiting for authentication routes (per-IP and per-identifier)
 const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP + identifier to 20 login attempts per windowMs (increased for development)
+  max: 100, // limit each IP + identifier to 100 login attempts per windowMs
   message: {
     error: 'Too many login attempts for this account, please try again later.'
   },
-  skipSuccessfulRequests: true,
   keyGenerator: (req) => {
     // Create a unique key based on IP AND the login identifier (email or student_number)
     // This ensures that:
@@ -101,6 +133,7 @@ const sanitizeLogs = (req, res, next) => {
 module.exports = {
   securityHeaders,
   rateLimiter,
+  apiRateLimiter,
   authRateLimiter,
   corsOptions,
   requestSizeLimiter,

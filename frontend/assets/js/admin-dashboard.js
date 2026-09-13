@@ -333,7 +333,7 @@ async function loadStudents() {
     }
     
     // Set loading state
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center">Loading students...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8" class="text-center">Loading students...</td></tr>';
     
     try {
         const studentSearch = document.getElementById('studentSearch');
@@ -356,7 +356,7 @@ async function loadStudents() {
         console.log('[STUDENTS] Data:', JSON.stringify(students, null, 2));
         
         if (!students || students.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="7" class="text-center">No students found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="8" class="text-center">No students found</td></tr>';
             console.log('[STUDENTS] Success: No students found');
             return;
         }
@@ -369,12 +369,15 @@ async function loadStudents() {
                         : `<div style="width: 60px; height: 60px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 20px;">${student.full_name.charAt(0).toUpperCase()}</div>`
                     }
                 </td>
-                <td>${student.student_number}</td>
-                <td>${student.full_name}</td>
-                <td>${student.course_name || 'Not assigned'}</td>
-                <td>${student.intake || 'N/A'}</td>
+                <td>${student.student_number || 'N/A'}</td>
+                <td>${student.full_name || 'N/A'}</td>
+                <td>
+                    ${student.course_name || 'Not assigned'}
+                    ${student.course_code ? `<div style="font-size: 11px; color: #666;">${student.course_code}</div>` : ''}
+                </td>
+                <td>${student.intake_year || 'N/A'}</td>
                 <td>${student.phone || 'N/A'}</td>
-                <td><span class="status-badge status-${student.status}">${student.status}</span></td>
+                <td><span class="status-badge status-${student.status}">${student.status || 'N/A'}</span></td>
                 <td>
                     <button class="action-btn edit" onclick="editStudent(${student.id})">Edit</button>
                     <button class="action-btn delete" onclick="deleteStudent(${student.id})">Delete</button>
@@ -385,7 +388,7 @@ async function loadStudents() {
     } catch (error) {
         console.error('[STUDENTS] Error:', error);
         console.error('[STUDENTS] Error message:', error.message);
-        tbody.innerHTML = '<tr><td colspan="7" class="text-center">Failed to load students. Please try again.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="8" class="text-center">Failed to load students. Please try again.</td></tr>';
         showToast('Failed to load students', 'error');
     }
 }
