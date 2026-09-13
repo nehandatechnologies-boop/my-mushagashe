@@ -1,18 +1,7 @@
-const Database = require('better-sqlite3');
-const path = require('path');
-
-let db;
-function getDb() {
-  if (!db) {
-    const dbPath = process.env.DB_PATH || path.join(__dirname, '../database/mushagashe.db');
-    db = new Database(dbPath);
-  }
-  return db;
-}
+const supabase = require('../config/supabase');
 
 class Course {
   static async create(courseData) {
-    const database = getDb();
     const { course_code, course_name, department, duration, description } = courseData;
 
     const insertData = {
@@ -28,64 +17,73 @@ class Course {
       }
     });
 
-    const columns = Object.keys(insertData).join(', ');
-    const placeholders = Object.keys(insertData).map(() => '?').join(', ');
-    const values = Object.values(insertData);
+    const { data, error } = await supabase
+      .from('courses')
+      .insert(insertData)
+      .select()
+      .single();
 
-    const stmt = database.prepare(`INSERT INTO courses (${columns}) VALUES (${placeholders})`);
-    const result = stmt.run(...values);
-
-    // Return the created record
-    const created = database.prepare('SELECT * FROM courses WHERE id = ?').get(result.lastInsertRowid);
-    return created;
+    if (error) throw error;
+    return data;
   }
 
   static async findById(id) {
-    const database = getDb();
-    const course = database.prepare('SELECT * FROM courses WHERE id = ?').get(id);
-    return course || null;
+    const { data, error } = await supabase
+      .from('courses')
+      .select('*')
+      .eq('id', id)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null; // Not found
+      throw error;
+    }
+    return data;
   }
 
   static async findByCode(courseCode) {
-    const database = getDb();
-    const course = database.prepare('SELECT * FROM courses WHERE course_code = ?').get(courseCode);
-    return course || null;
+    const { data, error } = await supabase
+      .from('courses')
+      .select('*')
+      .eq('course_code', courseCode)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') return null; // Not found
+      throw error;
+    }
+    return data;
   }
 
-  static async findAll(filters = {}) {
-    const database = getDb();
-    let query = 'SELECT * FROM courses WHERE 1=1';
-    const params = [];
+  static async findAll() {
+    const { data, error } = await supabase
+      .from('courses')
+      .select('*')
+      .order('created_at', { ascending: false });
 
-    if (filters.department) {
-      query += ' AND department = ?';
-      params.push(filters.department);
-    }
+    if (error) throw error;
+    return data;
+  }
 
-    if (filters.search) {
-      query += ' AND (course_name LIKE ? OR course_code LIKE ?)';
-      const searchPattern = `%${filters.search}%`;
-      params.push(searchPattern, searchPattern);
-    }
+  static async getAllWithStudentCount() {
+    const { data, error } = await supabase
+      .from('courses')
+      .select(`
+        *,
+        users (id)
+      `)
+      .order('created_at', { ascending: false });
 
-    query += ' ORDER BY created_at DESC';
+    if (error) throw error;
 
-    if (filters.limit) {
-      query += ' LIMIT ?';
-      params.push(filters.limit);
-    }
-
-    if (filters.offset) {
-      query += ' OFFSET ?';
-      params.push(filters.offset);
-    }
-
-    const courses = database.prepare(query).all(...params);
-    return courses;
+    // Calculate student count for each course
+    return data.map(course => ({
+      ...course,
+      student_count: course.users ? course.users.filter(u => u.role === 'student').length : 0
+    }));
   }
 
   static async update(id, courseData) {
-    const database = getDb();
     const { course_code, course_name, department, duration, description } = courseData;
 
     const updateData = {
@@ -101,42 +99,28 @@ class Course {
       }
     });
 
-    const setClause = Object.keys(updateData).map(key => `${key} = ?`).join(', ');
-    const values = Object.values(updateData);
-    values.push(id);
+    const { data, error } = await supabase
+      .from('courses')
+      .update(updateData)
+      .eq('id', id)
+      .select()
+      .single();
 
-    const stmt = database.prepare(`UPDATE courses SET ${setClause} WHERE id = ?`);
-    stmt.run(...values);
-
-    // Return the updated record
-    const updated = database.prepare('SELECT * FROM courses WHERE id = ?').get(id);
-    return updated;
+    if (error) throw error;
+    return data;
   }
 
   static async delete(id) {
-    const database = getDb();
-    const stmt = database.prepare('DELETE FROM courses WHERE id = ?');
-    const result = stmt.run(id);
-    return result.changes > 0;
-  }
+    console.log('[COURSE.DELETE] Attempting to delete course ID:', id);
+    const { error } = await supabase
+      .from('courses')
+      .delete()
+      .eq('id', id);
 
-  static async getStudentCount(courseId) {
-    const database = getDb();
-    const result = database.prepare('SELECT COUNT(*) as count FROM users WHERE course_id = ? AND role = ?').get(courseId, 'student');
-    return result.count;
-  }
+    if (error) throw error;
 
-  static async getAllWithStudentCount() {
-    const database = getDb();
-    const courses = database.prepare('SELECT * FROM courses ORDER BY created_at DESC').all();
-
-    // Get student count for each course
-    const coursesWithCount = courses.map(course => {
-      const studentCount = this.getStudentCount(course.id);
-      return { ...course, student_count: studentCount };
-    });
-
-    return coursesWithCount;
+    console.log('[COURSE.DELETE] Delete successful for ID:', id);
+    return true;
   }
 }
 

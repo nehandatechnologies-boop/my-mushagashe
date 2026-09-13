@@ -8,7 +8,6 @@ const fs = require('fs');
 // Import middleware
 const {
   securityHeaders,
-  rateLimiter,
   apiRateLimiter,
   corsOptions,
   requestSizeLimiter,
@@ -34,8 +33,9 @@ const intakeRoutes = require('./routes/intakeRoutes');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Trust proxy for Render deployment - trust first proxy only (safer than true)
-app.set('trust proxy', 1);
+// Trust proxy for Render deployment - disabled to prevent rate limiter bypass
+// Render's reverse proxy handles X-Forwarded-For correctly without needing trust proxy
+app.set('trust proxy', false);
 
 // Ensure uploads directory exists
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -74,9 +74,6 @@ const frontendPath = process.env.NODE_ENV === 'production'
   : path.join(__dirname, '../frontend');
 
 app.use(express.static(frontendPath));
-
-// Apply global rate limiter AFTER static files (with higher limits for overall traffic)
-app.use(rateLimiter);
 
 // Serve frontend pages
 app.get('/', (req, res) => {
@@ -151,7 +148,7 @@ app.listen(PORT, HOST, () => {
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔒 Security: Helmet, Rate Limiting, CORS enabled`);
   console.log(`📝 Logging: Morgan enabled`);
-  console.log(`💾 Database: Supabase connected`);
+  console.log(`💾 Database: Supabase (authoritative data source)`);
 });
 
 // Graceful shutdown

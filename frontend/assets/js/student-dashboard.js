@@ -28,7 +28,7 @@ const user = JSON.parse(localStorage.getItem('user') || '{}');
 // API Request helper with authentication
 async function apiRequest(endpoint, options = {}) {
     const url = `${API_BASE}${endpoint}`;
-    
+
     const defaultOptions = {
         headers: {
             'Content-Type': 'application/json',
@@ -40,6 +40,14 @@ async function apiRequest(endpoint, options = {}) {
 
     try {
         const response = await fetch(url, finalOptions);
+
+        // Handle 429 rate limit errors specifically
+        if (response.status === 429) {
+            const errorData = await response.json();
+            console.error('Rate limit exceeded:', errorData.error);
+            throw new Error(errorData.error || 'Rate limit exceeded');
+        }
+
         const data = await response.json();
 
         if (!response.ok) {
@@ -727,6 +735,12 @@ async function loadUnreadCount() {
         const response = await apiRequest('/announcements/unread/count');
         updateNotificationBadge(response.unread_count);
     } catch (error) {
+        // Rate limit errors should not be retried immediately
+        if (error.message && error.message.includes('Rate limit')) {
+            console.error('Rate limit hit on unread count - will retry on next interval');
+            // Don't update badge to avoid flickering
+            return;
+        }
         console.error('Failed to load unread count:', error);
         // Silently fail for unread count - don't show toast to avoid spam
         updateNotificationBadge(0);

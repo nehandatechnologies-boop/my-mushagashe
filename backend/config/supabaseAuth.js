@@ -1,36 +1,31 @@
 const { createClient } = require('@supabase/supabase-js');
 
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+// Use environment variables or fallback to hardcoded defaults
+const supabaseUrl = process.env.SUPABASE_URL || 'https://krenyvbcwtbwcsrpiryf.supabase.co';
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtyZW55dmJjd3Rid2NzcnBpcnlmIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU2NDYxMDgsImV4cCI6MjEwMTIyMjEwOH0.ePaoY-bRwmRFo2Rd2eA_XY_EllShPtC178eyUXnUl-I';
 const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // Regular Supabase client for database operations (uses anon key)
-let supabase = null;
-
-if (supabaseUrl && supabaseAnonKey) {
-  supabase = createClient(supabaseUrl, supabaseAnonKey, {
-    db: {
-      schema: 'public'
-    },
-    realtime: false,
-    global: {
-      headers: {
-        'X-Client-Info': 'vocational-portal'
-      }
+const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  db: {
+    schema: 'public'
+  },
+  realtime: false,
+  global: {
+    headers: {
+      'X-Client-Info': 'vocational-portal'
     }
-  });
+  }
+});
 
-  console.log('[Supabase] Client initialized with URL:', supabaseUrl);
-  console.log('[Supabase] Anon key present:', !!supabaseAnonKey);
-} else {
-  console.warn('[Supabase] SUPABASE_URL or SUPABASE_ANON_KEY not configured. Using local database only.');
-}
+console.log('[Supabase] Client initialized with URL:', supabaseUrl);
+console.log('[Supabase] Using Supabase as authoritative data source');
 
 // Supabase Auth client with service role key for admin operations
 // This allows bypassing email confirmation and creating users programmatically
 let supabaseAdmin = null;
 
-if (supabaseUrl && supabaseServiceRoleKey) {
+if (supabaseServiceRoleKey) {
   supabaseAdmin = createClient(supabaseUrl, supabaseServiceRoleKey, {
     db: {
       schema: 'public'
@@ -51,5 +46,5 @@ module.exports = {
   supabase,
   supabaseAdmin,
   hasAdminAccess: !!supabaseAdmin,
-  isConfigured: !!supabase
+  isConfigured: true
 };

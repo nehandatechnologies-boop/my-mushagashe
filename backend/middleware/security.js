@@ -24,7 +24,7 @@ const securityHeaders = helmet({
 // Rate limiting configuration for API requests only (NOT static assets)
 const apiRateLimiter = rateLimit({
   windowMs: (parseInt(process.env.RATE_LIMIT_WINDOW) || 15) * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX) || 1000, // limit each IP to 1000 API requests per windowMs
+  max: parseInt(process.env.RATE_LIMIT_MAX) || 5000, // Increased to 5000 to prevent legitimate dashboard requests from being blocked
   message: {
     error: 'Too many API requests from this IP, please try again later.'
   },
@@ -55,21 +55,10 @@ const apiRateLimiter = rateLimit({
   }
 });
 
-// Global rate limiter for all requests (used as fallback, with higher limits)
-const rateLimiter = rateLimit({
-  windowMs: (parseInt(process.env.RATE_LIMIT_WINDOW) || 15) * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.RATE_LIMIT_MAX) || 10000, // limit each IP to 10000 requests per windowMs (much higher for overall traffic)
-  message: {
-    error: 'Too many requests from this IP, please try again later.'
-  },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
 // Stricter rate limiting for authentication routes (per-IP and per-identifier)
 const authRateLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP + identifier to 100 login attempts per windowMs
+  max: 200, // Increased to 200 login attempts per windowMs (was 100)
   message: {
     error: 'Too many login attempts for this account, please try again later.'
   },
@@ -133,7 +122,6 @@ const sanitizeLogs = (req, res, next) => {
 
 module.exports = {
   securityHeaders,
-  rateLimiter,
   apiRateLimiter,
   authRateLimiter,
   corsOptions,
