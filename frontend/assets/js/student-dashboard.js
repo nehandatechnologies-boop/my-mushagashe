@@ -41,13 +41,6 @@ async function apiRequest(endpoint, options = {}) {
     try {
         const response = await fetch(url, finalOptions);
 
-        // Handle 429 rate limit errors specifically
-        if (response.status === 429) {
-            const errorData = await response.json();
-            console.error('Rate limit exceeded:', errorData.error);
-            throw new Error(errorData.error || 'Rate limit exceeded');
-        }
-
         const data = await response.json();
 
         if (!response.ok) {

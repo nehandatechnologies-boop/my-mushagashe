@@ -7,7 +7,6 @@ const studentControllerSupabase = require('../controllers/studentControllerSupab
 const approvalController = require('../controllers/approvalController');
 const { authenticate } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/rbac');
-const { authRateLimiter } = require('../middleware/security');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -39,16 +38,16 @@ const validateLogin = [
 ];
 
 // Admin login
-router.post('/admin/login', authRateLimiter, validateLogin, authController.adminLogin);
+router.post('/admin/login', validateLogin, authController.adminLogin);
 
 // Lecturer login
-router.post('/lecturer/login', authRateLimiter, validateLogin, authController.lecturerLogin);
+router.post('/lecturer/login', validateLogin, authController.lecturerLogin);
 
 // Student login
-router.post('/student/login', authRateLimiter, validateLogin, authController.studentLogin);
+router.post('/student/login', validateLogin, authController.studentLogin);
 
 // Student registration with Supabase Auth - REMOVED - Admin only
-// router.post('/student/register-supabase', authRateLimiter, studentControllerSupabase.registerStudentSupabase);
+// router.post('/student/register-supabase', studentControllerSupabase.registerStudentSupabase);
 
 // Lecturer creation with Supabase Auth (requires lecturers.create permission)
 router.post('/lecturer/create-supabase', authenticate, requirePermission('lecturers.create'), studentControllerSupabase.createLecturerSupabase);
@@ -69,10 +68,10 @@ router.put('/profile', authenticate, authController.updateProfile);
 router.put('/change-password', authenticate, authController.changePassword);
 
 // Request password reset (student)
-router.post('/student/reset-password', authRateLimiter, authController.requestStudentPasswordReset);
+router.post('/student/reset-password', authController.requestStudentPasswordReset);
 
 // Request password reset (lecturer)
-router.post('/lecturer/reset-password', authRateLimiter, authController.requestLecturerPasswordReset);
+router.post('/lecturer/reset-password', authController.requestLecturerPasswordReset);
 
 // Upload own profile picture (authenticated)
 router.post('/profile-picture', authenticate, profilePictureUpload.single('profilePicture'), studentController.uploadProfilePicture);
@@ -81,7 +80,7 @@ router.post('/profile-picture', authenticate, profilePictureUpload.single('profi
 router.delete('/profile-picture', authenticate, studentController.deleteProfilePicture);
 
 // Request password reset (generic)
-router.post('/forgot-password', authRateLimiter, authController.requestPasswordReset);
+router.post('/forgot-password', authController.requestPasswordReset);
 
 // Request admin password reset (SUPER_ADMIN only)
 router.post('/admin/reset-password', authenticate, authController.requestAdminPasswordReset);

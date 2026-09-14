@@ -8,7 +8,6 @@ const fs = require('fs');
 // Import middleware
 const {
   securityHeaders,
-  apiRateLimiter,
   corsOptions,
   requestSizeLimiter,
   xssProtection,
@@ -65,7 +64,7 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('combined'));
 }
 
-// Serve static files BEFORE rate limiting to prevent static assets from being rate-limited
+// Serve static files
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Serve frontend static files - handle both local and deployment paths
@@ -109,7 +108,7 @@ app.get('/admin-dashboard.html', (req, res) => {
   res.sendFile(path.join(frontendPath, 'pages/admin-dashboard.html'));
 });
 
-// Health check endpoint (before API rate limiter)
+// Health check endpoint
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',
@@ -117,9 +116,6 @@ app.get('/health', (req, res) => {
     environment: process.env.NODE_ENV || 'development'
   });
 });
-
-// Apply API-specific rate limiter to all API routes
-app.use('/api', apiRateLimiter);
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -146,7 +142,7 @@ const HOST = process.env.HOST || '0.0.0.0';
 app.listen(PORT, HOST, () => {
   console.log(`🚀 Server running on http://${HOST}:${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔒 Security: Helmet, Rate Limiting, CORS enabled`);
+  console.log(`🔒 Security: Helmet, CORS enabled`);
   console.log(`📝 Logging: Morgan enabled`);
   console.log(`💾 Database: Supabase (authoritative data source)`);
 });
