@@ -259,6 +259,23 @@ const generateReceiptNumber = async (req, res) => {
   }
 };
 
+// Get fee summary for a specific student (for student list display)
+const getStudentFeeSummary = async (req, res) => {
+  try {
+    const { user_id } = req.params;
+
+    if (!user_id) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    const summary = await Fee.getStudentSummary(user_id);
+    res.json(summary);
+  } catch (error) {
+    console.error('Get student fee summary error:', error);
+    res.status(500).json({ error: 'Failed to fetch student fee summary' });
+  }
+};
+
 module.exports = {
   createFee,
   getAllFees,
@@ -268,5 +285,6 @@ module.exports = {
   deleteFee,
   getFeeStatistics,
   getOutstandingBalance,
-  generateReceiptNumber
+  generateReceiptNumber,
+  getStudentFeeSummary
 };

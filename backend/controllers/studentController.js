@@ -905,7 +905,24 @@ const importStudentsFromExcel = async (req, res) => {
         // and set must_change_password = true automatically
 
         // UPSERT using student number
+        console.log(`[IMPORT] Calling upsertByStudentNumber for ${student.student_number}`);
+        console.log(`[IMPORT]   studentData:`, JSON.stringify({
+          full_name: studentData.full_name,
+          student_number: studentData.student_number,
+          gender: studentData.gender,
+          course_id: studentData.course_id,
+          intake: studentData.intake,
+          intake_year: studentData.intake_year
+        }));
         const result = await User.upsertByStudentNumber(studentData);
+        console.log(`[IMPORT]   upsert result:`, JSON.stringify({
+          action: result.action,
+          id: result.id,
+          gender: result.gender,
+          course_id: result.course_id,
+          intake: result.intake,
+          intake_year: result.intake_year
+        }));
 
         if (result.action === 'created') {
           created.push({

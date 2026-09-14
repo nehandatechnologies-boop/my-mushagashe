@@ -284,6 +284,50 @@ class Fee {
     const totalOutstanding = data.reduce((sum, f) => sum + (f.balance || 0), 0);
     return totalOutstanding;
   }
+
+  static async getStudentSummary(userId) {
+    // Get all fees for the student
+    const { data: fees, error } = await supabase
+      .from('fees')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    if (!fees || fees.length === 0) {
+      return {
+        has_fees: false,
+        total_fees: 0,
+        total_charged: 0,
+        total_paid: 0,
+        outstanding_balance: 0,
+        status: 'no_fees'
+      };
+    }
+
+    const totalCharged = fees.reduce((sum, f) => sum + (f.amount || 0), 0);
+    const totalPaid = fees.reduce((sum, f) => sum + (f.amount_paid || 0), 0);
+    const outstandingBalance = fees.reduce((sum, f) => sum + (f.balance || 0), 0);
+
+    // Determine overall status
+    let status = 'paid';
+    if (outstandingBalance > 0) {
+      status = 'partial';
+    }
+    if (fees.some(f => f.status === 'unpaid')) {
+      status = 'unpaid';
+    }
+
+    return {
+      has_fees: true,
+      total_fees: fees.length,
+      total_charged: totalCharged,
+      total_paid: totalPaid,
+      outstanding_balance: outstandingBalance,
+      status: status
+    };
+  }
 }
 
 module.exports = Fee;

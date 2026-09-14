@@ -331,10 +331,10 @@ async function loadStudents() {
         console.error('[STUDENTS] Table body not found');
         return;
     }
-    
+
     // Set loading state
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center">Loading students...</td></tr>';
-    
+    tbody.innerHTML = '<tr><td colspan="10" class="text-center">Loading students...</td></tr>';
+
     try {
         const studentSearch = document.getElementById('studentSearch');
         const studentFilter = document.getElementById('studentFilter');
@@ -342,53 +342,69 @@ async function loadStudents() {
         const search = studentSearch ? studentSearch.value : '';
         const filter = studentFilter ? studentFilter.value : '';
         const intake = intakeFilter ? intakeFilter.value : '';
-        
+
         let endpoint = '/students';
         const params = [];
         if (search) params.push(`search=${encodeURIComponent(search)}`);
         if (filter) params.push(`status=${filter}`);
         if (intake) params.push(`intake=${encodeURIComponent(intake)}`);
         if (params.length) endpoint += '?' + params.join('&');
-        
+
         console.log(`[STUDENTS] API Endpoint: GET ${endpoint}`);
         const students = await apiRequest(endpoint);
         console.log('[STUDENTS] Response received');
         console.log('[STUDENTS] Data:', JSON.stringify(students, null, 2));
-        
+
         if (!students || students.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="8" class="text-center">No students found</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="10" class="text-center">No students found</td></tr>';
             console.log('[STUDENTS] Success: No students found');
             return;
         }
 
-        tbody.innerHTML = students.map(student => `
+        // Load fee summaries for all students
+        const feeSummaries = await Promise.all(
+            students.map(student => apiRequest(`/fees/student/${student.id}/summary`).catch(() => ({ has_fees: false, status: 'no_fees', outstanding_balance: 0 })))
+        );
+
+        tbody.innerHTML = students.map((student, index) => {
+            const feeSummary = feeSummaries[index] || { has_fees: false, status: 'no_fees', outstanding_balance: 0 };
+            const feeStatusClass = feeSummary.status === 'paid' ? 'success' : feeSummary.status === 'partial' ? 'warning' : feeSummary.status === 'unpaid' ? 'danger' : 'secondary';
+            const feeStatusText = feeSummary.status === 'no_fees' ? 'No fees' : feeSummary.status.charAt(0).toUpperCase() + feeSummary.status.slice(1);
+
+            return `
             <tr>
                 <td>
-                    ${student.profile_picture_url 
-                        ? `<img src="${student.profile_picture_url}" alt="${student.full_name}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; cursor: pointer;" onclick="viewProfilePicture('${student.profile_picture_url}', '${student.full_name}')">` 
+                    ${student.profile_picture_url
+                        ? `<img src="${student.profile_picture_url}" alt="${student.full_name}" style="width: 60px; height: 60px; border-radius: 50%; object-fit: cover; cursor: pointer;" onclick="viewProfilePicture('${student.profile_picture_url}', '${student.full_name}')">`
                         : `<div style="width: 60px; height: 60px; border-radius: 50%; background: #ddd; display: flex; align-items: center; justify-content: center; font-size: 20px;">${student.full_name.charAt(0).toUpperCase()}</div>`
                     }
                 </td>
                 <td>${student.student_number || 'N/A'}</td>
                 <td>${student.full_name || 'N/A'}</td>
+                <td>${student.gender || 'N/A'}</td>
                 <td>
                     ${student.course_name || 'Not assigned'}
                     ${student.course_code ? `<div style="font-size: 11px; color: #666;">${student.course_code}</div>` : ''}
                 </td>
-                <td>${student.intake_year || 'N/A'}</td>
-                <td>${student.phone || 'N/A'}</td>
+                <td>${student.intake_name || 'N/A'}</td>
+                <td>
+                    <span class="status-badge status-${feeStatusClass}">${feeStatusText}</span>
+                    ${feeSummary.has_fees ? `<div style="font-size: 11px; color: #666;">Balance: $${feeSummary.outstanding_balance.toFixed(2)}</div>` : ''}
+                </td>
                 <td><span class="status-badge status-${student.status}">${student.status || 'N/A'}</span></td>
                 <td>
                     <button class="action-btn edit" onclick="editStudent(${student.id})">Edit</button>
+                    <button class="action-btn" onclick="openStudentFees(${student.id}, '${student.full_name.replace(/'/g, "\\'")}', '${student.student_number || ''}', '${(student.course_name || '').replace(/'/g, "\\'")}', '${(student.intake_name || '').replace(/'/g, "\\'")}')">Fees</button>
                     <button class="action-btn delete" onclick="deleteStudent(${student.id})">Delete</button>
                 </td>
             </tr>
-        `).join('');
+        `;
+        }).join('');
         console.log('[STUDENTS] Success: Data rendered');
     } catch (error) {
         console.error('[STUDENTS] Error:', error);
         console.error('[STUDENTS] Error message:', error.message);
-        tbody.innerHTML = '<tr><td colspan="8" class="text-center">Failed to load students. Please try again.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center">Failed to load students. Please try again.</td></tr>';
         showToast('Failed to load students', 'error');
     }
 }
@@ -3136,14 +3152,14 @@ async function handleAddFeeSubmit(form) {
 async function handlePaymentSubmit(form) {
     const formData = new FormData(form);
     const paymentData = Object.fromEntries(formData);
-    
+
     const feeId = form.dataset.feeId;
     if (!feeId) {
         console.error('Missing fee ID');
         showToast('Missing fee ID', 'error');
         return;
     }
-    
+
     try {
         await apiRequest(`/fees/${feeId}/payment`, {
             method: 'POST',
@@ -3155,6 +3171,248 @@ async function handlePaymentSubmit(form) {
     } catch (error) {
         console.error('Record payment error:', error);
         showToast('Failed to record payment', 'error');
+    }
+}
+
+// Student Fee Management
+let currentStudentId = null;
+let currentStudentName = null;
+
+async function openStudentFees(studentId, fullName, studentNumber, courseName, intakeName) {
+    currentStudentId = studentId;
+    currentStudentName = fullName;
+
+    try {
+        // Load student's fee summary
+        const summary = await apiRequest(`/fees/student/${studentId}/summary`);
+
+        // Load student's fee history
+        const fees = await apiRequest(`/fees?user_id=${studentId}`);
+
+        const content = `
+            <div class="modal-header">
+                <h2>Student Fees</h2>
+                <button onclick="hideModal()" class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="student-info-panel" style="background: #f5f5f5; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                    <h3 style="margin: 0 0 0.5rem 0;">${fullName}</h3>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; font-size: 14px;">
+                        <div><strong>Student Number:</strong> ${studentNumber || 'N/A'}</div>
+                        <div><strong>Course:</strong> ${courseName || 'N/A'}</div>
+                        <div><strong>Intake:</strong> ${intakeName || 'N/A'}</div>
+                    </div>
+                </div>
+
+                <div class="fee-summary-panel" style="background: #e3f2fd; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                    <h4 style="margin: 0 0 0.75rem 0;">Fee Summary</h4>
+                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; font-size: 14px;">
+                        <div><strong>Total Charged:</strong> $${summary.total_charged.toFixed(2)}</div>
+                        <div><strong>Total Paid:</strong> $${summary.total_paid.toFixed(2)}</div>
+                        <div><strong>Outstanding:</strong> $${summary.outstanding_balance.toFixed(2)}</div>
+                        <div><strong>Status:</strong> <span class="status-badge status-${summary.status === 'paid' ? 'success' : summary.status === 'partial' ? 'warning' : summary.status === 'unpaid' ? 'danger' : 'secondary'}">${summary.status.charAt(0).toUpperCase() + summary.status.slice(1)}</span></div>
+                    </div>
+                </div>
+
+                <div class="fee-actions" style="margin-bottom: 1.5rem;">
+                    <button onclick="showAddFeeModal(${studentId})" class="action-btn" style="margin-right: 0.5rem;">Add Fee</button>
+                </div>
+
+                <div class="fee-history">
+                    <h4 style="margin: 0 0 1rem 0;">Fee History</h4>
+                    ${fees.length === 0 ? '<p style="color: #666;">No fee records found.</p>' : `
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="background: #f5f5f5;">
+                                    <th style="padding: 0.5rem; text-align: left;">Category</th>
+                                    <th style="padding: 0.5rem; text-align: right;">Amount</th>
+                                    <th style="padding: 0.5rem; text-align: right;">Paid</th>
+                                    <th style="padding: 0.5rem; text-align: right;">Balance</th>
+                                    <th style="padding: 0.5rem; text-align: left;">Status</th>
+                                    <th style="padding: 0.5rem; text-align: center;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${fees.map(fee => `
+                                    <tr style="border-bottom: 1px solid #ddd;">
+                                        <td style="padding: 0.5rem;">${fee.fee_category}</td>
+                                        <td style="padding: 0.5rem; text-align: right;">$${fee.amount.toFixed(2)}</td>
+                                        <td style="padding: 0.5rem; text-align: right;">$${fee.amount_paid.toFixed(2)}</td>
+                                        <td style="padding: 0.5rem; text-align: right;">$${fee.balance.toFixed(2)}</td>
+                                        <td style="padding: 0.5rem;"><span class="status-badge status-${fee.status}">${fee.status}</span></td>
+                                        <td style="padding: 0.5rem; text-align: center;">
+                                            <button onclick="showRecordPaymentModal(${fee.id})" class="action-btn" style="font-size: 12px; padding: 4px 8px;">Pay</button>
+                                            <button onclick="deleteFee(${fee.id})" class="action-btn delete" style="font-size: 12px; padding: 4px 8px;">Delete</button>
+                                        </td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `}
+                </div>
+            </div>
+        `;
+
+        showModal(content);
+    } catch (error) {
+        console.error('Error loading student fees:', error);
+        showToast('Failed to load student fees', 'error');
+    }
+}
+
+async function showAddFeeModal(studentId) {
+    const content = `
+        <div class="modal-header">
+            <h2>Add Fee</h2>
+            <button onclick="hideModal()" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="addFeeForm" onsubmit="handleAddStudentFeeSubmit(event, ${studentId})">
+                <div class="form-group">
+                    <label>Fee Category *</label>
+                    <select name="fee_category" required>
+                        <option value="">Select category</option>
+                        <option value="Tuition">Tuition</option>
+                        <option value="Registration">Registration</option>
+                        <option value="Examination">Examination</option>
+                        <option value="Library">Library</option>
+                        <option value="Laboratory">Laboratory</option>
+                        <option value="Hostel">Hostel</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Amount ($) *</label>
+                    <input type="number" name="amount" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label>Due Date</label>
+                    <input type="date" name="due_date">
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea name="notes" rows="2"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Add Fee</button>
+                    <button type="button" onclick="hideModal()" class="btn btn-secondary">Cancel</button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    showModal(content);
+}
+
+async function handleAddStudentFeeSubmit(event, studentId) {
+    event.preventDefault();
+    const form = event.target;
+    const formData = new FormData(form);
+    const feeData = Object.fromEntries(formData);
+
+    feeData.user_id = studentId;
+
+    try {
+        await apiRequest('/fees', {
+            method: 'POST',
+            body: JSON.stringify(feeData)
+        });
+        showToast('Fee added successfully');
+        hideModal();
+        openStudentFees(currentStudentId, currentStudentName, '', '', '');
+        loadStudents();
+    } catch (error) {
+        console.error('Add fee error:', error);
+        showToast('Failed to add fee: ' + (error.message || 'Unknown error'), 'error');
+    }
+}
+
+async function showRecordPaymentModal(feeId) {
+    const content = `
+        <div class="modal-header">
+            <h2>Record Payment</h2>
+            <button onclick="hideModal()" class="close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+            <form id="recordPaymentForm" onsubmit="handleRecordStudentPaymentSubmit(event, ${feeId})">
+                <div class="form-group">
+                    <label>Payment Amount ($) *</label>
+                    <input type="number" name="amount_paid" step="0.01" min="0.01" required>
+                </div>
+                <div class="form-group">
+                    <label>Payment Method</label>
+                    <select name="payment_method">
+                        <option value="">Select method</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="Mobile Money">Mobile Money</option>
+                        <option value="Credit Card">Credit Card</option>
+                        <option value="Cheque">Cheque</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Payment Reference</label>
+                    <input type="text" name="payment_reference">
+                </div>
+                <div class="form-group">
+                    <label>Receipt Number</label>
+                    <input type="text" name="receipt_number">
+                </div>
+                <div class="form-group">
+                    <label>Payment Date</label>
+                    <input type="date" name="payment_date">
+                </div>
+                <div class="form-group">
+                    <label>Notes</label>
+                    <textarea name="notes" rows="2"></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn btn-primary">Record Payment</button>
+                    <button type="button" onclick="hideModal()" class="btn btn-secondary">Cancel</button>
+                </div>
+            </form>
+        </div>
+    `;
+
+    showModal(content);
+}
+
+async function handleRecordStudentPaymentSubmit(event, feeId) {
+    event.preventDefault();
+    const form = event.target;
+    const formData = new FormData(form);
+    const paymentData = Object.fromEntries(formData);
+
+    try {
+        await apiRequest(`/fees/${feeId}/payment`, {
+            method: 'POST',
+            body: JSON.stringify(paymentData)
+        });
+        showToast('Payment recorded successfully');
+        hideModal();
+        openStudentFees(currentStudentId, currentStudentName, '', '', '');
+        loadStudents();
+    } catch (error) {
+        console.error('Record payment error:', error);
+        showToast('Failed to record payment: ' + (error.message || 'Unknown error'), 'error');
+    }
+}
+
+async function deleteFee(feeId) {
+    if (!confirm('Are you sure you want to delete this fee?')) {
+        return;
+    }
+
+    try {
+        await apiRequest(`/fees/${feeId}`, {
+            method: 'DELETE'
+        });
+        showToast('Fee deleted successfully');
+        openStudentFees(currentStudentId, currentStudentName, '', '', '');
+        loadStudents();
+    } catch (error) {
+        console.error('Delete fee error:', error);
+        showToast('Failed to delete fee', 'error');
     }
 }
 

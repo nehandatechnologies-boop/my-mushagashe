@@ -50,6 +50,14 @@ class User {
       insertData.must_change_password = insertData.must_change_password === true || insertData.must_change_password === 1;
     }
 
+    console.log('[USER.CREATE] Inserting new student:', insertData.student_number);
+    console.log('[USER.CREATE]   insertData:', JSON.stringify({
+      gender: insertData.gender,
+      course_id: insertData.course_id,
+      intake: insertData.intake,
+      intake_year: insertData.intake_year
+    }));
+
     const { data, error } = await supabase
       .from('users')
       .insert(insertData)
@@ -156,16 +164,38 @@ class User {
     if (error) throw error;
 
     // Flatten course data
-    return data.map(user => {
+    const results = data.map(user => {
       if (user.courses) {
         user.course_name = user.courses.course_name;
         user.course_code = user.courses.course_code;
         delete user.courses;
       }
-      // Intake is stored as a direct field (intake), not a foreign key
-      // We include it as-is in the response
       return user;
     });
+
+    // Load intakes separately and map to students (workaround for no foreign key)
+    if (results.length > 0) {
+      const intakeIds = results.filter(u => u.intake).map(u => u.intake);
+      if (intakeIds.length > 0) {
+        const { data: intakes, error: intakeError } = await supabase
+          .from('intakes')
+          .select('id, name, year')
+          .in('id', intakeIds);
+
+        if (!intakeError && intakes) {
+          const intakeMap = {};
+          intakes.forEach(i => intakeMap[i.id] = i);
+          results.forEach(user => {
+            if (user.intake && intakeMap[user.intake]) {
+              user.intake_name = intakeMap[user.intake].name;
+              user.intake_year = intakeMap[user.intake].year;
+            }
+          });
+        }
+      }
+    }
+
+    return results;
   }
 
   static async update(id, userData) {
@@ -229,7 +259,7 @@ class User {
     }
 
     // Check if student exists
-    const existing = await this.findByStudentNumber(studentNumber);
+    const existing = await this.findByStudentNumber(student_number);
 
     if (existing) {
       // Update existing student
@@ -267,6 +297,14 @@ class User {
         updateData.must_change_password = updateData.must_change_password === true || updateData.must_change_password === 1;
       }
 
+      console.log('[USER.UPSERT] Updating existing student:', student_number);
+      console.log('[USER.UPSERT]   updateData:', JSON.stringify({
+        gender: updateData.gender,
+        course_id: updateData.course_id,
+        intake: updateData.intake,
+        intake_year: updateData.intake_year
+      }));
+
       const { data, error } = await supabase
         .from('users')
         .update(updateData)
@@ -275,6 +313,15 @@ class User {
         .single();
 
       if (error) throw error;
+
+      console.log('[USER.UPSERT]   Update result:', JSON.stringify({
+        id: data.id,
+        gender: data.gender,
+        course_id: data.course_id,
+        intake: data.intake,
+        intake_year: data.intake_year
+      }));
+
       return { ...data, action: 'updated' };
     } else {
       // Create new student - password will be generated in create() if not provided

@@ -32,6 +32,9 @@ router.get('/outstanding', authenticate, requirePermission('fees.view'), feeCont
 // Generate receipt number - requires payments.create permission
 router.get('/generate-receipt', authenticate, requirePermission('payments.create'), feeController.generateReceiptNumber);
 
+// Get fee summary for a specific student - requires fees.view permission
+router.get('/student/:user_id/summary', authenticate, requirePermission('fees.view'), feeController.getStudentFeeSummary);
+
 // Get fee by ID - requires fees.view permission
 router.get('/:id', authenticate, requirePermission('fees.view'), feeController.getFeeById);
 
