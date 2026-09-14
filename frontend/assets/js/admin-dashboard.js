@@ -2242,7 +2242,7 @@ window.deleteAdministrator = async function(id) {
 
 window.resetAdminPassword = async function(id) {
     if (!confirm('Are you sure you want to reset this administrator\'s password? A new temporary password will be generated.')) return;
-    
+
     try {
         const response = await fetch(`${API_BASE}/admins/administrators/${id}/reset-password`, {
             method: 'PUT',
@@ -2250,15 +2250,15 @@ window.resetAdminPassword = async function(id) {
                 'Content-Type': 'application/json',
                 'Authorization': `Bearer ${token}`
             },
-            body: JSON.stringify({ new_password: null }) // Let backend generate password
+            body: JSON.stringify({}) // Let backend generate password
         });
-        
+
         const data = await response.json();
-        
+
         if (!response.ok) {
             throw new Error(data.error || 'Failed to reset password');
         }
-        
+
         // Show the temporary password in a modal
         showModal(`
             <div class="modal-header">

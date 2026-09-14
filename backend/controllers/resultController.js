@@ -17,6 +17,9 @@ const createResult = async (req, res) => {
       exam_mark, final_mark, grade, credits, lecturer, remarks, subject_marks
     } = req.body;
 
+    console.log('[RESULT.CREATE] Request body:', { user_id, course_id, semester, academic_year, assessment_mark, exam_mark, final_mark, grade, credits, lecturer, remarks, subject_marks });
+    console.log('[RESULT.CREATE] User role:', req.user?.role);
+
     // Validation
     if (!user_id || !course_id || !semester || !academic_year ||
         user_id === '' || course_id === '' || semester === '' || academic_year === '') {
@@ -35,7 +38,7 @@ const createResult = async (req, res) => {
 
     // Calculate final mark if not provided
     let calculatedFinalMark = final_mark;
-    
+
     // If subject marks are provided, calculate average
     if (subject_marks && Array.isArray(subject_marks) && subject_marks.length > 0) {
       const totalMarks = subject_marks.reduce((sum, sm) => sum + (parseFloat(sm.mark) || 0), 0);
@@ -43,7 +46,7 @@ const createResult = async (req, res) => {
     } else if (assessment_mark !== undefined || exam_mark !== undefined) {
       calculatedFinalMark = final_mark || ((assessment_mark || 0) + (exam_mark || 0)) / 2;
     }
-    
+
     // Calculate grade if not provided
     const calculatedGrade = grade || Result.calculateGrade(calculatedFinalMark);
 
@@ -61,19 +64,14 @@ const createResult = async (req, res) => {
       remarks
     };
 
-    console.log('[BACKEND] Calling Result.create with data:', resultData);
-    console.log('[BACKEND] Subject marks received:', subject_marks);
-    console.log('[BACKEND] Subject marks type:', typeof subject_marks);
-    console.log('[BACKEND] Subject marks is array:', Array.isArray(subject_marks));
-
+    console.log('[RESULT.CREATE] Calling Result.create with data:', resultData);
     const result = await Result.create(resultData);
-    console.log('[BACKEND] Result.create succeeded, result ID:', result.id);
+    console.log('[RESULT.CREATE] Result created successfully, ID:', result.id);
 
     // Create subject results if provided
     if (subject_marks && Array.isArray(subject_marks) && subject_marks.length > 0) {
-      console.log('[BACKEND] Creating subject results...');
+      console.log('[RESULT.CREATE] Creating subject results...');
       for (const sm of subject_marks) {
-        console.log('[BACKEND] Processing subject mark:', sm);
         if (sm.subject_id && sm.mark !== undefined) {
           const subjectResultData = {
             result_id: result.id,
@@ -82,12 +80,9 @@ const createResult = async (req, res) => {
             grade: SubjectResult.calculateGrade(parseFloat(sm.mark)),
             remarks: sm.remarks || null
           };
-          console.log('[BACKEND] Creating subject result:', subjectResultData);
           await SubjectResult.create(subjectResultData);
         }
       }
-    } else {
-      console.log('[BACKEND] No subject marks provided to create');
     }
 
     res.status(201).json({
@@ -95,9 +90,9 @@ const createResult = async (req, res) => {
       id: result.id
     });
   } catch (error) {
-    console.error('[BACKEND] Create result error:', error);
-    console.error('[BACKEND] Error details:', error.message, error.code);
-    res.status(500).json({ error: 'Failed to create result', details: error.message });
+    console.error('[RESULT.CREATE] Create result error:', error);
+    console.error('[RESULT.CREATE] Error details:', error.message, error.code, error.details);
+    res.status(500).json({ error: 'Failed to create result: ' + error.message, details: error.code });
   }
 };
 

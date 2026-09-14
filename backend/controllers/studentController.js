@@ -128,6 +128,39 @@ const getAllStudents = async (req, res) => {
   }
 };
 
+// Search students (for fee entry and other lookups)
+const searchStudents = async (req, res) => {
+  try {
+    const { q, limit = 20 } = req.query;
+
+    if (!q || q.trim() === '') {
+      return res.status(400).json({ error: 'Search query is required' });
+    }
+
+    const trimmedQuery = q.trim();
+    const limitNum = parseInt(limit);
+
+    // Search by full name, partial name, or student number
+    const students = await User.search(trimmedQuery, limitNum);
+
+    // Return only necessary fields for selection
+    const searchResults = students.map(student => ({
+      id: student.id,
+      full_name: student.full_name,
+      student_number: student.student_number,
+      course_name: student.course_name || 'N/A',
+      course_code: student.course_code || 'N/A',
+      intake_name: student.intake_name || 'N/A',
+      intake_year: student.intake_year || 'N/A'
+    }));
+
+    res.json(searchResults);
+  } catch (error) {
+    console.error('Search students error:', error);
+    res.status(500).json({ error: 'Failed to search students: ' + error.message });
+  }
+};
+
 // Get student by ID
 const getStudentById = async (req, res) => {
   try {
@@ -555,6 +588,12 @@ const importStudentsFromExcel = async (req, res) => {
     const Course = require('../models/Course');
     const allCourses = await Course.findAll({});
 
+    // Load all intakes for matching
+    const Intake = require('../models/Intake');
+    const allIntakes = await Intake.findAll({});
+
+    console.log(`[IMPORT] Loaded ${allCourses.length} courses and ${allIntakes.length} intakes for matching`);
+
     // Process rows for preview or actual import
     const processed = [];
     const errors = [];
@@ -606,19 +645,19 @@ const importStudentsFromExcel = async (req, res) => {
           const normalized = courseNameFromExcel.toString().trim().toLowerCase();
 
           // Try exact match on course code
-          const byCode = allCourses.find(c => 
+          const byCode = allCourses.find(c =>
             c.course_code && c.course_code.toLowerCase() === normalized
           );
           if (byCode) return { id: byCode.id, name: byCode.course_name, matchedBy: 'code' };
 
           // Try exact match on course name
-          const byName = allCourses.find(c => 
+          const byName = allCourses.find(c =>
             c.course_name && c.course_name.toLowerCase() === normalized
           );
           if (byName) return { id: byName.id, name: byName.course_name, matchedBy: 'name' };
 
           // Try partial match on course name
-          const byPartial = allCourses.find(c => 
+          const byPartial = allCourses.find(c =>
             c.course_name && c.course_name.toLowerCase().includes(normalized) ||
             normalized.includes(c.course_name.toLowerCase())
           );
@@ -627,15 +666,40 @@ const importStudentsFromExcel = async (req, res) => {
           return null;
         };
 
+        // Find intake by name (intake lookup matches by exact name)
+        const findIntakeId = (intakeNameFromExcel) => {
+          if (!intakeNameFromExcel) return null;
+          const normalized = intakeNameFromExcel.toString().trim();
+
+          // Try exact match on intake name
+          const byName = allIntakes.find(i =>
+            i.name && i.name === normalized
+          );
+          if (byName) return { id: byName.id, name: byName.name, year: byName.year, matchedBy: 'name' };
+
+          // Try case-insensitive match
+          const byNameCaseInsensitive = allIntakes.find(i =>
+            i.name && i.name.toLowerCase() === normalized.toLowerCase()
+          );
+          if (byNameCaseInsensitive) return { id: byNameCaseInsensitive.id, name: byNameCaseInsensitive.name, year: byNameCaseInsensitive.year, matchedBy: 'name_case_insensitive' };
+
+          return null;
+        };
+
         const rawCourseId = normalizeHeader(row, ['COURSE ID', 'Course ID', 'course_id', 'Course_ID'])?.toString().trim();
         const rawCourseName = normalizeHeader(row, ['COURSE', 'Course', 'course', 'PROGRAMME', 'Programme', 'programme'])?.toString().trim();
         const courseMatch = findCourseId(rawCourseId, rawCourseName);
+
+        const rawIntakeName = normalizeHeader(row, ['INTAKE', 'Intake', 'intake'])?.toString().trim();
+        const intakeMatch = findIntakeId(rawIntakeName);
 
         const studentData = {
           full_name: normalizeHeader(row, ['FULL NAME', 'Full Name', 'full_name', 'Full_Name', 'Name', 'NAME'])?.toString().trim() || null,
           student_number: normalizeHeader(row, ['STUDENT NUMBER', 'Student Number', 'student_number', 'Student_Number', 'StudentNo', 'Student No.', 'STUDENT NO'])?.toString().trim() || null,
           course_id: courseMatch ? courseMatch.id : null,
           course_name: courseMatch ? courseMatch.name : (rawCourseName?.toString().trim() || null),
+          intake: intakeMatch ? intakeMatch.id : null,
+          intake_year: intakeMatch ? intakeMatch.year : null,
           email: normalizeHeader(row, ['EMAIL', 'Email', 'email'])?.toString().trim() || null,
           password: normalizeHeader(row, ['PASSWORD', 'Password', 'password'])?.toString().trim() || null,
           phone: normalizeHeader(row, ['PHONE NUMBER', 'Phone Number', 'phone', 'Phone'])?.toString().trim() || null,
@@ -645,10 +709,15 @@ const importStudentsFromExcel = async (req, res) => {
           address: normalizeHeader(row, ['ADDRESS', 'Address', 'address'])?.toString().trim() || null,
           guardian_name: normalizeHeader(row, ['GUARDIAN NAME', 'Guardian Name', 'guardian_name'])?.toString().trim() || null,
           guardian_phone: normalizeHeader(row, ['GUARDIAN PHONE', 'Guardian Phone', 'guardian_phone'])?.toString().trim() || null,
-          intake_year: normalizeHeader(row, ['INTAKE YEAR', 'Intake Year', 'intake_year'])?.toString().trim() || null,
           role: 'student',
           status: 'active'
         };
+
+        // Log data mapping for this student
+        console.log(`[IMPORT] Student: ${studentData.full_name} (${studentData.student_number})`);
+        console.log(`[IMPORT]   Gender: ${studentData.gender}`);
+        console.log(`[IMPORT]   Course: ${rawCourseName} → ${courseMatch ? `${courseMatch.name} (id=${courseMatch.id})` : 'NOT FOUND'}`);
+        console.log(`[IMPORT]   Intake: ${rawIntakeName} → ${intakeMatch ? `${intakeMatch.name} (id=${intakeMatch.id})` : 'NOT FOUND'}`);
 
         // Validation
         if (!studentData.full_name || !studentData.student_number) {
@@ -685,14 +754,18 @@ const importStudentsFromExcel = async (req, res) => {
           full_name: studentData.full_name,
           course_id: studentData.course_id,
           course_name: studentData.course_name,
+          intake: studentData.intake,
+          intake_year: studentData.intake_year,
           gender: studentData.gender,
           email: studentData.email,
           phone: studentData.phone,
           password: studentData.password,
           raw_course_id: rawCourseId,
+          raw_course: rawCourseName,
+          raw_intake: rawIntakeName,
           existing: !!existingStudent,
           course_matched: !!courseMatch,
-          raw_course: rawCourseName
+          intake_matched: !!intakeMatch
         });
       } catch (error) {
         errors.push({
@@ -710,6 +783,21 @@ const importStudentsFromExcel = async (req, res) => {
       const newStudents = processed.filter(p => !p.existing);
       const existingStudents = processed.filter(p => p.existing);
       const unmatchedCourses = processed.filter(p => !p.course_matched && p.raw_course);
+      const unmatchedIntakes = processed.filter(p => !p.intake_matched && p.raw_intake);
+
+      // Log unmatched courses and intakes
+      if (unmatchedCourses.length > 0) {
+        console.log(`[IMPORT] ${unmatchedCourses.length} students with unmatched courses:`);
+        unmatchedCourses.slice(0, 5).forEach(p => {
+          console.log(`[IMPORT]   ${p.student_number} - "${p.raw_course}"`);
+        });
+      }
+      if (unmatchedIntakes.length > 0) {
+        console.log(`[IMPORT] ${unmatchedIntakes.length} students with unmatched intakes:`);
+        unmatchedIntakes.slice(0, 5).forEach(p => {
+          console.log(`[IMPORT]   ${p.student_number} - "${p.raw_intake}"`);
+        });
+      }
 
       return res.json({
         preview: true,
@@ -717,10 +805,12 @@ const importStudentsFromExcel = async (req, res) => {
         created: newStudents.length,
         updated: existingStudents.length,
         unchanged: 0,
-        skipped: unmatchedCourses.length,
+        skipped: unmatchedCourses.length + unmatchedIntakes.length,
         failed: errors.length,
         course_matched: processed.filter(p => p.course_matched).length,
         course_unmatched: processed.filter(p => !p.course_matched && p.raw_course).length,
+        intake_matched: processed.filter(p => p.intake_matched).length,
+        intake_unmatched: processed.filter(p => !p.intake_matched && p.raw_intake).length,
         duplicate_spreadsheet_rows: errors.filter(e => e.field === 'spreadsheet_duplicate').length,
         sample_new: newStudents.slice(0, 5),
         sample_existing: existingStudents.slice(0, 5),
@@ -733,6 +823,7 @@ const importStudentsFromExcel = async (req, res) => {
     const created = [];
     const updated = [];
     const skippedUnmatchedCourses = [];
+    const skippedUnmatchedIntakes = [];
 
     for (const student of processed) {
       try {
@@ -748,7 +839,7 @@ const importStudentsFromExcel = async (req, res) => {
           continue;
         }
 
-        // Skip unmatched courses (when only course name is provided and doesn't match)
+        // Reject unmatched courses (when only course name is provided and doesn't match)
         if (!student.course_matched && student.raw_course) {
           skippedUnmatchedCourses.push({
             row: student.row,
@@ -760,11 +851,25 @@ const importStudentsFromExcel = async (req, res) => {
           continue;
         }
 
+        // Reject unmatched intakes
+        if (!student.intake_matched && student.raw_intake) {
+          skippedUnmatchedIntakes.push({
+            row: student.row,
+            student_number: student.student_number,
+            full_name: student.full_name,
+            field: 'intake',
+            error: `Intake "${student.raw_intake}" not found in database`
+          });
+          continue;
+        }
+
         // Prepare student data
         const studentData = {
           full_name: student.full_name,
           student_number: student.student_number,
           course_id: student.course_id,
+          intake: student.intake,
+          intake_year: student.intake_year,
           email: student.email,
           phone: student.phone,
           gender: student.gender,
@@ -773,7 +878,6 @@ const importStudentsFromExcel = async (req, res) => {
           address: student.address,
           guardian_name: student.guardian_name,
           guardian_phone: student.guardian_phone,
-          intake_year: student.intake_year,
           role: 'student',
           status: 'active'
         };
@@ -829,7 +933,7 @@ const importStudentsFromExcel = async (req, res) => {
       }
     }
 
-    console.log(`[IMPORT] Complete: ${created.length} created, ${updated.length} updated, ${skippedUnmatchedCourses.length} unmatched courses, ${errors.length} errors`);
+    console.log(`[IMPORT] Complete: ${created.length} created, ${updated.length} updated, ${skippedUnmatchedCourses.length} unmatched courses, ${skippedUnmatchedIntakes.length} unmatched intakes, ${errors.length} errors`);
 
     res.status(201).json({
       message: `Import complete: ${created.length} created, ${updated.length} updated`,
@@ -837,15 +941,18 @@ const importStudentsFromExcel = async (req, res) => {
       created: created.length,
       updated: updated.length,
       unchanged: 0,
-      skipped: skippedUnmatchedCourses.length,
+      skipped: skippedUnmatchedCourses.length + skippedUnmatchedIntakes.length,
       failed: errors.length,
       course_matched: processed.filter(p => p.course_matched).length,
       course_unmatched: processed.filter(p => !p.course_matched && p.raw_course).length,
+      intake_matched: processed.filter(p => p.intake_matched).length,
+      intake_unmatched: processed.filter(p => !p.intake_matched && p.raw_intake).length,
       duplicate_spreadsheet_rows: errors.filter(e => e.field === 'spreadsheet_duplicate').length,
       created_students: created,
       updated_students: updated,
       skipped_unmatched_courses: skippedUnmatchedCourses.length,
-      errors: [...errors, ...skippedUnmatchedCourses]
+      skipped_unmatched_intakes: skippedUnmatchedIntakes.length,
+      errors: [...errors, ...skippedUnmatchedCourses, ...skippedUnmatchedIntakes]
     });
   } catch (error) {
     console.error('Import students error:', error);
@@ -1026,5 +1133,6 @@ module.exports = {
   importStudentsFromExcel,
   uploadProfilePicture,
   deleteProfilePicture,
-  exportStudentsToExcel
+  exportStudentsToExcel,
+  searchStudents
 };

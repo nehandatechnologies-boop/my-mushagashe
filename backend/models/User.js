@@ -11,8 +11,13 @@ class User {
     const insertData = {
       full_name, email, student_number, role, phone, gender,
       national_id, date_of_birth, address, guardian_name, guardian_phone,
-      intake, intake_year, course_id, status, must_change_password, auth_type
+      intake_year, course_id, status, must_change_password, auth_type
     };
+
+    // Only include intake if it's a valid integer (intake_id)
+    if (intake && !isNaN(parseInt(intake))) {
+      insertData.intake = parseInt(intake);
+    }
 
     // Remove undefined values and convert empty strings to null
     Object.keys(insertData).forEach(key => {
@@ -157,6 +162,8 @@ class User {
         user.course_code = user.courses.course_code;
         delete user.courses;
       }
+      // Intake is stored as a direct field (intake), not a foreign key
+      // We include it as-is in the response
       return user;
     });
   }
@@ -165,7 +172,7 @@ class User {
     const {
       full_name, email, student_number, password, phone, gender,
       national_id, date_of_birth, address, guardian_name, guardian_phone,
-      intake_year, course_id, status, must_change_password
+      intake, intake_year, course_id, status, must_change_password
     } = userData;
 
     const updateData = {
@@ -173,6 +180,11 @@ class User {
       national_id, date_of_birth, address, guardian_name, guardian_phone,
       intake_year, course_id, status, must_change_password
     };
+
+    // Only include intake if it's a valid integer (intake_id)
+    if (intake && !isNaN(parseInt(intake))) {
+      updateData.intake = parseInt(intake);
+    }
 
     // Remove undefined values and convert empty strings to null
     Object.keys(updateData).forEach(key => {
@@ -224,8 +236,13 @@ class User {
       const updateData = {
         full_name, email, phone, gender,
         national_id, date_of_birth, address, guardian_name, guardian_phone,
-        intake, intake_year, course_id, status
+        intake_year, course_id, status
       };
+
+      // Only include intake if it's a valid integer (intake_id)
+      if (intake && !isNaN(parseInt(intake))) {
+        updateData.intake = parseInt(intake);
+      }
 
       // Handle password: hash if provided
       if (password) {
@@ -336,6 +353,59 @@ class User {
     };
 
     return stats;
+  }
+
+  static async search(query, limit = 20) {
+    console.log('[USER.SEARCH] Query:', query, 'Limit:', limit);
+
+    // Search by full name, partial name, or student number
+    const { data, error } = await supabase
+      .from('users')
+      .select(`
+        *,
+        courses!left (course_name, course_code)
+      `)
+      .or(`full_name.ilike.%${query}%,student_number.ilike.%${query}%`)
+      .eq('role', 'student')
+      .limit(limit);
+
+    if (error) throw error;
+
+    console.log('[USER.SEARCH] Results:', data.length);
+
+    // Flatten course data
+    const results = data.map(user => {
+      if (user.courses) {
+        user.course_name = user.courses.course_name;
+        user.course_code = user.courses.course_code;
+        delete user.courses;
+      }
+      return user;
+    });
+
+    // If intake filtering is needed, load intakes separately
+    if (results.length > 0) {
+      const intakeIds = results.filter(u => u.intake).map(u => u.intake);
+      if (intakeIds.length > 0) {
+        const { data: intakes, error: intakeError } = await supabase
+          .from('intakes')
+          .select('id, name, year')
+          .in('id', intakeIds);
+
+        if (!intakeError && intakes) {
+          const intakeMap = {};
+          intakes.forEach(i => intakeMap[i.id] = i);
+          results.forEach(user => {
+            if (user.intake && intakeMap[user.intake]) {
+              user.intake_name = intakeMap[user.intake].name;
+              user.intake_year = intakeMap[user.intake].year;
+            }
+          });
+        }
+      }
+    }
+
+    return results;
   }
 }
 

@@ -355,9 +355,7 @@ const resetAdminPassword = async (req, res) => {
     const { id } = req.params;
     const { new_password } = req.body;
 
-    if (!new_password || new_password.length < 6) {
-      return res.status(400).json({ error: 'New password must be at least 6 characters' });
-    }
+    console.log('[ADMIN.RESET_PASSWORD] Request body:', { new_password });
 
     // Get existing admin
     const existingAdmin = await User.findById(id);
@@ -366,7 +364,7 @@ const resetAdminPassword = async (req, res) => {
     }
 
     // Verify it's an admin
-    const isAdmin = existingAdmin.role === 'admin' || 
+    const isAdmin = existingAdmin.role === 'admin' ||
                    existingAdmin.role === 'super_admin' ||
                    existingAdmin.role === 'SUPER_ADMIN' ||
                    existingAdmin.role === 'ACADEMIC_ADMIN' ||
@@ -378,16 +376,37 @@ const resetAdminPassword = async (req, res) => {
       return res.status(404).json({ error: 'Administrator not found' });
     }
 
-    // Hash new password
-    const hashedPassword = bcrypt.hashSync(new_password, 10);
+    let hashedPassword;
+    let temporaryPassword;
 
-    // Update password
-    await User.update(id, { password: hashedPassword });
+    // If new_password is provided, validate and use it
+    if (new_password !== null && new_password !== undefined) {
+      if (new_password.length < 6) {
+        return res.status(400).json({ error: 'New password must be at least 6 characters' });
+      }
+      hashedPassword = bcrypt.hashSync(new_password, 10);
+      temporaryPassword = new_password;
+    } else {
+      // Generate a random temporary password
+      const crypto = require('crypto');
+      temporaryPassword = crypto.randomBytes(16).toString('base64').substring(0, 12);
+      hashedPassword = bcrypt.hashSync(temporaryPassword, 10);
+      console.log('[ADMIN.RESET_PASSWORD] Generated temporary password for:', existingAdmin.full_name);
+    }
+
+    // Update password and set must_change_password
+    await User.update(id, {
+      password: hashedPassword,
+      must_change_password: true
+    });
 
     // Log the action
     await auditActions.adminUpdate(req, id, `Reset password for administrator: ${existingAdmin.full_name}`);
 
-    res.json({ message: 'Password reset successfully' });
+    res.json({
+      message: 'Password reset successfully',
+      temporary_password: temporaryPassword
+    });
   } catch (error) {
     console.error('Reset admin password error:', error);
     res.status(500).json({ error: 'Failed to reset password' });

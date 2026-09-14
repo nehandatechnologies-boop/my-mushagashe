@@ -70,7 +70,7 @@ class Course {
       .from('courses')
       .select(`
         *,
-        users (id)
+        users (id, role)
       `)
       .order('created_at', { ascending: false });
 

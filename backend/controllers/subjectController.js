@@ -5,6 +5,9 @@ const createSubject = async (req, res) => {
   try {
     const { subject_code, subject_name, course_id, credits } = req.body;
 
+    console.log('[SUBJECT.CREATE] Request body:', { subject_code, subject_name, course_id, credits });
+    console.log('[SUBJECT.CREATE] User role:', req.user?.role);
+
     // Validation
     if (!subject_code || !subject_name || !course_id) {
       return res.status(400).json({ error: 'Subject code, name, and course ID are required' });
@@ -27,21 +30,24 @@ const createSubject = async (req, res) => {
       credits: credits ? parseInt(credits) : 1
     };
 
+    console.log('[SUBJECT.CREATE] Creating subject with data:', subjectData);
     const subject = await Subject.create(subjectData);
+    console.log('[SUBJECT.CREATE] Subject created successfully:', subject);
 
     res.status(201).json({
       message: 'Subject created successfully',
       subject
     });
   } catch (error) {
-    console.error('Create subject error:', error);
+    console.error('[SUBJECT.CREATE] Create subject error:', error);
+    console.error('[SUBJECT.CREATE] Error details:', error.message, error.code, error.details);
     if (error.code === '23505') {
       return res.status(400).json({ error: 'Subject code already exists' });
     }
     if (error.code === '23503') {
       return res.status(400).json({ error: 'Course not found' });
     }
-    res.status(500).json({ error: 'Failed to create subject', details: error.message });
+    res.status(500).json({ error: 'Failed to create subject: ' + error.message, details: error.code });
   }
 };
 

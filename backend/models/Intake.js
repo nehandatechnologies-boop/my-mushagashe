@@ -102,6 +102,7 @@ class Intake {
   }
 
   static async getStudentCount(intakeId) {
+    // Since there's no foreign key relationship, count by matching the intake field directly
     const { data, error } = await supabase
       .from('users')
       .select('id')

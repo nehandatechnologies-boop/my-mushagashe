@@ -65,6 +65,9 @@ router.post('/', authenticate, requirePermission('students.create'), validateStu
 // Get all students - requires students.view permission
 router.get('/', authenticate, requirePermission('students.view'), studentController.getAllStudents);
 
+// Search students - requires students.view permission
+router.get('/search', authenticate, requirePermission('students.view'), studentController.searchStudents);
+
 // Download students as Excel - requires students.view permission (must be before /:id)
 router.get('/export/excel', authenticate, requirePermission('students.view'), studentController.exportStudentsToExcel);
 

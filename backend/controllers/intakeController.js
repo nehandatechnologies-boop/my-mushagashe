@@ -53,15 +53,31 @@ const createIntake = async (req, res) => {
   try {
     const { name, year, status, description, start_date, end_date } = req.body;
 
-    // Validation
-    if (!name || !year) {
-      return res.status(400).json({ error: 'Name and year are required' });
+    console.log('[INTAKE.CREATE] Request body:', { name, year, status, start_date, end_date });
+
+    // Validation: name is required
+    if (!name) {
+      return res.status(400).json({ error: 'Intake name is required' });
+    }
+
+    // Derive year from name if not provided (e.g., "January 2026" → 2026)
+    let intakeYear = year;
+    if (!intakeYear) {
+      const yearMatch = name.match(/\b(20\d{2})\b/);
+      if (yearMatch) {
+        intakeYear = parseInt(yearMatch[1]);
+        console.log('[INTAKE.CREATE] Derived year from name:', intakeYear);
+      } else {
+        return res.status(400).json({ error: 'Year is required or must be included in intake name (e.g., "January 2026")' });
+      }
+    } else {
+      intakeYear = parseInt(year);
     }
 
     // Create intake
     const newIntake = await Intake.create({
       name,
-      year: parseInt(year),
+      year: intakeYear,
       status: status || 'active',
       description,
       start_date,
@@ -69,12 +85,12 @@ const createIntake = async (req, res) => {
     });
 
     // Log the action
-    await auditActions.intakeCreate(req, newIntake.id, `Created intake: ${name} (${year})`);
+    await auditActions.intakeCreate(req, newIntake.id, `Created intake: ${name} (${intakeYear})`);
 
     res.status(201).json(newIntake);
   } catch (error) {
     console.error('Create intake error:', error);
-    res.status(500).json({ error: 'Failed to create intake' });
+    res.status(500).json({ error: 'Failed to create intake: ' + error.message });
   }
 };
 
