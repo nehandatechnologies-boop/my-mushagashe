@@ -7,6 +7,7 @@ const path = require('path');
 const studentController = require('../controllers/studentController');
 const { authenticate, adminOnly, lecturerOnly } = require('../middleware/auth');
 const { requirePermission } = require('../middleware/rbac');
+const importBatchController = require('../controllers/importBatchController');
 
 // Ensure uploads/students directory exists
 const uploadDir = path.join(__dirname, '../../uploads/students');
@@ -105,6 +106,12 @@ router.get('/stats/overview', authenticate, requirePermission('students.view'), 
 
 // Import students from Excel - requires students.create permission
 router.post('/import/excel', authenticate, requirePermission('students.create'), excelUpload.single('file'), studentController.importStudentsFromExcel);
+
+// Import batch management routes
+router.get('/import/batches', authenticate, requirePermission('students.view'), importBatchController.getAllBatches);
+router.get('/import/current', authenticate, requirePermission('students.view'), importBatchController.getCurrentBatch);
+router.post('/import/replace', authenticate, requirePermission('students.delete'), importBatchController.replaceCurrentDataset);
+router.delete('/import/batches/:id', authenticate, requirePermission('students.delete'), importBatchController.deleteBatch);
 
 // Upload profile picture - requires students.edit permission
 router.post('/:id/profile-picture', authenticate, requirePermission('students.edit'), profilePictureUpload.single('profilePicture'), studentController.uploadProfilePicture);

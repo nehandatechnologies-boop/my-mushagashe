@@ -536,41 +536,97 @@ const importStudentsFromExcel = async (req, res) => {
       return res.status(400).json({ error: 'No file uploaded' });
     }
 
+    const { ImportBatch, ImportBatchDetail } = require('../models/ImportBatch');
+
     // Parse Excel file
     const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
 
     // Detect the correct worksheet with student import headers
     console.log(`[IMPORT] Available worksheets: ${workbook.SheetNames.join(', ')}`);
 
-    const keyHeaders = ['FULL NAME', 'STUDENT NUMBER', 'COURSE CODE'];
+    // Header aliases for flexible matching
+    const headerAliases = {
+      'FULL NAME': ['FULL NAME', 'STUDENT NAME', 'NAME', 'FULLNAME', 'STUDENT FULL NAME'],
+      'STUDENT NUMBER': ['STUDENT NUMBER', 'STUDENT NO', 'STUDENT ID', 'STUDENT NUMBER/ID', 'REGISTRATION NUMBER', 'REG NO'],
+      'COURSE CODE': ['COURSE CODE', 'COURSE', 'PROGRAMME CODE', 'PROGRAM CODE', 'COURSE ID'],
+      'GENDER': ['GENDER', 'SEX'],
+      'INTAKE': ['INTAKE', 'INTAKE NAME', 'INTAKE DATE']
+    };
+
+    // Normalize header name
+    const normalizeHeaderName = (header) => {
+      if (!header) return '';
+      return String(header).toUpperCase().trim().replace(/\s+/g, ' ');
+    };
+
+    // Check if a header matches any alias
+    const headerMatchesAlias = (header, aliasKey) => {
+      const normalized = normalizeHeaderName(header);
+      const aliases = headerAliases[aliasKey] || [aliasKey];
+      return aliases.some(alias => normalizeHeaderName(alias) === normalized);
+    };
+
     let selectedSheetName = null;
     let selectedWorksheet = null;
+    let selectedHeaders = [];
+    const worksheetDiagnostics = [];
 
     for (const sheetName of workbook.SheetNames) {
       const worksheet = workbook.Sheets[sheetName];
       const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
-      if (!jsonData || jsonData.length === 0) continue;
+      if (!jsonData || jsonData.length === 0) {
+        worksheetDiagnostics.push({
+          sheet: sheetName,
+          headers: [],
+          reason: 'Empty worksheet'
+        });
+        continue;
+      }
 
       // Get the first row as potential headers
       const firstRow = jsonData[0];
-      if (!firstRow) continue;
+      if (!firstRow) {
+        worksheetDiagnostics.push({
+          sheet: sheetName,
+          headers: [],
+          reason: 'No headers found'
+        });
+        continue;
+      }
 
-      // Check if this row contains our key headers (case-insensitive)
-      const firstRowUpper = firstRow.map(h => String(h || '').toUpperCase().trim());
-      const hasKeyHeaders = keyHeaders.every(kh => firstRowUpper.includes(kh.toUpperCase()));
+      const normalizedHeaders = firstRow.map(h => normalizeHeaderName(h));
+      console.log(`[IMPORT] Worksheet "${sheetName}" headers: ${normalizedHeaders.join(', ')}`);
 
-      if (hasKeyHeaders) {
+      // Check for minimum required headers (FULL NAME + STUDENT NUMBER)
+      const hasFullName = normalizedHeaders.some(h => headerMatchesAlias(h, 'FULL NAME'));
+      const hasStudentNumber = normalizedHeaders.some(h => headerMatchesAlias(h, 'STUDENT NUMBER'));
+
+      worksheetDiagnostics.push({
+        sheet: sheetName,
+        headers: normalizedHeaders,
+        hasFullName,
+        hasStudentNumber,
+        reason: hasFullName && hasStudentNumber ? 'Valid student worksheet' : 'Missing required headers'
+      });
+
+      if (hasFullName && hasStudentNumber) {
         selectedSheetName = sheetName;
         selectedWorksheet = worksheet;
+        selectedHeaders = normalizedHeaders;
         console.log(`[IMPORT] Selected worksheet: ${sheetName}`);
-        console.log(`[IMPORT] Detected headers: ${firstRow.join(', ')}`);
+        console.log(`[IMPORT] Detected headers: ${normalizedHeaders.join(', ')}`);
         break;
       }
     }
 
     if (!selectedWorksheet) {
-      return res.status(400).json({ error: 'No valid student import worksheet found. Please ensure your Excel file contains headers: FULL NAME, STUDENT NUMBER, COURSE CODE' });
+      console.log(`[IMPORT] No valid worksheet found. Diagnostics:`, JSON.stringify(worksheetDiagnostics, null, 2));
+      return res.status(400).json({
+        error: 'No valid student import worksheet found',
+        diagnostics: worksheetDiagnostics,
+        message: 'Please ensure your Excel file contains headers for FULL NAME and STUDENT NUMBER (minimum). Optional headers: COURSE CODE, GENDER, INTAKE.'
+      });
     }
 
     // Parse the selected worksheet
@@ -583,6 +639,7 @@ const importStudentsFromExcel = async (req, res) => {
     console.log(`[IMPORT] Processing ${data.length} rows from worksheet: ${selectedSheetName}`);
 
     const preview = req.body.preview === 'true';
+    console.log(`[IMPORT] Preview mode: ${preview}`);
 
     // Load all courses for matching
     const Course = require('../models/Course');
@@ -598,6 +655,9 @@ const importStudentsFromExcel = async (req, res) => {
     const processed = [];
     const errors = [];
     const processedStudentNumbers = new Set();
+    const courseMatches = { matched: 0, unmatched: 0 };
+    const intakeMatches = { matched: 0, unmatched: 0 };
+    const genderStats = { male: 0, female: 0, null: 0, other: 0 };
 
     for (let i = 0; i < data.length; i++) {
       const row = data[i];
@@ -610,11 +670,18 @@ const importStudentsFromExcel = async (req, res) => {
           continue;
         }
 
-        // Normalize headers
-        const normalizeHeader = (row, possibleHeaders) => {
-          for (const header of possibleHeaders) {
-            if (row[header] !== undefined && row[header] !== null && row[header] !== '') {
-              return row[header];
+        // Normalize headers using aliases
+        const normalizeHeader = (row, aliasKey) => {
+          const aliases = headerAliases[aliasKey] || [aliasKey];
+          for (const alias of aliases) {
+            // Try exact match first
+            if (row[alias] !== undefined && row[alias] !== null && row[alias] !== '') {
+              return row[alias];
+            }
+            // Try case-insensitive match
+            const key = Object.keys(row).find(k => normalizeHeaderName(k) === normalizeHeaderName(alias));
+            if (key && row[key] !== undefined && row[key] !== null && row[key] !== '') {
+              return row[key];
             }
           }
           return null;
@@ -703,74 +770,68 @@ const importStudentsFromExcel = async (req, res) => {
         const findIntakeId = (intakeNameFromExcel) => {
           if (!intakeNameFromExcel) return null;
           const normalized = intakeNameFromExcel.toString().trim();
-          const normalizedLower = normalized.toLowerCase();
+          const normalizedUpper = normalized.toUpperCase();
 
           console.log(`[IMPORT] Looking for intake: "${normalized}"`);
 
-          // Try exact match on intake name
-          const byName = allIntakes.find(i =>
-            i.name && i.name === normalized
-          );
-          if (byName) {
-            console.log(`[IMPORT]   Matched by exact name: ${byName.name} (id=${byName.id})`);
-            return { id: byName.id, name: byName.name, year: byName.year, matchedBy: 'name' };
-          }
-
-          // Try case-insensitive match
+          // PRIORITY 1: Try case-insensitive exact match (most common issue)
           const byNameCaseInsensitive = allIntakes.find(i =>
-            i.name && i.name.toLowerCase() === normalizedLower
+            i.name && i.name.toUpperCase() === normalizedUpper
           );
           if (byNameCaseInsensitive) {
-            console.log(`[IMPORT]   Matched by case-insensitive: ${byNameCaseInsensitive.name} (id=${byNameCaseInsensitive.id})`);
+            console.log(`[IMPORT]   ✓ Matched by case-insensitive: "${byNameCaseInsensitive.name}" (id=${byNameCaseInsensitive.id})`);
             return { id: byNameCaseInsensitive.id, name: byNameCaseInsensitive.name, year: byNameCaseInsensitive.year, matchedBy: 'name_case_insensitive' };
           }
 
-          // Try partial match (intake name contains the Excel value or vice versa)
+          // PRIORITY 2: Try partial match (intake name contains the Excel value or vice versa)
           const byPartial = allIntakes.find(i =>
-            i.name && (i.name.toLowerCase().includes(normalizedLower) || normalizedLower.includes(i.name.toLowerCase()))
+            i.name && (i.name.toUpperCase().includes(normalizedUpper) || normalizedUpper.includes(i.name.toUpperCase()))
           );
           if (byPartial) {
-            console.log(`[IMPORT]   Matched by partial: ${byPartial.name} (id=${byPartial.id})`);
+            console.log(`[IMPORT]   ✓ Matched by partial: "${byPartial.name}" (id=${byPartial.id})`);
             return { id: byPartial.id, name: byPartial.name, year: byPartial.year, matchedBy: 'partial' };
           }
 
-          console.log(`[IMPORT]   NO MATCH found for intake: "${normalized}"`);
+          console.log(`[IMPORT]   ✗ NO MATCH found for intake: "${normalized}"`);
           console.log(`[IMPORT]   Available intakes:`, allIntakes.map(i => `${i.name} (id=${i.id})`).join(', '));
           return null;
         };
 
-        const rawCourseCode = normalizeHeader(row, ['COURSE CODE', 'Course Code', 'course_code', 'Course_Code', 'COURSE', 'Course', 'course', 'PROGRAMME', 'Programme', 'programme'])?.toString().trim();
-        const rawCourseName = normalizeHeader(row, ['COURSE NAME', 'Course Name', 'course_name', 'Course_Name', 'COURSE', 'Course', 'course', 'PROGRAMME', 'Programme', 'programme'])?.toString().trim();
+        const rawCourseCode = normalizeHeader(row, 'COURSE CODE')?.toString().trim();
+        const rawCourseName = normalizeHeader(row, 'COURSE CODE')?.toString().trim(); // Same as code for now
         const courseMatch = findCourseId(rawCourseCode, rawCourseName);
 
-        const rawIntakeName = normalizeHeader(row, ['INTAKE', 'Intake', 'intake'])?.toString().trim();
+        const rawIntakeName = normalizeHeader(row, 'INTAKE')?.toString().trim();
         const intakeMatch = findIntakeId(rawIntakeName);
 
+        const rawGender = normalizeHeader(row, 'GENDER')?.toString().trim();
+        const normalizedGender = normalizeGender(rawGender);
+
         const studentData = {
-          full_name: normalizeHeader(row, ['FULL NAME', 'Full Name', 'full_name', 'Full_Name', 'Name', 'NAME'])?.toString().trim() || null,
-          student_number: normalizeHeader(row, ['STUDENT NUMBER', 'Student Number', 'student_number', 'Student_Number', 'StudentNo', 'Student No.', 'STUDENT NO'])?.toString().trim() || null,
+          full_name: normalizeHeader(row, 'FULL NAME')?.toString().trim() || null,
+          student_number: normalizeHeader(row, 'STUDENT NUMBER')?.toString().trim() || null,
           course_id: courseMatch ? courseMatch.id : null,
           course_name: courseMatch ? courseMatch.name : (rawCourseName?.toString().trim() || null),
           intake: intakeMatch ? intakeMatch.id : null,
           intake_year: intakeMatch ? intakeMatch.year : null,
-          email: normalizeHeader(row, ['EMAIL', 'Email', 'email'])?.toString().trim() || null,
-          password: normalizeHeader(row, ['PASSWORD', 'Password', 'password'])?.toString().trim() || null,
-          phone: normalizeHeader(row, ['PHONE NUMBER', 'Phone Number', 'phone', 'Phone'])?.toString().trim() || null,
-          gender: normalizeGender(normalizeHeader(row, ['GENDER', 'Gender', 'gender', 'SEX', 'Sex', 'sex'])),
-          national_id: normalizeHeader(row, ['NATIONAL ID', 'National ID', 'national_id'])?.toString().trim() || null,
-          date_of_birth: normalizeHeader(row, ['DATE OF BIRTH', 'Date of Birth', 'date_of_birth'])?.toString().trim() || null,
-          address: normalizeHeader(row, ['ADDRESS', 'Address', 'address'])?.toString().trim() || null,
-          guardian_name: normalizeHeader(row, ['GUARDIAN NAME', 'Guardian Name', 'guardian_name'])?.toString().trim() || null,
-          guardian_phone: normalizeHeader(row, ['GUARDIAN PHONE', 'Guardian Phone', 'guardian_phone'])?.toString().trim() || null,
+          gender: normalizedGender,
+          email: normalizeHeader(row, 'EMAIL')?.toString().trim() || null,
+          password: normalizeHeader(row, 'PASSWORD')?.toString().trim() || null,
+          phone: normalizeHeader(row, 'PHONE NUMBER')?.toString().trim() || null,
+          national_id: normalizeHeader(row, 'NATIONAL ID')?.toString().trim() || null,
+          date_of_birth: normalizeHeader(row, 'DATE OF BIRTH')?.toString().trim() || null,
+          address: normalizeHeader(row, 'ADDRESS')?.toString().trim() || null,
+          guardian_name: normalizeHeader(row, 'GUARDIAN NAME')?.toString().trim() || null,
+          guardian_phone: normalizeHeader(row, 'GUARDIAN PHONE')?.toString().trim() || null,
           role: 'student',
           status: 'active'
         };
 
         // Log data mapping for this student
         console.log(`[IMPORT] Student: ${studentData.full_name} (${studentData.student_number})`);
-        console.log(`[IMPORT]   Gender: ${studentData.gender}`);
-        console.log(`[IMPORT]   Course: ${rawCourseName} → ${courseMatch ? `${courseMatch.name} (id=${courseMatch.id})` : 'NOT FOUND'}`);
-        console.log(`[IMPORT]   Intake: ${rawIntakeName} → ${intakeMatch ? `${intakeMatch.name} (id=${intakeMatch.id})` : 'NOT FOUND'}`);
+        console.log(`[IMPORT]   Raw gender: "${rawGender}" → Normalized: "${normalizedGender}"`);
+        console.log(`[IMPORT]   Raw course: "${rawCourseCode}" → Matched: ${courseMatch ? `${courseMatch.code} (id=${courseMatch.id})` : 'NOT FOUND'}`);
+        console.log(`[IMPORT]   Raw intake: "${rawIntakeName}" → Matched: ${intakeMatch ? `${intakeMatch.name} (id=${intakeMatch.id})` : 'NOT FOUND'}`);
 
         // Validation
         if (!studentData.full_name || !studentData.student_number) {
@@ -797,6 +858,19 @@ const importStudentsFromExcel = async (req, res) => {
         }
 
         processedStudentNumbers.add(studentData.student_number);
+
+        // Track match statistics
+        if (courseMatch) courseMatches.matched++;
+        else if (rawCourseCode) courseMatches.unmatched++;
+
+        if (intakeMatch) intakeMatches.matched++;
+        else if (rawIntakeName) intakeMatches.unmatched++;
+
+        // Track gender statistics
+        if (studentData.gender === 'male') genderStats.male++;
+        else if (studentData.gender === 'female') genderStats.female++;
+        else if (studentData.gender === null || studentData.gender === undefined) genderStats.null++;
+        else genderStats.other++;
 
         // Check if student exists
         const existingStudent = await User.findByStudentNumber(studentData.student_number);
@@ -831,18 +905,18 @@ const importStudentsFromExcel = async (req, res) => {
       }
     }
 
-    // If preview mode, return preview data
+    // If preview mode, return preview data and create batch record
     if (preview) {
       const newStudents = processed.filter(p => !p.existing);
       const existingStudents = processed.filter(p => p.existing);
-      const unmatchedCourses = processed.filter(p => !p.course_matched && p.raw_course);
+      const unmatchedCourses = processed.filter(p => !p.course_matched && p.raw_course_code);
       const unmatchedIntakes = processed.filter(p => !p.intake_matched && p.raw_intake);
 
       // Log unmatched courses and intakes
       if (unmatchedCourses.length > 0) {
         console.log(`[IMPORT] ${unmatchedCourses.length} students with unmatched courses:`);
         unmatchedCourses.slice(0, 5).forEach(p => {
-          console.log(`[IMPORT]   ${p.student_number} - "${p.raw_course}"`);
+          console.log(`[IMPORT]   ${p.student_number} - "${p.raw_course_code}"`);
         });
       }
       if (unmatchedIntakes.length > 0) {
@@ -852,27 +926,62 @@ const importStudentsFromExcel = async (req, res) => {
         });
       }
 
+      // Create import batch record for tracking
+      const batch = await ImportBatch.create({
+        filename: req.file.originalname,
+        uploaded_by: req.user.id,
+        total_rows: processed.length,
+        notes: `Preview mode - ${newStudents.length} new, ${existingStudents.length} existing students`
+      });
+
+      console.log(`[IMPORT] Created batch ${batch.id} for preview`);
+
       return res.json({
         preview: true,
+        batch_id: batch.id,
+        worksheet: selectedSheetName,
+        detected_headers: selectedHeaders,
         total_rows: processed.length,
-        created: newStudents.length,
-        updated: existingStudents.length,
-        unchanged: 0,
-        skipped: unmatchedCourses.length + unmatchedIntakes.length,
-        failed: errors.length,
-        course_matched: processed.filter(p => p.course_matched).length,
-        course_unmatched: processed.filter(p => !p.course_matched && p.raw_course).length,
-        intake_matched: processed.filter(p => p.intake_matched).length,
-        intake_unmatched: processed.filter(p => !p.intake_matched && p.raw_intake).length,
+        valid_rows: processed.length,
+        new_students: newStudents.length,
+        existing_students: existingStudents.length,
         duplicate_spreadsheet_rows: errors.filter(e => e.field === 'spreadsheet_duplicate').length,
+        skipped_unmatched_courses: unmatchedCourses.length,
+        skipped_unmatched_intakes: unmatchedIntakes.length,
+        failed: errors.length,
+        course_matched: courseMatches.matched,
+        course_unmatched: courseMatches.unmatched,
+        intake_matched: intakeMatches.matched,
+        intake_unmatched: intakeMatches.unmatched,
+        gender: genderStats,
         sample_new: newStudents.slice(0, 5),
         sample_existing: existingStudents.slice(0, 5),
-        sample_unmatched: unmatchedCourses.slice(0, 5),
-        sample_errors: errors.slice(0, 5)
+        sample_errors: errors.slice(0, 5),
+        diagnostics: worksheetDiagnostics
       });
     }
 
     // Actual import - perform UPSERT
+    const batchId = req.body.batch_id; // Get batch_id from request if provided
+    let batch = null;
+
+    if (batchId) {
+      batch = await ImportBatch.findById(batchId);
+      if (batch) {
+        await ImportBatch.update(batchId, { status: 'processing' });
+      }
+    } else {
+      // Create new batch for actual import
+      batch = await ImportBatch.create({
+        filename: req.file.originalname,
+        uploaded_by: req.user.id,
+        total_rows: processed.length,
+        notes: 'Actual import operation'
+      });
+    }
+
+    console.log(`[IMPORT] Using batch ${batch.id} for actual import`);
+
     const created = [];
     const updated = [];
     const skippedUnmatchedCourses = [];
@@ -966,6 +1075,15 @@ const importStudentsFromExcel = async (req, res) => {
           intake_year: result.intake_year
         }));
 
+        // Create batch detail record
+        await ImportBatchDetail.create({
+          batch_id: batch.id,
+          student_id: result.id,
+          student_number: student.student_number,
+          action: result.action,
+          row_number: student.row
+        });
+
         if (result.action === 'created') {
           created.push({
             id: result.id,
@@ -994,8 +1112,22 @@ const importStudentsFromExcel = async (req, res) => {
 
     console.log(`[IMPORT] Complete: ${created.length} created, ${updated.length} updated, ${skippedUnmatchedCourses.length} unmatched courses, ${skippedUnmatchedIntakes.length} unmatched intakes, ${errors.length} errors`);
 
+    // Update batch status to completed
+    if (batch) {
+      await ImportBatch.update(batch.id, {
+        status: 'completed',
+        successful_rows: created.length + updated.length,
+        failed_rows: errors.length,
+        completed_at: new Date().toISOString()
+      });
+
+      // Set this batch as current
+      await ImportBatch.setCurrent(batch.id);
+    }
+
     res.status(201).json({
       message: `Import complete: ${created.length} created, ${updated.length} updated`,
+      batch_id: batch ? batch.id : null,
       total_rows: processed.length,
       created: created.length,
       updated: updated.length,
@@ -1003,7 +1135,7 @@ const importStudentsFromExcel = async (req, res) => {
       skipped: skippedUnmatchedCourses.length + skippedUnmatchedIntakes.length,
       failed: errors.length,
       course_matched: processed.filter(p => p.course_matched).length,
-      course_unmatched: processed.filter(p => !p.course_matched && p.raw_course).length,
+      course_unmatched: processed.filter(p => !p.course_matched && p.raw_course_code).length,
       intake_matched: processed.filter(p => p.intake_matched).length,
       intake_unmatched: processed.filter(p => !p.intake_matched && p.raw_intake).length,
       duplicate_spreadsheet_rows: errors.filter(e => e.field === 'spreadsheet_duplicate').length,

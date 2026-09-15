@@ -819,11 +819,17 @@ if (importExcelBtn) {
                     </div>
                     <div class="modal-body">
                         <div class="import-preview">
+                            <p><strong>File:</strong> ${previewData.worksheet || 'Unknown'}</p>
                             <p><strong>Total rows detected:</strong> ${previewData.total_rows}</p>
                             <p><strong>New students:</strong> ${previewData.new_students}</p>
                             <p><strong>Existing students to update:</strong> ${previewData.existing_students}</p>
-                            <p><strong>Unmatched courses:</strong> ${previewData.unmatched_courses}</p>
-                            <p><strong>Errors:</strong> ${previewData.errors}</p>
+                            <p><strong>Duplicate spreadsheet rows:</strong> ${previewData.duplicate_spreadsheet_rows}</p>
+                            <p><strong>Unmatched courses:</strong> ${previewData.course_unmatched}</p>
+                            <p><strong>Unmatched intakes:</strong> ${previewData.intake_unmatched}</p>
+                            <p><strong>Errors:</strong> ${previewData.failed}</p>
+                            ${previewData.gender ? `
+                                <p><strong>Gender:</strong> Male: ${previewData.gender.male || 0}, Female: ${previewData.gender.female || 0}, Unknown: ${previewData.gender.unknown || 0}</p>
+                            ` : ''}
                             ${previewData.sample_new.length > 0 ? `
                                 <h4>Sample new students:</h4>
                                 <ul>${previewData.sample_new.map(s => `<li>${s.student_number} - ${s.full_name} (${s.course_name || 'No course'})</li>`).join('')}</ul>
@@ -832,10 +838,6 @@ if (importExcelBtn) {
                                 <h4>Sample existing students to update:</h4>
                                 <ul>${previewData.sample_existing.map(s => `<li>${s.student_number} - ${s.full_name} (${s.course_name || 'No course'})</li>`).join('')}</ul>
                             ` : ''}
-                            ${previewData.sample_unmatched.length > 0 ? `
-                                <h4>Sample unmatched courses:</h4>
-                                <ul>${previewData.sample_unmatched.map(s => `<li>${s.student_number} - ${s.full_name} - Course: "${s.raw_course}"</li>`).join('')}</ul>
-                            ` : ''}
                             ${previewData.sample_errors.length > 0 ? `
                                 <h4>Sample errors:</h4>
                                 <ul>${previewData.sample_errors.map(e => `<li>Row ${e.row}: ${e.student_number} - ${e.error}</li>`).join('')}</ul>
@@ -843,14 +845,15 @@ if (importExcelBtn) {
                         </div>
                         <div class="modal-actions">
                             <button type="button" class="btn btn-secondary" onclick="hideModal()">Cancel</button>
-                            <button type="button" class="btn btn-primary" id="confirmImportBtn">Confirm Import</button>
+                            <button type="button" class="btn btn-primary" id="confirmImportBtn">Import / Update Students</button>
+                            <button type="button" class="btn btn-danger" id="confirmReplaceBtn">Replace Current Student Dataset</button>
                         </div>
                     </div>
                 `;
 
                 showModal(previewHtml);
 
-                // Handle confirm button
+                // Handle confirm import button
                 document.getElementById('confirmImportBtn').addEventListener('click', async () => {
                     if (submitBtn) {
                         submitBtn.textContent = 'Importing...';
@@ -859,6 +862,7 @@ if (importExcelBtn) {
                     const importFormData = new FormData();
                     importFormData.append('file', file);
                     importFormData.append('preview', 'false');
+                    importFormData.append('batch_id', previewData.batch_id);
 
                     try {
                         const importResponse = await fetch(`${API_BASE}/students/import/excel`, {
@@ -908,6 +912,138 @@ if (importExcelBtn) {
                         }
                     }
                 });
+
+                // Handle confirm replace button
+                document.getElementById('confirmReplaceBtn').addEventListener('click', async () => {
+                    if (!confirm('You are about to REMOVE the current imported student dataset and replace it with this Excel file.\n\nAdministrators, lecturers, courses, intakes and other unrelated records will NOT be deleted.\n\nThis operation cannot be undone. Continue?')) {
+                        return;
+                    }
+
+                    if (submitBtn) {
+                        submitBtn.textContent = 'Replacing...';
+                    }
+
+                    const importFormData = new FormData();
+                    importFormData.append('file', file);
+                    importFormData.append('preview', 'false');
+                    importFormData.append('batch_id', previewData.batch_id);
+
+                    try {
+                        // Execute the import first
+                        const importResponse = await fetch(`${API_BASE}/students/import/excel`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: importFormData
+                        });
+
+                        const importData = await importResponse.json();
+
+                        if (!importResponse.ok) {
+                            throw new Error(importData.error || 'Import failed');
+                        }
+
+                        // Replace the current dataset
+                        const replaceResponse = await fetch(`${API_BASE}/students/import/replace`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                batch_id: importData.batch_id,
+                                confirm: true
+                            })
+                        });
+
+                        const replaceData = await replaceResponse.json();
+
+                        if (!replaceResponse.ok) {
+                            throw new Error(replaceData.error || 'Replace failed');
+                        }
+
+                        showToast(`Dataset replaced: ${replaceData.students_removed} students removed, new dataset active`);
+                        hideModal();
+                        loadStudents();
+                    } catch (error) {
+                        console.error('Replace error:', error);
+                        showToast('Failed to replace student dataset', 'error');
+                    } finally {
+                        isImporting = false;
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = 'Import Students';
+                        }
+                    }
+                });
+
+                // Handle confirm replace button
+                document.getElementById('confirmReplaceBtn').addEventListener('click', async () => {
+                    if (!confirm('You are about to REMOVE the current imported student dataset and replace it with this Excel file.\n\nAdministrators, lecturers, courses, intakes and other unrelated records will NOT be deleted.\n\nThis operation cannot be undone. Continue?')) {
+                        return;
+                    }
+
+                    if (submitBtn) {
+                        submitBtn.textContent = 'Replacing...';
+                    }
+
+                    const importFormData = new FormData();
+                    importFormData.append('file', file);
+                    importFormData.append('preview', 'false');
+                    importFormData.append('batch_id', previewData.batch_id);
+
+                    try {
+                        // First, execute the import
+                        const importResponse = await fetch(`${API_BASE}/students/import/excel`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${token}`
+                            },
+                            body: importFormData
+                        });
+
+                        const importData = await importResponse.json();
+
+                        if (!importResponse.ok) {
+                            throw new Error(importData.error || 'Import failed');
+                        }
+
+                        // Then, replace the current dataset
+                        const replaceResponse = await fetch(`${API_BASE}/students/import/replace`, {
+                            method: 'POST',
+                            headers: {
+                                'Authorization': `Bearer ${token}`,
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                batch_id: importData.batch_id,
+                                confirm: true
+                            })
+                        });
+
+                        const replaceData = await replaceResponse.json();
+
+                        if (!replaceResponse.ok) {
+                            throw new Error(replaceData.error || 'Replace failed');
+                        }
+
+                        showToast(`Dataset replaced: ${replaceData.students_removed} students removed, new dataset active`);
+                        hideModal();
+                        loadStudents();
+                    } catch (error) {
+                        console.error('Replace error:', error);
+                        showToast('Failed to replace student dataset', 'error');
+                    } finally {
+                        isImporting = false;
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = 'Import Students';
+                        }
+                    }
+                });
+
+                // Handle confirm replace button
             } catch (error) {
                 console.error('Preview error:', error);
                 showToast('Failed to analyze file', 'error');
