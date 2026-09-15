@@ -631,38 +631,57 @@ const importStudentsFromExcel = async (req, res) => {
 
         // Find course by ID (from Excel Course ID column) or by name
         const findCourseId = (courseIdFromExcel, courseNameFromExcel) => {
+          console.log(`[IMPORT] Course lookup - ID: "${courseIdFromExcel}", Name: "${courseNameFromExcel}"`);
+
           // First, try to use Course ID directly if provided
           if (courseIdFromExcel) {
             const courseIdNum = parseInt(courseIdFromExcel);
             if (!isNaN(courseIdNum)) {
               const byId = allCourses.find(c => c.id === courseIdNum);
-              if (byId) return { id: byId.id, name: byId.course_name, matchedBy: 'id' };
+              if (byId) {
+                console.log(`[IMPORT]   Matched by ID: ${byId.course_name} (id=${byId.id})`);
+                return { id: byId.id, name: byId.course_name, matchedBy: 'id' };
+              }
             }
           }
 
           // If no valid Course ID, try matching by name
-          if (!courseNameFromExcel) return null;
+          if (!courseNameFromExcel) {
+            console.log(`[IMPORT]   No course name provided, cannot match`);
+            return null;
+          }
           const normalized = courseNameFromExcel.toString().trim().toLowerCase();
+          console.log(`[IMPORT]   Normalized course name: "${normalized}"`);
 
           // Try exact match on course code
           const byCode = allCourses.find(c =>
             c.course_code && c.course_code.toLowerCase() === normalized
           );
-          if (byCode) return { id: byCode.id, name: byCode.course_name, matchedBy: 'code' };
+          if (byCode) {
+            console.log(`[IMPORT]   Matched by code: ${byCode.course_name} (id=${byCode.id})`);
+            return { id: byCode.id, name: byCode.course_name, matchedBy: 'code' };
+          }
 
           // Try exact match on course name
           const byName = allCourses.find(c =>
             c.course_name && c.course_name.toLowerCase() === normalized
           );
-          if (byName) return { id: byName.id, name: byName.course_name, matchedBy: 'name' };
+          if (byName) {
+            console.log(`[IMPORT]   Matched by name: ${byName.course_name} (id=${byName.id})`);
+            return { id: byName.id, name: byName.course_name, matchedBy: 'name' };
+          }
 
           // Try partial match on course name
           const byPartial = allCourses.find(c =>
-            c.course_name && c.course_name.toLowerCase().includes(normalized) ||
-            normalized.includes(c.course_name.toLowerCase())
+            c.course_name && (c.course_name.toLowerCase().includes(normalized) || normalized.includes(c.course_name.toLowerCase()))
           );
-          if (byPartial) return { id: byPartial.id, name: byPartial.course_name, matchedBy: 'partial' };
+          if (byPartial) {
+            console.log(`[IMPORT]   Matched by partial: ${byPartial.course_name} (id=${byPartial.id})`);
+            return { id: byPartial.id, name: byPartial.course_name, matchedBy: 'partial' };
+          }
 
+          console.log(`[IMPORT]   NO MATCH found for course: "${courseNameFromExcel}"`);
+          console.log(`[IMPORT]   Available courses:`, allCourses.map(c => `${c.course_name} (${c.course_code}, id=${c.id})`).join(', '));
           return null;
         };
 
@@ -670,19 +689,39 @@ const importStudentsFromExcel = async (req, res) => {
         const findIntakeId = (intakeNameFromExcel) => {
           if (!intakeNameFromExcel) return null;
           const normalized = intakeNameFromExcel.toString().trim();
+          const normalizedLower = normalized.toLowerCase();
+
+          console.log(`[IMPORT] Looking for intake: "${normalized}"`);
 
           // Try exact match on intake name
           const byName = allIntakes.find(i =>
             i.name && i.name === normalized
           );
-          if (byName) return { id: byName.id, name: byName.name, year: byName.year, matchedBy: 'name' };
+          if (byName) {
+            console.log(`[IMPORT]   Matched by exact name: ${byName.name} (id=${byName.id})`);
+            return { id: byName.id, name: byName.name, year: byName.year, matchedBy: 'name' };
+          }
 
           // Try case-insensitive match
           const byNameCaseInsensitive = allIntakes.find(i =>
-            i.name && i.name.toLowerCase() === normalized.toLowerCase()
+            i.name && i.name.toLowerCase() === normalizedLower
           );
-          if (byNameCaseInsensitive) return { id: byNameCaseInsensitive.id, name: byNameCaseInsensitive.name, year: byNameCaseInsensitive.year, matchedBy: 'name_case_insensitive' };
+          if (byNameCaseInsensitive) {
+            console.log(`[IMPORT]   Matched by case-insensitive: ${byNameCaseInsensitive.name} (id=${byNameCaseInsensitive.id})`);
+            return { id: byNameCaseInsensitive.id, name: byNameCaseInsensitive.name, year: byNameCaseInsensitive.year, matchedBy: 'name_case_insensitive' };
+          }
 
+          // Try partial match (intake name contains the Excel value or vice versa)
+          const byPartial = allIntakes.find(i =>
+            i.name && (i.name.toLowerCase().includes(normalizedLower) || normalizedLower.includes(i.name.toLowerCase()))
+          );
+          if (byPartial) {
+            console.log(`[IMPORT]   Matched by partial: ${byPartial.name} (id=${byPartial.id})`);
+            return { id: byPartial.id, name: byPartial.name, year: byPartial.year, matchedBy: 'partial' };
+          }
+
+          console.log(`[IMPORT]   NO MATCH found for intake: "${normalized}"`);
+          console.log(`[IMPORT]   Available intakes:`, allIntakes.map(i => `${i.name} (id=${i.id})`).join(', '));
           return null;
         };
 

@@ -10,20 +10,32 @@ const adminLogin = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    console.log('[AUTH.ADMIN_LOGIN] Attempting admin login');
+    console.log('[AUTH.ADMIN_LOGIN] Email:', email);
+
     // Validation
     if (!email || !password) {
+      console.log('[AUTH.ADMIN_LOGIN] Missing email or password');
       return res.status(400).json({ error: 'Email and password are required' });
     }
 
     // Find admin by email
     const user = await User.findByEmail(email);
-    
+
     if (!user) {
+      console.log('[AUTH.ADMIN_LOGIN] User not found for email:', email);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    console.log('[AUTH.ADMIN_LOGIN] User found:', JSON.stringify({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      status: user.status
+    }));
+
     // Check if user is an admin (support both 'admin' and new RBAC roles)
-    const isAdmin = user.role === 'admin' || 
+    const isAdmin = user.role === 'admin' ||
                    user.role === 'super_admin' ||
                    user.role === 'SUPER_ADMIN' ||
                    user.role === 'ACADEMIC_ADMIN' ||
@@ -32,10 +44,12 @@ const adminLogin = async (req, res) => {
                    user.role === 'LECTURER_ADMIN';
 
     if (!isAdmin) {
+      console.log('[AUTH.ADMIN_LOGIN] User is not an admin. Role:', user.role);
       return res.status(403).json({ error: 'Admin access required' });
     }
 
     if (user.status !== 'active') {
+      console.log('[AUTH.ADMIN_LOGIN] Account not active. Status:', user.status);
       if (user.status === 'suspended') {
         return res.status(403).json({ error: 'Your administrator account has been suspended. Please contact the Super Administrator.' });
       }
@@ -44,10 +58,13 @@ const adminLogin = async (req, res) => {
 
     // Verify password
     const isPasswordValid = bcrypt.compareSync(password, user.password);
-    
+
     if (!isPasswordValid) {
+      console.log('[AUTH.ADMIN_LOGIN] Password validation failed');
       return res.status(401).json({ error: 'Invalid credentials' });
     }
+
+    console.log('[AUTH.ADMIN_LOGIN] Password validation successful');
 
     // Check if user must change password
     const mustChangePassword = user.must_change_password === 1;
@@ -61,6 +78,8 @@ const adminLogin = async (req, res) => {
     // Return user data without password
     const { password: _, ...userWithoutPassword } = user;
 
+    console.log('[AUTH.ADMIN_LOGIN] Login successful for:', user.email);
+
     res.json({
       token,
       user: userWithoutPassword,
@@ -68,7 +87,7 @@ const adminLogin = async (req, res) => {
       must_change_password: mustChangePassword
     });
   } catch (error) {
-    console.error('Admin login error:', error);
+    console.error('[AUTH.ADMIN_LOGIN] Error:', error);
     res.status(500).json({ error: 'Login failed' });
   }
 };

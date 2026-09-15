@@ -181,7 +181,7 @@ async function loadStudents() {
                 <td>${student.student_number}</td>
                 <td>${student.full_name}</td>
                 <td>${student.email || 'N/A'}</td>
-                <td>${student.intake || 'N/A'}</td>
+                <td>${student.intake_name || 'N/A'}</td>
                 <td><span class="badge badge-${student.status === 'active' ? 'success' : 'warning'}">${student.status}</span></td>
             </tr>
         `).join('');
@@ -357,7 +357,7 @@ document.getElementById('addResultBtn').addEventListener('click', async () => {
                 const subjects = await apiRequest(`/subjects/course/${user.course_id}`);
                 const subjectsContainer = document.getElementById('subjectsContainer');
                 const subjectsList = document.getElementById('subjectsList');
-                
+
                 if (subjects && subjects.length > 0) {
                     subjectsContainer.style.display = 'block';
                     subjectsList.innerHTML = subjects.map(subject => `
@@ -365,17 +365,17 @@ document.getElementById('addResultBtn').addEventListener('click', async () => {
                             <label>${subject.subject_name} (${subject.subject_code})</label>
                             <div class="subject-inputs-row">
                                 <div class="subject-input-group">
-                                    <input type="number" 
-                                           class="subject-mark-input" 
-                                           data-subject-id="${subject.id}" 
-                                           placeholder="Mark (0-100)" 
-                                           min="0" 
+                                    <input type="number"
+                                           class="subject-mark-input"
+                                           data-subject-id="${subject.id}"
+                                           placeholder="Mark (0-100)"
+                                           min="0"
                                            max="100">
                                 </div>
                                 <div class="subject-input-group">
-                                    <input type="text" 
-                                           class="subject-remarks-input" 
-                                           data-subject-id="${subject.id}" 
+                                    <input type="text"
+                                           class="subject-remarks-input"
+                                           data-subject-id="${subject.id}"
                                            placeholder="Remarks (optional)">
                                 </div>
                             </div>
@@ -384,6 +384,13 @@ document.getElementById('addResultBtn').addEventListener('click', async () => {
                 }
             } catch (error) {
                 console.error('Failed to load subjects:', error);
+            }
+        } else {
+            console.error('[LECTURER] Lecturer has no course_id assigned:', user);
+            const subjectsContainer = document.getElementById('subjectsContainer');
+            if (subjectsContainer) {
+                subjectsContainer.innerHTML = '<p style="color: #666;">No course assigned. Please contact administration to assign a course.</p>';
+                subjectsContainer.style.display = 'block';
             }
         }
         
@@ -478,13 +485,13 @@ window.editResult = async (id) => {
                 <button type="submit" class="btn btn-primary">Update Result</button>
             </form>
         `);
-        
+
         // Load subjects for lecturer's course and populate with existing marks
         if (user.course_id) {
             try {
                 const subjects = await apiRequest(`/subjects/course/${user.course_id}`);
                 const subjectsList = document.getElementById('subjectsList');
-                
+
                 if (subjects && subjects.length > 0) {
                     subjectsList.innerHTML = subjects.map(subject => {
                         const existingMark = result.subject_results && result.subject_results.find(sr => sr.subject_id === subject.id);
@@ -493,10 +500,10 @@ window.editResult = async (id) => {
                                 <label>${subject.subject_name} (${subject.subject_code})</label>
                                 <div class="subject-inputs-row">
                                     <div class="subject-input-group">
-                                        <input type="number" 
-                                               class="subject-mark-input" 
-                                               data-subject-id="${subject.id}" 
-                                               placeholder="Mark (0-100)" 
+                                        <input type="number"
+                                               class="subject-mark-input"
+                                               data-subject-id="${subject.id}"
+                                               placeholder="Mark (0-100)"
                                                min="0" 
                                                max="100"
                                                value="${existingMark ? existingMark.mark : ''}">
@@ -516,8 +523,14 @@ window.editResult = async (id) => {
             } catch (error) {
                 console.error('Failed to load subjects:', error);
             }
+        } else {
+            console.error('[LECTURER] Lecturer has no course_id assigned for edit:', user);
+            const subjectsList = document.getElementById('subjectsList');
+            if (subjectsList) {
+                subjectsList.innerHTML = '<p style="color: #666;">No course assigned. Please contact administration to assign a course.</p>';
+            }
         }
-        
+
         document.getElementById('editResultForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const formData = new FormData(e.target);
@@ -1018,9 +1031,19 @@ function updateThemeToggle(theme) {
 async function loadSubjects() {
     try {
         const user = JSON.parse(localStorage.getItem('user'));
+
+        if (!user.course_id) {
+            console.error('[LECTURER] Lecturer has no course_id assigned for loadSubjects:', user);
+            const tbody = document.getElementById('subjects-table-body');
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center">No course assigned. Please contact administration to assign a course.</td></tr>';
+            }
+            return;
+        }
+
         const subjects = await apiRequest(`/subjects/course/${user.course_id}`);
         const tbody = document.getElementById('subjects-table-body');
-        
+
         if (!subjects || subjects.length === 0) {
             tbody.innerHTML = '<tr><td colspan="4" class="text-center">No subjects found</td></tr>';
             return;

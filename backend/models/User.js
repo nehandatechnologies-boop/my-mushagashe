@@ -258,16 +258,49 @@ class User {
       throw new Error('Student number is required for upsert');
     }
 
+    console.log('[USER.UPSERT] START: student_number=', student_number);
+    console.log('[USER.UPSERT] Input data:', JSON.stringify({
+      full_name, email, phone, gender,
+      national_id, date_of_birth, address, guardian_name, guardian_phone,
+      intake, intake_year, course_id, status
+    }));
+
     // Check if student exists
     const existing = await this.findByStudentNumber(student_number);
 
     if (existing) {
-      // Update existing student
-      const updateData = {
-        full_name, email, phone, gender,
-        national_id, date_of_birth, address, guardian_name, guardian_phone,
-        intake_year, course_id, status
+      console.log('[USER.UPSERT] Student exists:', JSON.stringify({
+        id: existing.id,
+        student_number: existing.student_number,
+        full_name: existing.full_name,
+        gender: existing.gender,
+        course_id: existing.course_id,
+        intake: existing.intake,
+        intake_year: existing.intake_year
+      }));
+
+      // Update existing student - ONLY update fields that are provided and non-null
+      const updateData = {};
+
+      // Helper to add field to updateData only if it's provided and meaningful
+      const addField = (field, value) => {
+        if (value !== undefined && value !== null && value !== '') {
+          updateData[field] = value;
+        }
       };
+
+      addField('full_name', full_name);
+      addField('email', email);
+      addField('phone', phone);
+      addField('gender', gender);
+      addField('national_id', national_id);
+      addField('date_of_birth', date_of_birth);
+      addField('address', address);
+      addField('guardian_name', guardian_name);
+      addField('guardian_phone', guardian_phone);
+      addField('intake_year', intake_year);
+      addField('course_id', course_id);
+      addField('status', status);
 
       // Only include intake if it's a valid integer (intake_id)
       if (intake && !isNaN(parseInt(intake))) {
@@ -283,27 +316,13 @@ class User {
         updateData.must_change_password = true;
       }
 
-      // Remove undefined values and convert empty strings to null
-      Object.keys(updateData).forEach(key => {
-        if (updateData[key] === undefined) {
-          delete updateData[key];
-        } else if (updateData[key] === '') {
-          updateData[key] = null;
-        }
-      });
+      console.log('[USER.UPSERT] Fields to update:', Object.keys(updateData));
+      console.log('[USER.UPSERT] updateData:', JSON.stringify(updateData));
 
       // Convert must_change_password to boolean for Supabase
       if (updateData.must_change_password !== undefined) {
         updateData.must_change_password = updateData.must_change_password === true || updateData.must_change_password === 1;
       }
-
-      console.log('[USER.UPSERT] Updating existing student:', student_number);
-      console.log('[USER.UPSERT]   updateData:', JSON.stringify({
-        gender: updateData.gender,
-        course_id: updateData.course_id,
-        intake: updateData.intake,
-        intake_year: updateData.intake_year
-      }));
 
       const { data, error } = await supabase
         .from('users')
@@ -314,8 +333,10 @@ class User {
 
       if (error) throw error;
 
-      console.log('[USER.UPSERT]   Update result:', JSON.stringify({
+      console.log('[USER.UPSERT] Update SUCCESS:', JSON.stringify({
         id: data.id,
+        student_number: data.student_number,
+        full_name: data.full_name,
         gender: data.gender,
         course_id: data.course_id,
         intake: data.intake,
@@ -324,6 +345,7 @@ class User {
 
       return { ...data, action: 'updated' };
     } else {
+      console.log('[USER.UPSERT] Student does not exist, will create new');
       // Create new student - password will be generated in create() if not provided
       const result = await this.create(userData);
       return { ...result, action: 'created' };
