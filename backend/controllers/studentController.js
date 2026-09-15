@@ -542,7 +542,7 @@ const importStudentsFromExcel = async (req, res) => {
     // Detect the correct worksheet with student import headers
     console.log(`[IMPORT] Available worksheets: ${workbook.SheetNames.join(', ')}`);
 
-    const keyHeaders = ['FULL NAME', 'STUDENT NUMBER', 'COURSE ID'];
+    const keyHeaders = ['FULL NAME', 'STUDENT NUMBER', 'COURSE CODE'];
     let selectedSheetName = null;
     let selectedWorksheet = null;
 
@@ -570,7 +570,7 @@ const importStudentsFromExcel = async (req, res) => {
     }
 
     if (!selectedWorksheet) {
-      return res.status(400).json({ error: 'No valid student import worksheet found. Please ensure your Excel file contains headers: FULL NAME, STUDENT NUMBER, COURSE ID' });
+      return res.status(400).json({ error: 'No valid student import worksheet found. Please ensure your Excel file contains headers: FULL NAME, STUDENT NUMBER, COURSE CODE' });
     }
 
     // Parse the selected worksheet
@@ -629,59 +629,73 @@ const importStudentsFromExcel = async (req, res) => {
           return null;
         };
 
-        // Find course by ID (from Excel Course ID column) or by name
-        const findCourseId = (courseIdFromExcel, courseNameFromExcel) => {
-          console.log(`[IMPORT] Course lookup - ID: "${courseIdFromExcel}", Name: "${courseNameFromExcel}"`);
+        // Find course by code (from Excel Course Code column) or by name
+        const findCourseId = (courseCodeFromExcel, courseNameFromExcel) => {
+          console.log(`[IMPORT] Course lookup - Code: "${courseCodeFromExcel}", Name: "${courseNameFromExcel}"`);
 
-          // First, try to use Course ID directly if provided
-          if (courseIdFromExcel) {
-            const courseIdNum = parseInt(courseIdFromExcel);
+          // PRIORITY 1: Try exact match on course code (normalized)
+          if (courseCodeFromExcel) {
+            const normalizedCode = courseCodeFromExcel.toString().trim().toUpperCase();
+            console.log(`[IMPORT]   Trying course code match: "${normalizedCode}"`);
+
+            const byCode = allCourses.find(c =>
+              c.course_code && c.course_code.toUpperCase() === normalizedCode
+            );
+            if (byCode) {
+              console.log(`[IMPORT]   ✓ Matched by code: ${byCode.course_code} → ${byCode.course_name} (id=${byCode.id})`);
+              return { id: byCode.id, name: byCode.course_name, code: byCode.course_code, matchedBy: 'code' };
+            }
+            console.log(`[IMPORT]   ✗ No course code match for: "${normalizedCode}"`);
+          }
+
+          // PRIORITY 2: Try exact match on course name (normalized)
+          if (courseNameFromExcel) {
+            const normalized = courseNameFromExcel.toString().trim().toUpperCase();
+            console.log(`[IMPORT]   Trying course name match: "${normalized}"`);
+
+            const byName = allCourses.find(c =>
+              c.course_name && c.course_name.toUpperCase() === normalized
+            );
+            if (byName) {
+              console.log(`[IMPORT]   ✓ Matched by name: ${byName.course_name} (id=${byName.id})`);
+              return { id: byName.id, name: byName.course_name, code: byName.course_code, matchedBy: 'name' };
+            }
+            console.log(`[IMPORT]   ✗ No course name match for: "${normalized}"`);
+          }
+
+          // PRIORITY 3: Try partial match on course name
+          if (courseNameFromExcel) {
+            const normalized = courseNameFromExcel.toString().trim().toUpperCase();
+            console.log(`[IMPORT]   Trying partial course name match: "${normalized}"`);
+
+            const byPartial = allCourses.find(c =>
+              c.course_name && (c.course_name.toUpperCase().includes(normalized) || normalized.includes(c.course_name.toUpperCase()))
+            );
+            if (byPartial) {
+              console.log(`[IMPORT]   ✓ Matched by partial: ${byPartial.course_name} (id=${byPartial.id})`);
+              return { id: byPartial.id, name: byPartial.course_name, code: byPartial.course_code, matchedBy: 'partial' };
+            }
+            console.log(`[IMPORT]   ✗ No partial match for: "${normalized}"`);
+          }
+
+          // PRIORITY 4: Only use numeric ID if the Excel value is explicitly numeric
+          if (courseCodeFromExcel) {
+            const courseIdNum = parseInt(courseCodeFromExcel);
             if (!isNaN(courseIdNum)) {
+              console.log(`[IMPORT]   Trying numeric ID match: ${courseIdNum}`);
               const byId = allCourses.find(c => c.id === courseIdNum);
               if (byId) {
-                console.log(`[IMPORT]   Matched by ID: ${byId.course_name} (id=${byId.id})`);
-                return { id: byId.id, name: byId.course_name, matchedBy: 'id' };
+                console.log(`[IMPORT]   ✓ Matched by ID: ${byId.course_name} (id=${byId.id})`);
+                return { id: byId.id, name: byId.course_name, code: byId.course_code, matchedBy: 'id' };
               }
+              console.log(`[IMPORT]   ✗ No ID match for: ${courseIdNum}`);
             }
           }
 
-          // If no valid Course ID, try matching by name
-          if (!courseNameFromExcel) {
-            console.log(`[IMPORT]   No course name provided, cannot match`);
-            return null;
-          }
-          const normalized = courseNameFromExcel.toString().trim().toLowerCase();
-          console.log(`[IMPORT]   Normalized course name: "${normalized}"`);
-
-          // Try exact match on course code
-          const byCode = allCourses.find(c =>
-            c.course_code && c.course_code.toLowerCase() === normalized
-          );
-          if (byCode) {
-            console.log(`[IMPORT]   Matched by code: ${byCode.course_name} (id=${byCode.id})`);
-            return { id: byCode.id, name: byCode.course_name, matchedBy: 'code' };
-          }
-
-          // Try exact match on course name
-          const byName = allCourses.find(c =>
-            c.course_name && c.course_name.toLowerCase() === normalized
-          );
-          if (byName) {
-            console.log(`[IMPORT]   Matched by name: ${byName.course_name} (id=${byName.id})`);
-            return { id: byName.id, name: byName.course_name, matchedBy: 'name' };
-          }
-
-          // Try partial match on course name
-          const byPartial = allCourses.find(c =>
-            c.course_name && (c.course_name.toLowerCase().includes(normalized) || normalized.includes(c.course_name.toLowerCase()))
-          );
-          if (byPartial) {
-            console.log(`[IMPORT]   Matched by partial: ${byPartial.course_name} (id=${byPartial.id})`);
-            return { id: byPartial.id, name: byPartial.course_name, matchedBy: 'partial' };
-          }
-
-          console.log(`[IMPORT]   NO MATCH found for course: "${courseNameFromExcel}"`);
-          console.log(`[IMPORT]   Available courses:`, allCourses.map(c => `${c.course_name} (${c.course_code}, id=${c.id})`).join(', '));
+          console.log(`[IMPORT]   ✗ NO MATCH found for course`);
+          console.log(`[IMPORT]   Input - Code: "${courseCodeFromExcel}", Name: "${courseNameFromExcel}"`);
+          console.log(`[IMPORT]   Available course codes:`, allCourses.map(c => c.course_code).filter(c => c).join(', '));
+          console.log(`[IMPORT]   Available course names:`, allCourses.map(c => c.course_name).join(', '));
           return null;
         };
 
@@ -725,9 +739,9 @@ const importStudentsFromExcel = async (req, res) => {
           return null;
         };
 
-        const rawCourseId = normalizeHeader(row, ['COURSE ID', 'Course ID', 'course_id', 'Course_ID'])?.toString().trim();
-        const rawCourseName = normalizeHeader(row, ['COURSE', 'Course', 'course', 'PROGRAMME', 'Programme', 'programme'])?.toString().trim();
-        const courseMatch = findCourseId(rawCourseId, rawCourseName);
+        const rawCourseCode = normalizeHeader(row, ['COURSE CODE', 'Course Code', 'course_code', 'Course_Code', 'COURSE', 'Course', 'course', 'PROGRAMME', 'Programme', 'programme'])?.toString().trim();
+        const rawCourseName = normalizeHeader(row, ['COURSE NAME', 'Course Name', 'course_name', 'Course_Name', 'COURSE', 'Course', 'course', 'PROGRAMME', 'Programme', 'programme'])?.toString().trim();
+        const courseMatch = findCourseId(rawCourseCode, rawCourseName);
 
         const rawIntakeName = normalizeHeader(row, ['INTAKE', 'Intake', 'intake'])?.toString().trim();
         const intakeMatch = findIntakeId(rawIntakeName);
@@ -799,8 +813,8 @@ const importStudentsFromExcel = async (req, res) => {
           email: studentData.email,
           phone: studentData.phone,
           password: studentData.password,
-          raw_course_id: rawCourseId,
-          raw_course: rawCourseName,
+          raw_course_code: rawCourseCode,
+          raw_course_name: rawCourseName,
           raw_intake: rawIntakeName,
           existing: !!existingStudent,
           course_matched: !!courseMatch,
@@ -866,26 +880,15 @@ const importStudentsFromExcel = async (req, res) => {
 
     for (const student of processed) {
       try {
-        // Reject invalid Course IDs
-        if (student.raw_course_id && !student.course_matched) {
+        // Reject unmatched courses (when course code/name is provided and doesn't match)
+        if (!student.course_matched && (student.raw_course_code || student.raw_course_name)) {
+          const receivedValue = student.raw_course_code || student.raw_course_name;
           errors.push({
             row: student.row,
             student_number: student.student_number,
             full_name: student.full_name,
             field: 'course',
-            error: `Course ID "${student.raw_course_id}" does not exist in database`
-          });
-          continue;
-        }
-
-        // Reject unmatched courses (when only course name is provided and doesn't match)
-        if (!student.course_matched && student.raw_course) {
-          skippedUnmatchedCourses.push({
-            row: student.row,
-            student_number: student.student_number,
-            full_name: student.full_name,
-            field: 'course',
-            error: `Course "${student.raw_course}" not found in database`
+            error: `Course "${receivedValue}" not found in database. Available codes: ${allCourses.map(c => c.course_code).filter(c => c).join(', ')}`
           });
           continue;
         }
