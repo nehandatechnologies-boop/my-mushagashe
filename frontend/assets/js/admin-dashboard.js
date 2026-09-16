@@ -1059,15 +1059,17 @@ if (importExcelBtn) {
 
 const addStudentBtn = document.getElementById('addStudentBtn');
 if (addStudentBtn) {
-    addStudentBtn.addEventListener('click', () => {
-        // Generate intake options
-        const currentYear = new Date().getFullYear();
-        const months = ['January', 'May', 'September'];
-        let intakeOptions = '';
-        for (let year = currentYear - 1; year <= currentYear + 2; year++) {
-            months.forEach(month => {
-                intakeOptions += `<option value="${month} ${year}">${month} ${year}</option>`;
+    addStudentBtn.addEventListener('click', async () => {
+        // Load actual production intakes
+        let intakeOptions = '<option value="">Select Intake</option>';
+        try {
+            const intakes = await apiRequest('/intakes');
+            intakes.forEach(intake => {
+                intakeOptions += `<option value="${intake.name}">${intake.name}</option>`;
             });
+        } catch (error) {
+            console.error('Failed to load intakes:', error);
+            intakeOptions = '<option value="">Select Intake</option><option value="Error loading intakes">Error loading intakes</option>';
         }
 
         showModal(`
@@ -1099,7 +1101,6 @@ if (addStudentBtn) {
                 <div class="form-group">
                     <label>Intake *</label>
                     <select name="intake" required>
-                        <option value="">Select Intake</option>
                         ${intakeOptions}
                     </select>
                 </div>
@@ -1121,16 +1122,18 @@ if (addStudentBtn) {
 window.editStudent = async function(id) {
     try {
         const student = await apiRequest(`/students/${id}`);
-        
-        // Generate intake options
-        const currentYear = new Date().getFullYear();
-        const months = ['January', 'May', 'September'];
-        let intakeOptions = '';
-        for (let year = currentYear - 1; year <= currentYear + 2; year++) {
-            months.forEach(month => {
-                const selected = student.intake === `${month} ${year}` ? 'selected' : '';
-                intakeOptions += `<option value="${month} ${year}" ${selected}>${month} ${year}</option>`;
+
+        // Load actual production intakes
+        let intakeOptions = '<option value="">Select Intake</option>';
+        try {
+            const intakes = await apiRequest('/intakes');
+            intakes.forEach(intake => {
+                const selected = student.intake_name === intake.name ? 'selected' : '';
+                intakeOptions += `<option value="${intake.name}" ${selected}>${intake.name}</option>`;
             });
+        } catch (error) {
+            console.error('Failed to load intakes:', error);
+            intakeOptions = '<option value="">Select Intake</option><option value="Error loading intakes">Error loading intakes</option>';
         }
 
         showModal(`
@@ -1150,7 +1153,6 @@ window.editStudent = async function(id) {
                 <div class="form-group">
                     <label>Intake</label>
                     <select name="intake">
-                        <option value="">Select Intake</option>
                         ${intakeOptions}
                     </select>
                 </div>
@@ -1169,11 +1171,11 @@ window.editStudent = async function(id) {
                 </div>
                 <div class="form-group">
                     <label>Profile Picture</label>
-                    ${student.profile_picture_url 
+                    ${student.profile_picture_url
                         ? `<div style="margin-bottom: 10px;">
                             <img src="${student.profile_picture_url}" alt="Current profile picture" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover;">
                             <button type="button" class="btn btn-danger" onclick="deleteProfilePicture(${student.id})" style="margin-left: 10px;">Remove</button>
-                           </div>` 
+                           </div>`
                         : '<p>No profile picture set</p>'
                     }
                     <input type="file" name="profilePicture" accept="image/*">
@@ -1187,7 +1189,7 @@ window.editStudent = async function(id) {
             </form>
         `);
         console.log('[CRUD-EDIT] MODAL OPENED');
-        
+
         loadCourseDropdown(student.course_id);
     } catch (error) {
         console.error('[CRUD-EDIT] LOAD STUDENT ERROR:', error);
