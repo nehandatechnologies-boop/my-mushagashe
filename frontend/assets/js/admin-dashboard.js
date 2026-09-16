@@ -1099,6 +1099,14 @@ if (addStudentBtn) {
                     <input type="tel" name="phone">
                 </div>
                 <div class="form-group">
+                    <label>Gender *</label>
+                    <select name="gender" required>
+                        <option value="">Select Gender</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                    </select>
+                </div>
+                <div class="form-group">
                     <label>Intake *</label>
                     <select name="intake" required>
                         ${intakeOptions}
@@ -1149,6 +1157,14 @@ window.editStudent = async function(id) {
                 <div class="form-group">
                     <label>Phone</label>
                     <input type="tel" name="phone" value="${student.phone || ''}">
+                </div>
+                <div class="form-group">
+                    <label>Gender</label>
+                    <select name="gender">
+                        <option value="">Select Gender</option>
+                        <option value="male" ${student.gender === 'male' ? 'selected' : ''}>Male</option>
+                        <option value="female" ${student.gender === 'female' ? 'selected' : ''}>Female</option>
+                    </select>
                 </div>
                 <div class="form-group">
                     <label>Intake</label>
@@ -3140,6 +3156,8 @@ async function handleEditStudentSubmit(form) {
     const updateData = {
         full_name: formData.get('full_name'),
         phone: formData.get('phone'),
+        gender: formData.get('gender'),
+        intake: formData.get('intake'),
         status: formData.get('status'),
         course_id: formData.get('course_id')
     };

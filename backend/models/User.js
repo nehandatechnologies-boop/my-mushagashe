@@ -225,6 +225,12 @@ class User {
       }
     });
 
+    console.log('[USER.UPDATE] Update data before Supabase:', JSON.stringify({
+      gender: updateData.gender,
+      intake: updateData.intake,
+      intake_year: updateData.intake_year
+    }));
+
     // Handle password: hash if provided
     if (updateData.password) {
       const bcrypt = require('bcryptjs');

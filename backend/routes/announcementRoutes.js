@@ -36,4 +36,10 @@ router.get('/with-status', authenticate, requirePermission('announcements.view')
 // Get announcement by ID - requires announcements.view permission
 router.get('/:id', authenticate, requirePermission('announcements.view'), announcementController.getAnnouncementById);
 
+// Update announcement - requires announcements.edit permission
+router.put('/:id', authenticate, requirePermission('announcements.edit'), announcementController.updateAnnouncement);
+
+// Delete announcement - requires announcements.delete permission
+router.delete('/:id', authenticate, requirePermission('announcements.delete'), announcementController.deleteAnnouncement);
+
 module.exports = router;
