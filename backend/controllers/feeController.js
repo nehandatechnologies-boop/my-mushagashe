@@ -264,15 +264,24 @@ const getStudentFeeSummary = async (req, res) => {
   try {
     const { user_id } = req.params;
 
+    console.log('[FEE.SUMMARY] Request for user_id:', user_id);
+
     if (!user_id) {
       return res.status(400).json({ error: 'User ID is required' });
     }
 
     const summary = await Fee.getStudentSummary(user_id);
+    console.log('[FEE.SUMMARY] Summary result:', JSON.stringify(summary));
     res.json(summary);
   } catch (error) {
-    console.error('Get student fee summary error:', error);
-    res.status(500).json({ error: 'Failed to fetch student fee summary' });
+    console.error('[FEE.SUMMARY] Get student fee summary error:', error);
+    console.error('[FEE.SUMMARY] Error details:', {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint
+    });
+    res.status(500).json({ error: 'Failed to fetch student fee summary', details: error.message });
   }
 };
 

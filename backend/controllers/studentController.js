@@ -13,13 +13,21 @@ const createStudent = async (req, res) => {
     const {
       full_name, email, student_number, password, phone, gender,
       national_id, date_of_birth, address, guardian_name, guardian_phone,
-      intake_year, course_id
+      intake, intake_year, course_id
     } = req.body;
 
     // Trim whitespace from inputs
     const trimmedStudentNumber = student_number?.trim();
     const trimmedEmail = email?.trim();
     const trimmedPassword = password?.trim();
+
+    console.log('[STUDENT.CREATE] Request data:', {
+      full_name,
+      student_number: trimmedStudentNumber,
+      intake, // Raw intake text from frontend
+      intake_year,
+      course_id
+    });
 
     // Validation
     if (!full_name || !trimmedStudentNumber || !trimmedPassword) {
@@ -43,6 +51,30 @@ const createStudent = async (req, res) => {
       }
     }
 
+    // Resolve intake text to intake ID
+    let resolvedIntakeId = null;
+    let resolvedIntakeYear = null;
+
+    if (intake) {
+      const Intake = require('../models/Intake');
+      const allIntakes = await Intake.findAll({});
+
+      // Try to match intake text against production intakes
+      const normalizedIntake = intake.toString().trim().toUpperCase();
+      const matchedIntake = allIntakes.find(i =>
+        i.name && i.name.toUpperCase() === normalizedIntake
+      );
+
+      if (matchedIntake) {
+        resolvedIntakeId = matchedIntake.id;
+        resolvedIntakeYear = matchedIntake.year;
+        console.log('[STUDENT.CREATE] Resolved intake:', { text: intake, id: resolvedIntakeId, year: resolvedIntakeYear });
+      } else {
+        console.log('[STUDENT.CREATE] Could not resolve intake:', intake);
+        console.log('[STUDENT.CREATE] Available intakes:', allIntakes.map(i => i.name).join(', '));
+      }
+    }
+
     // Hash password
     const hashedPassword = bcrypt.hashSync(trimmedPassword, 10);
 
@@ -60,14 +92,20 @@ const createStudent = async (req, res) => {
       address,
       guardian_name,
       guardian_phone,
-      intake_year,
+      intake: resolvedIntakeId, // Store the intake ID
+      intake_year: resolvedIntakeYear, // Store the intake year
       course_id,
       status: 'active'
     };
 
+    console.log('[STUDENT.CREATE] Student data before User.create:', {
+      intake: studentData.intake,
+      intake_year: studentData.intake_year
+    });
+
     const result = await User.create(studentData);
 
-    console.log('Student created successfully:', { id: result.id, student_number: trimmedStudentNumber });
+    console.log('Student created successfully:', { id: result.id, student_number: trimmedStudentNumber, intake: result.intake, intake_year: result.intake_year });
 
     res.status(201).json({
       message: 'Student created successfully',
@@ -194,16 +232,49 @@ const updateStudent = async (req, res) => {
       intake, intake_year, status, course_id
     } = req.body;
 
+    console.log('[STUDENT.UPDATE] Request data:', {
+      id,
+      intake, // Raw intake text from frontend
+      intake_year,
+      course_id
+    });
+
     // Get current student data
     const currentStudent = await User.findById(id);
     if (!currentStudent) {
       return res.status(404).json({ error: 'Student not found' });
     }
 
+    // Resolve intake text to intake ID if provided
+    let resolvedIntakeId = null;
+    let resolvedIntakeYear = null;
+
+    if (intake) {
+      const Intake = require('../models/Intake');
+      const allIntakes = await Intake.findAll({});
+
+      // Try to match intake text against production intakes
+      const normalizedIntake = intake.toString().trim().toUpperCase();
+      const matchedIntake = allIntakes.find(i =>
+        i.name && i.name.toUpperCase() === normalizedIntake
+      );
+
+      if (matchedIntake) {
+        resolvedIntakeId = matchedIntake.id;
+        resolvedIntakeYear = matchedIntake.year;
+        console.log('[STUDENT.UPDATE] Resolved intake:', { text: intake, id: resolvedIntakeId, year: resolvedIntakeYear });
+      } else {
+        console.log('[STUDENT.UPDATE] Could not resolve intake:', intake);
+        console.log('[STUDENT.UPDATE] Available intakes:', allIntakes.map(i => i.name).join(', '));
+      }
+    }
+
     const updateData = {
       full_name, email, student_number, phone, gender, national_id,
       date_of_birth, address, guardian_name, guardian_phone,
-      intake, intake_year, status, course_id
+      intake: resolvedIntakeId, // Store the intake ID
+      intake_year: resolvedIntakeYear, // Store the intake year
+      status, course_id
     };
 
     // Remove undefined values
@@ -213,7 +284,18 @@ const updateStudent = async (req, res) => {
       }
     });
 
+    console.log('[STUDENT.UPDATE] Update data:', {
+      intake: updateData.intake,
+      intake_year: updateData.intake_year
+    });
+
     const updatedStudent = await User.update(id, updateData);
+
+    console.log('[STUDENT.UPDATE] Updated student:', {
+      id: updatedStudent.id,
+      intake: updatedStudent.intake,
+      intake_year: updatedStudent.intake_year
+    });
 
     const { password: _, ...studentWithoutPassword } = updatedStudent;
 
@@ -532,6 +614,15 @@ const deleteLecturer = async (req, res) => {
 // Import students from Excel (admin only)
 const importStudentsFromExcel = async (req, res) => {
   try {
+    console.log('[IMPORT] Starting import process');
+    console.log('[IMPORT] Request body keys:', Object.keys(req.body));
+    console.log('[IMPORT] File present:', !!req.file);
+    console.log('[IMPORT] File details:', req.file ? {
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    } : 'No file');
+
     if (!req.file) {
       return res.status(400).json({ error: 'No file uploaded' });
     }
@@ -539,7 +630,9 @@ const importStudentsFromExcel = async (req, res) => {
     const { ImportBatch, ImportBatchDetail } = require('../models/ImportBatch');
 
     // Parse Excel file
+    console.log('[IMPORT] Parsing Excel file...');
     const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+    console.log('[IMPORT] Excel parsed successfully');
 
     // Detect the correct worksheet with student import headers
     console.log(`[IMPORT] Available worksheets: ${workbook.SheetNames.join(', ')}`);
@@ -650,6 +743,8 @@ const importStudentsFromExcel = async (req, res) => {
     const allIntakes = await Intake.findAll({});
 
     console.log(`[IMPORT] Loaded ${allCourses.length} courses and ${allIntakes.length} intakes for matching`);
+    console.log('[IMPORT] Sample courses:', allCourses.slice(0, 3).map(c => `${c.course_code} (id=${c.id})`));
+    console.log('[IMPORT] Sample intakes:', allIntakes.map(i => `${i.name} (id=${i.id})`));
 
     // Process rows for preview or actual import
     const processed = [];
@@ -801,11 +896,14 @@ const importStudentsFromExcel = async (req, res) => {
         const rawCourseName = normalizeHeader(row, 'COURSE CODE')?.toString().trim(); // Same as code for now
         const courseMatch = findCourseId(rawCourseCode, rawCourseName);
 
+        const rawGender = normalizeHeader(row, 'GENDER')?.toString().trim();
+        const normalizedGender = normalizeGender(rawGender);
+
         const rawIntakeName = normalizeHeader(row, 'INTAKE')?.toString().trim();
         const intakeMatch = findIntakeId(rawIntakeName);
 
-        const rawGender = normalizeHeader(row, 'GENDER')?.toString().trim();
-        const normalizedGender = normalizeGender(rawGender);
+        console.log(`[IMPORT] ROW ${rowNum} - Gender: raw="${rawGender}" → normalized="${normalizedGender}"`);
+        console.log(`[IMPORT] ROW ${rowNum} - Intake: raw="${rawIntakeName}" → matched=${intakeMatch ? `${intakeMatch.name} (id=${intakeMatch.id})` : 'null'}`);
 
         const studentData = {
           full_name: normalizeHeader(row, 'FULL NAME')?.toString().trim() || null,
@@ -826,6 +924,15 @@ const importStudentsFromExcel = async (req, res) => {
           role: 'student',
           status: 'active'
         };
+
+        console.log(`[IMPORT] ROW ${rowNum} - Student data object:`, JSON.stringify({
+          student_number: studentData.student_number,
+          full_name: studentData.full_name,
+          gender: studentData.gender,
+          intake: studentData.intake,
+          intake_year: studentData.intake_year,
+          course_id: studentData.course_id
+        }));
 
         // Log data mapping for this student
         console.log(`[IMPORT] Student: ${studentData.full_name} (${studentData.student_number})`);
@@ -1033,6 +1140,15 @@ const importStudentsFromExcel = async (req, res) => {
           status: 'active'
         };
 
+        console.log(`[IMPORT] ACTUAL IMPORT ROW ${student.row} - Student data before User.upsert:`, JSON.stringify({
+          student_number: studentData.student_number,
+          full_name: studentData.full_name,
+          gender: studentData.gender,
+          intake: studentData.intake,
+          intake_year: studentData.intake_year,
+          course_id: studentData.course_id
+        }));
+
         // Handle password from Excel - pass the plaintext password, User model will hash it
         if (student.password && student.password.trim() !== '') {
           // Validate password
@@ -1147,7 +1263,14 @@ const importStudentsFromExcel = async (req, res) => {
     });
   } catch (error) {
     console.error('Import students error:', error);
-    res.status(500).json({ error: 'Failed to import students' });
+    console.error('Import students error stack:', error.stack);
+    console.error('Import students error details:', {
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint
+    });
+    res.status(500).json({ error: 'Failed to import students', details: error.message });
   }
 };
 
