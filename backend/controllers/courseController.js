@@ -5,6 +5,8 @@ const createCourse = async (req, res) => {
   try {
     const { course_code, course_name, department, duration, description } = req.body;
 
+    console.log('[COURSE.CREATE] Request body:', JSON.stringify(req.body, null, 2));
+
     // Validation
     if (!course_code || !course_name) {
       return res.status(400).json({ error: 'Course code and course name are required' });
@@ -14,7 +16,11 @@ const createCourse = async (req, res) => {
       course_code, course_name, department, duration, description
     };
 
+    console.log('[COURSE.CREATE] Course data before Supabase:', JSON.stringify(courseData, null, 2));
+
     const result = await Course.create(courseData);
+
+    console.log('[COURSE.CREATE] Supabase result:', JSON.stringify(result, null, 2));
 
     if (!result) {
       return res.status(500).json({ error: 'Failed to create course - no result returned' });
@@ -25,11 +31,12 @@ const createCourse = async (req, res) => {
       id: result.id
     });
   } catch (error) {
-    console.error('Create course error:', error);
-    if (error.message.includes('UNIQUE')) {
+    console.error('[COURSE.CREATE] Error:', error);
+    console.error('[COURSE.CREATE] Error details:', error.message, error.code, error.details);
+    if (error.message.includes('UNIQUE') || error.code === '23505') {
       return res.status(400).json({ error: 'Course code already exists' });
     }
-    res.status(500).json({ error: 'Failed to create course' });
+    res.status(500).json({ error: 'Failed to create course: ' + error.message });
   }
 };
 

@@ -8,6 +8,9 @@ class Course {
       course_code, course_name, department, duration, description
     };
 
+    console.log('[COURSE.CREATE] Input data:', JSON.stringify(courseData, null, 2));
+    console.log('[COURSE.CREATE] Insert data:', JSON.stringify(insertData, null, 2));
+
     // Remove undefined values and convert empty strings to null
     Object.keys(insertData).forEach(key => {
       if (insertData[key] === undefined) {
@@ -17,13 +20,23 @@ class Course {
       }
     });
 
+    console.log('[COURSE.CREATE] Final insert data:', JSON.stringify(insertData, null, 2));
+
     const { data, error } = await supabase
       .from('courses')
       .insert(insertData)
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('[COURSE.CREATE] Supabase error:', error);
+      console.error('[COURSE.CREATE] Error code:', error.code);
+      console.error('[COURSE.CREATE] Error message:', error.message);
+      console.error('[COURSE.CREATE] Error details:', error.details);
+      throw error;
+    }
+
+    console.log('[COURSE.CREATE] Success:', JSON.stringify(data, null, 2));
     return data;
   }
 

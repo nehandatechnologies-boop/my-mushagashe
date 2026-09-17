@@ -899,11 +899,44 @@ const importStudentsFromExcel = async (req, res) => {
         const rawGender = normalizeHeader(row, 'GENDER')?.toString().trim();
         const normalizedGender = normalizeGender(rawGender);
 
+        // Handle both INTAKE (text) and INTAKE YEAR (date) columns
         const rawIntakeName = normalizeHeader(row, 'INTAKE')?.toString().trim();
-        const intakeMatch = findIntakeId(rawIntakeName);
+        const rawIntakeYear = normalizeHeader(row, 'INTAKE YEAR')?.toString().trim();
 
-        console.log(`[IMPORT] ROW ${rowNum} - Gender: raw="${rawGender}" → normalized="${normalizedGender}"`);
-        console.log(`[IMPORT] ROW ${rowNum} - Intake: raw="${rawIntakeName}" → matched=${intakeMatch ? `${intakeMatch.name} (id=${intakeMatch.id})` : 'null'}`);
+        console.log('[IMPORT] ROW ' + rowNum + ' - Intake data:');
+        console.log('[IMPORT]   rawIntakeName:', rawIntakeName);
+        console.log('[IMPORT]   rawIntakeYear:', rawIntakeYear, typeof rawIntakeYear);
+
+        let intakeMatch = null;
+
+        // Priority 1: Use INTAKE column if available (text-based intake name)
+        if (rawIntakeName) {
+          intakeMatch = findIntakeId(rawIntakeName);
+          console.log('[IMPORT]   Used INTAKE column:', intakeMatch ? intakeMatch.name : 'no match');
+        }
+        // Priority 2: Use INTAKE YEAR column if available (date-based intake year)
+        else if (rawIntakeYear) {
+          // Parse Excel date to get year
+          let intakeYear = null;
+          if (rawIntakeYear instanceof Date) {
+            intakeYear = rawIntakeYear.getFullYear();
+          } else if (!isNaN(Date.parse(rawIntakeYear))) {
+            intakeYear = new Date(rawIntakeYear).getFullYear();
+          } else if (!isNaN(parseInt(rawIntakeYear))) {
+            intakeYear = parseInt(rawIntakeYear);
+          }
+
+          console.log('[IMPORT]   Extracted intake year:', intakeYear);
+
+          // Find intake by year
+          if (intakeYear) {
+            intakeMatch = allIntakes.find(i => i.year === intakeYear);
+            console.log('[IMPORT]   Matched intake by year:', intakeMatch ? intakeMatch.name : 'no match');
+          }
+        }
+
+        console.log('[IMPORT] ROW ' + rowNum + ' - Gender: raw="' + rawGender + '" → normalized="' + normalizedGender + '"');
+        console.log('[IMPORT] ROW ' + rowNum + ' - Intake: matched=' + (intakeMatch ? intakeMatch.name + ' (id=' + intakeMatch.id + ')' : 'null'));
 
         const studentData = {
           full_name: normalizeHeader(row, 'FULL NAME')?.toString().trim() || null,
