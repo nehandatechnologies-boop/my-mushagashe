@@ -241,9 +241,11 @@ const loadingStyles = `
 `;
 
 // Inject loading styles
-const styleSheet = document.createElement('style');
-styleSheet.textContent = loadingStyles;
-document.head.appendChild(styleSheet);
+(function() {
+  const loadingStyleSheet = document.createElement('style');
+  loadingStyleSheet.textContent = loadingStyles;
+  document.head.appendChild(loadingStyleSheet);
+})();
 
 // Initialize loading manager
 document.addEventListener('DOMContentLoaded', () => {

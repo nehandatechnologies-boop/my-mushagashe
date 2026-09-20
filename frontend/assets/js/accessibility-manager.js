@@ -189,9 +189,11 @@ const accessibilityStyles = `
 `;
 
 // Inject accessibility styles
-const styleSheet = document.createElement('style');
-styleSheet.textContent = accessibilityStyles;
-document.head.appendChild(styleSheet);
+(function() {
+  const accessibilityStyleSheet = document.createElement('style');
+  accessibilityStyleSheet.textContent = accessibilityStyles;
+  document.head.appendChild(accessibilityStyleSheet);
+})();
 
 // Initialize accessibility manager
 document.addEventListener('DOMContentLoaded', () => {
