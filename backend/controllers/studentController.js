@@ -631,19 +631,43 @@ const importStudentsFromExcel = async (req, res) => {
 
     // Parse Excel file
     console.log('[IMPORT] Parsing Excel file...');
-    const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
-    console.log('[IMPORT] Excel parsed successfully');
+    console.log('[IMPORT] File info:', JSON.stringify({
+      originalname: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size
+    }, null, 2));
+
+    try {
+      const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+      console.log('[IMPORT] Excel parsed successfully');
+    } catch (parseError) {
+      console.error('[IMPORT] Excel parsing error:', parseError);
+      console.error('[IMPORT] Parse error stack:', parseError.stack);
+      return res.status(400).json({
+        error: 'Failed to parse Excel file',
+        message: parseError.message,
+        details: 'The file may be corrupted or not a valid Excel file'
+      });
+    }
 
     // Detect the correct worksheet with student import headers
     console.log(`[IMPORT] Available worksheets: ${workbook.SheetNames.join(', ')}`);
 
     // Header aliases for flexible matching
     const headerAliases = {
-      'FULL NAME': ['FULL NAME', 'STUDENT NAME', 'NAME', 'FULLNAME', 'STUDENT FULL NAME'],
-      'STUDENT NUMBER': ['STUDENT NUMBER', 'STUDENT NO', 'STUDENT ID', 'STUDENT NUMBER/ID', 'REGISTRATION NUMBER', 'REG NO'],
-      'COURSE CODE': ['COURSE CODE', 'COURSE', 'PROGRAMME CODE', 'PROGRAM CODE', 'COURSE ID'],
-      'GENDER': ['GENDER', 'SEX'],
-      'INTAKE': ['INTAKE', 'INTAKE NAME', 'INTAKE DATE']
+      'FULL NAME': ['FULL NAME', 'STUDENT NAME', 'NAME', 'FULLNAME', 'STUDENT FULL NAME', 'Full Name'],
+      'STUDENT NUMBER': ['STUDENT NUMBER', 'STUDENT NO', 'STUDENT ID', 'STUDENT NUMBER/ID', 'REGISTRATION NUMBER', 'REG NO', 'Student Number'],
+      'COURSE CODE': ['COURSE CODE', 'COURSE', 'PROGRAMME CODE', 'PROGRAM CODE', 'COURSE ID', 'Course ID', 'Course Code'],
+      'GENDER': ['GENDER', 'SEX', 'Gender'],
+      'INTAKE': ['INTAKE', 'INTAKE NAME', 'INTAKE DATE', 'INTAKE YEAR', 'Intake Year', 'Intake'],
+      'EMAIL': ['EMAIL', 'E-MAIL', 'EMAIL ADDRESS', 'Email'],
+      'PHONE': ['PHONE', 'PHONE NUMBER', 'TEL', 'TELEPHONE', 'Mobile', 'Contact Number'],
+      'PASSWORD': ['PASSWORD', 'Password'],
+      'NATIONAL ID': ['NATIONAL ID', 'ID NUMBER', 'NATIONAL ID NUMBER', 'National ID'],
+      'DATE OF BIRTH': ['DATE OF BIRTH', 'DOB', 'BIRTH DATE', 'Date of Birth'],
+      'ADDRESS': ['ADDRESS', 'PHYSICAL ADDRESS', 'RESIDENTIAL ADDRESS', 'Address'],
+      'GUARDIAN NAME': ['GUARDIAN NAME', 'PARENT NAME', 'GUARDIAN', 'Guardian Name'],
+      'GUARDIAN PHONE': ['GUARDIAN PHONE', 'GUARDIAN CONTACT', 'PARENT PHONE', 'Guardian Phone']
     };
 
     // Normalize header name
@@ -723,13 +747,31 @@ const importStudentsFromExcel = async (req, res) => {
     }
 
     // Parse the selected worksheet
+    console.log('[IMPORT] Parsing selected worksheet:', selectedSheetName);
     const data = XLSX.utils.sheet_to_json(selectedWorksheet);
+    console.log('[IMPORT] Rows parsed:', finalData.length);
 
-    if (!data || data.length === 0) {
+    if (!finalData || finalData.length === 0) {
       return res.status(400).json({ error: 'No data found in selected worksheet' });
     }
 
-    console.log(`[IMPORT] Processing ${data.length} rows from worksheet: ${selectedSheetName}`);
+    // Skip duplicate header row if detected
+    console.log('[IMPORT] Checking for duplicate header row...');
+    const firstRowKeys = Object.keys(finalData[0]);
+    const secondRowKeys = finalData.length > 1 ? Object.keys(finalData[1]) : [];
+    const isDuplicateHeader = firstRowKeys.length === secondRowKeys.length &&
+      firstRowKeys.every(key => secondRowKeys.includes(key));
+
+    let finalData = data;
+    if (isDuplicateHeader) {
+      console.log('[IMPORT] Duplicate header row detected, skipping first row');
+      finalData = data.slice(1);
+      console.log('[IMPORT] Rows after skipping duplicate header:', finalData.length);
+    } else {
+      console.log('[IMPORT] No duplicate header row detected');
+    }
+
+    console.log('[IMPORT] Processing ' + finalData.length + ' rows from worksheet: ' + selectedSheetName);
 
     const preview = req.body.preview === 'true';
     console.log(`[IMPORT] Preview mode: ${preview}`);
@@ -754,14 +796,17 @@ const importStudentsFromExcel = async (req, res) => {
     const intakeMatches = { matched: 0, unmatched: 0 };
     const genderStats = { male: 0, female: 0, null: 0, other: 0 };
 
-    for (let i = 0; i < data.length; i++) {
-      const row = data[i];
+    for (let i = 0; i < finalData.length; i++) {
+      const row = finalData[i];
       const rowNum = i + 2;
 
       try {
+        console.log('[IMPORT] Processing row ' + rowNum + ' of ' + finalData.length);
+
         // Skip completely empty rows
         const hasAnyData = Object.values(row).some(val => val !== null && val !== undefined && val !== '');
         if (!hasAnyData) {
+          console.log('[IMPORT] Skipping empty row ' + rowNum);
           continue;
         }
 
@@ -916,22 +961,48 @@ const importStudentsFromExcel = async (req, res) => {
         }
         // Priority 2: Use INTAKE YEAR column if available (date-based intake year)
         else if (rawIntakeYear) {
-          // Parse Excel date to get year
+          // Parse Excel date to get year and month
           let intakeYear = null;
+          let intakeMonth = null;
+
           if (rawIntakeYear instanceof Date) {
             intakeYear = rawIntakeYear.getFullYear();
+            intakeMonth = rawIntakeYear.getMonth(); // 0-11
           } else if (!isNaN(Date.parse(rawIntakeYear))) {
-            intakeYear = new Date(rawIntakeYear).getFullYear();
+            const parsedDate = new Date(rawIntakeYear);
+            intakeYear = parsedDate.getFullYear();
+            intakeMonth = parsedDate.getMonth();
           } else if (!isNaN(parseInt(rawIntakeYear))) {
             intakeYear = parseInt(rawIntakeYear);
           }
 
-          console.log('[IMPORT]   Extracted intake year:', intakeYear);
+          console.log('[IMPORT]   Extracted intake year:', intakeYear, 'month:', intakeMonth);
 
-          // Find intake by year
+          // Find intake by year and month
           if (intakeYear) {
-            intakeMatch = allIntakes.find(i => i.year === intakeYear);
-            console.log('[IMPORT]   Matched intake by year:', intakeMatch ? intakeMatch.name : 'no match');
+            // First try to match by year and month
+            if (intakeMonth !== null) {
+              const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                                  'July', 'August', 'September', 'October', 'November', 'December'];
+              const monthName = monthNames[intakeMonth];
+
+              intakeMatch = allIntakes.find(i =>
+                i.year === intakeYear &&
+                i.name && i.name.toUpperCase().includes(monthName.toUpperCase())
+              );
+
+              if (intakeMatch) {
+                console.log('[IMPORT]   Matched intake by year and month:', intakeMatch.name);
+              } else {
+                console.log('[IMPORT]   No exact month match, falling back to year match');
+              }
+            }
+
+            // Fallback to year-only match if no month match
+            if (!intakeMatch) {
+              intakeMatch = allIntakes.find(i => i.year === intakeYear);
+              console.log('[IMPORT]   Matched intake by year only:', intakeMatch ? intakeMatch.name : 'no match');
+            }
           }
         }
 
@@ -948,7 +1019,7 @@ const importStudentsFromExcel = async (req, res) => {
           gender: normalizedGender,
           email: normalizeHeader(row, 'EMAIL')?.toString().trim() || null,
           password: normalizeHeader(row, 'PASSWORD')?.toString().trim() || null,
-          phone: normalizeHeader(row, 'PHONE NUMBER')?.toString().trim() || null,
+          phone: normalizeHeader(row, 'PHONE')?.toString().trim() || null,
           national_id: normalizeHeader(row, 'NATIONAL ID')?.toString().trim() || null,
           date_of_birth: normalizeHeader(row, 'DATE OF BIRTH')?.toString().trim() || null,
           address: normalizeHeader(row, 'ADDRESS')?.toString().trim() || null,
@@ -1070,7 +1141,7 @@ const importStudentsFromExcel = async (req, res) => {
       const batch = await ImportBatch.create({
         filename: req.file.originalname,
         uploaded_by: req.user.id,
-        total_rows: processed.length,
+        total_rows: finalData.length,
         notes: `Preview mode - ${newStudents.length} new, ${existingStudents.length} existing students`
       });
 
@@ -1081,7 +1152,7 @@ const importStudentsFromExcel = async (req, res) => {
         batch_id: batch.id,
         worksheet: selectedSheetName,
         detected_headers: selectedHeaders,
-        total_rows: processed.length,
+        total_rows: finalData.length,
         valid_rows: processed.length,
         new_students: newStudents.length,
         existing_students: existingStudents.length,
@@ -1115,7 +1186,7 @@ const importStudentsFromExcel = async (req, res) => {
       batch = await ImportBatch.create({
         filename: req.file.originalname,
         uploaded_by: req.user.id,
-        total_rows: processed.length,
+        total_rows: finalData.length,
         notes: 'Actual import operation'
       });
     }
@@ -1205,8 +1276,8 @@ const importStudentsFromExcel = async (req, res) => {
         // and set must_change_password = true automatically
 
         // UPSERT using student number
-        console.log(`[IMPORT] Calling upsertByStudentNumber for ${student.student_number}`);
-        console.log(`[IMPORT]   studentData:`, JSON.stringify({
+        console.log('[IMPORT] Calling upsertByStudentNumber for ' + student.student_number);
+        console.log('[IMPORT]   studentData:', JSON.stringify({
           full_name: studentData.full_name,
           student_number: studentData.student_number,
           gender: studentData.gender,
@@ -1214,15 +1285,33 @@ const importStudentsFromExcel = async (req, res) => {
           intake: studentData.intake,
           intake_year: studentData.intake_year
         }));
-        const result = await User.upsertByStudentNumber(studentData);
-        console.log(`[IMPORT]   upsert result:`, JSON.stringify({
-          action: result.action,
-          id: result.id,
-          gender: result.gender,
-          course_id: result.course_id,
-          intake: result.intake,
-          intake_year: result.intake_year
-        }));
+
+        let result;
+        try {
+          result = await User.upsertByStudentNumber(studentData);
+          console.log('[IMPORT]   upsert result:', JSON.stringify({
+            action: result.action,
+            id: result.id,
+            gender: result.gender,
+            course_id: result.course_id,
+            intake: result.intake,
+            intake_year: result.intake_year
+          }));
+        } catch (upsertError) {
+          console.error('[IMPORT] UPSERT ERROR for student ' + student.student_number + ':', upsertError);
+          console.error('[IMPORT] UPSERT ERROR stack:', upsertError.stack);
+          console.error('[IMPORT] UPSERT ERROR code:', upsertError.code);
+          console.error('[IMPORT] UPSERT ERROR details:', upsertError.details);
+          errors.push({
+            row: student.row,
+            student_number: student.student_number,
+            full_name: student.full_name,
+            field: 'upsert',
+            error: 'Failed to save student: ' + upsertError.message,
+            details: upsertError.code || 'Database error'
+          });
+          continue;
+        }
 
         // Create batch detail record
         await ImportBatchDetail.create({
@@ -1295,15 +1384,24 @@ const importStudentsFromExcel = async (req, res) => {
       errors: [...errors, ...skippedUnmatchedCourses, ...skippedUnmatchedIntakes]
     });
   } catch (error) {
-    console.error('Import students error:', error);
-    console.error('Import students error stack:', error.stack);
-    console.error('Import students error details:', {
+    console.error('[IMPORT] CRITICAL ERROR - Import students error:', error);
+    console.error('[IMPORT] CRITICAL ERROR - Import students error stack:', error.stack);
+    console.error('[IMPORT] CRITICAL ERROR - Import students error details:', {
       message: error.message,
       code: error.code,
       details: error.details,
       hint: error.hint
     });
-    res.status(500).json({ error: 'Failed to import students', details: error.message });
+
+    // Return detailed error information for debugging
+    res.status(500).json({
+      error: 'Failed to import students',
+      message: error.message,
+      code: error.code,
+      details: error.details,
+      hint: error.hint,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 };
 
