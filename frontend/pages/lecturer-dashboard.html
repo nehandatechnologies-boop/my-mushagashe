@@ -146,8 +146,8 @@
                         <input type="text" placeholder="Search...">
                     </div>
                     <div class="header-actions">
-                        <button class="header-action-btn" id="themeToggle" title="Toggle Theme">
-                            <span>🌙</span>
+                        <button class="header-action-btn" data-theme-toggle title="Toggle Theme">
+                            <span data-theme-icon>🌙</span>
                         </button>
                         <button class="header-action-btn" id="notificationBell" title="Notifications">
                             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -377,6 +377,10 @@
     <!-- Toast Notification -->
     <div id="toast" class="toast-container" style="display: none;"></div>
 
+    <script src="../assets/js/theme-manager.js"></script>
+    <script src="../assets/js/mobile-navigation.js"></script>
+    <script src="../assets/js/loading-manager.js"></script>
+    <script src="../assets/js/accessibility-manager.js"></script>
     <script src="../assets/js/lecturer-dashboard.js?v=2"></script>
     <script>
         // Sidebar toggle functionality

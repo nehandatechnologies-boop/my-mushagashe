@@ -675,6 +675,18 @@
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
   z-index: var(--z-sidebar-overlay);
+  opacity: 0;
+  transition: opacity var(--transition-base);
+}
+
+.sidebar-overlay.show {
+  display: block;
+  opacity: 1;
+}
+
+/* Prevent body scroll when sidebar is open on mobile */
+body.sidebar-open {
+  overflow: hidden;
 }
 
 /* Responsive */
@@ -682,6 +694,7 @@
   .sidebar {
     transform: translateX(-100%);
     z-index: var(--z-sidebar-mobile); /* Ensure sidebar is above overlay */
+    transition: transform var(--transition-base);
   }
 
   .sidebar.open {
@@ -698,6 +711,7 @@
 
   .sidebar-overlay.show {
     display: block;
+    opacity: 1;
   }
 
   .header-search {

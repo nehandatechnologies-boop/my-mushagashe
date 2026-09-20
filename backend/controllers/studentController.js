@@ -637,8 +637,9 @@ const importStudentsFromExcel = async (req, res) => {
       size: req.file.size
     }, null, 2));
 
+    let workbook;
     try {
-      const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+      workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
       console.log('[IMPORT] Excel parsed successfully');
     } catch (parseError) {
       console.error('[IMPORT] Excel parsing error:', parseError);

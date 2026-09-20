@@ -173,8 +173,22 @@
 }
 
 /* Dark Mode Variables */
+[data-theme="dark"] {
+  --surface: #1f2937;
+  --surface-elevated: #374151;
+  --surface-hover: #4b5563;
+  --background: #111827;
+  --background-alt: #1f2937;
+  --text-primary: #f9fafb;
+  --text-secondary: #d1d5db;
+  --text-tertiary: #9ca3af;
+  --border: #374151;
+  --border-light: #4b5563;
+  --border-dark: #6b7280;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --surface: #1f2937;
     --surface-elevated: #374151;
     --surface-hover: #4b5563;

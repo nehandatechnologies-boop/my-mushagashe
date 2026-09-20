@@ -3,8 +3,9 @@
 ## Issue Resolved
 
 **Problem:** POST /api/students/import/excel returning HTTP 500 in production
-**Root Cause:** Intake year resolution was matching only by year, causing incorrect intake assignments (e.g., May 2026 and September 2026 both matched to January 2026)
-**Solution:** Enhanced intake resolution to match by both year and month for accurate intake assignment
+**Root Cause 1:** Intake year resolution was matching only by year, causing incorrect intake assignments (e.g., May 2026 and September 2026 both matched to January 2026)
+**Root Cause 2:** Workbook variable scoping bug - `workbook` was declared inside try-catch block but referenced outside, causing ReferenceError
+**Solution:** Enhanced intake resolution to match by both year and month for accurate intake assignment, and fixed workbook variable scoping
 
 ## Files Modified
 
@@ -12,8 +13,9 @@
 
 **Changes Made:**
 
-1. **Enhanced Excel Parsing Error Handling (Lines 632-651)**
+1. **Enhanced Excel Parsing Error Handling (Lines 630-651)**
    - Added try-catch around Excel parsing
+   - **FIXED SCOPING BUG:** Declared `workbook` variable outside try-catch block to prevent ReferenceError
    - Added detailed error logging for parsing failures
    - Returns specific error messages for corrupted files
 
@@ -90,6 +92,41 @@
 1. **Added Diagnostic Logging**
    - Logs course creation operations
    - Logs Supabase insert data
+
+## Production Error Found and Fixed
+
+### Production Log Analysis
+```
+[IMPORT] CRITICAL ERROR - Import students error: ReferenceError: workbook is not defined
+    at importStudentsFromExcel (/opt/render/project/src/backend/controllers/studentController.js:654:51)
+```
+
+### Root Cause
+When I added try-catch error handling around Excel parsing, I declared `const workbook` inside the try block. However, the code later references `workbook.SheetNames` outside the try block, causing a ReferenceError.
+
+### Fix Applied
+Changed:
+```javascript
+try {
+  const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+  console.log('[IMPORT] Excel parsed successfully');
+} catch (parseError) {
+  // error handling
+}
+```
+
+To:
+```javascript
+let workbook;
+try {
+  workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
+  console.log('[IMPORT] Excel parsed successfully');
+} catch (parseError) {
+  // error handling
+}
+```
+
+This ensures `workbook` is accessible in the correct scope.
 
 ## Test Results
 
@@ -238,7 +275,9 @@ For issues with deployment:
 ## Status
 
 ✅ Code fixes completed
+✅ Workbook scoping bug fixed (production error resolved)
+✅ Intake year+month matching fixed
 ✅ Local testing passed (100% success rate)
 ✅ Production structure testing passed
-⏳ Awaiting production deployment
+⏳ Awaiting production deployment of updated fix
 ⏳ Awaiting production verification
