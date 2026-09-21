@@ -491,6 +491,7 @@
         }
     </style>
 
+    <script src="../assets/js/auth-manager.js"></script>
     <script>
         function togglePassword(inputId) {
             const input = document.getElementById(inputId);
@@ -599,8 +600,14 @@
                 const data = await response.json();
                 
                 if (response.ok) {
-                    localStorage.setItem('token', data.token);
-                    localStorage.setItem('user', JSON.stringify(data.user));
+                    // Use auth manager to set session
+                    if (window.authManager) {
+                        window.authManager.setSession(data.token, data.user, []);
+                    } else {
+                        // Fallback to localStorage if auth manager not available
+                        localStorage.setItem('token', data.token);
+                        localStorage.setItem('user', JSON.stringify(data.user));
+                    }
                     
                     // Handle Remember Me
                     if (rememberMe) {

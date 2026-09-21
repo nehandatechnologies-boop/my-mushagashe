@@ -21,26 +21,64 @@ if (isNgrok) {
   API_BASE = '/api';
 }
 
-// Get stored token and user data
-const token = localStorage.getItem('token');
-const user = JSON.parse(localStorage.getItem('user') || '{}');
-const permissions = JSON.parse(localStorage.getItem('permissions') || '[]');
+// Use auth manager for authentication state
+let token, user, permissions;
+
+// Get authentication state from auth manager
+function getAuthState() {
+  if (window.authManager && window.authManager.isLoggedIn()) {
+    return {
+      token: window.authManager.getToken(),
+      user: window.authManager.getUser(),
+      permissions: window.authManager.getPermissions()
+    };
+  }
+  // Fallback to localStorage if auth manager not ready
+  return {
+    token: localStorage.getItem('token'),
+    user: JSON.parse(localStorage.getItem('user') || '{}'),
+    permissions: JSON.parse(localStorage.getItem('permissions') || '[]')
+  };
+}
+
+// Initialize auth state
+const authState = getAuthState();
+token = authState.token;
+user = authState.user;
+permissions = authState.permissions;
 
 // Permission helper functions
 function hasPermission(permissionName) {
-  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-  const role = currentUser.role;
-  const currentPermissions = JSON.parse(localStorage.getItem('permissions') || '[]');
-  
-  // Support both legacy 'admin' and new RBAC roles
-  if (role === 'SUPER_ADMIN' || role === 'super_admin' || role === 'admin') return true;
-  return currentPermissions.some(p => p.name === permissionName);
+    let currentUser;
+    let currentPermissions;
+
+    if (window.authManager && window.authManager.isLoggedIn()) {
+        currentUser = window.authManager.getUser();
+        currentPermissions = window.authManager.getPermissions();
+    } else {
+        // Fallback to localStorage
+        currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+        currentPermissions = JSON.parse(localStorage.getItem('permissions') || '[]');
+    }
+
+    const role = currentUser.role;
+
+    // Support both legacy 'admin' and new RBAC roles
+    if (role === 'SUPER_ADMIN' || role === 'super_admin' || role === 'admin') return true;
+    return currentPermissions.some(p => p.name === permissionName);
 }
 
 function hasRole(roleName) {
-  const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-  const role = currentUser.role;
-  return role === roleName || role === roleName.toLowerCase();
+    let currentUser;
+    if (window.authManager && window.authManager.isLoggedIn()) {
+        currentUser = window.authManager.getUser();
+    } else {
+        // Fallback to localStorage
+        currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+    }
+
+    const role = currentUser.role;
+    return role === roleName || role === roleName.toLowerCase();
 }
 
 function getRoleDisplayName() {
@@ -61,14 +99,21 @@ function getRoleDisplayName() {
 // API Request helper with authentication
 async function apiRequest(endpoint, options = {}) {
     const url = `${API_BASE}${endpoint}`;
-    const currentToken = localStorage.getItem('token');
-    
+
+    // Use auth manager if available
+    let currentToken;
+    if (window.authManager && window.authManager.isLoggedIn()) {
+        currentToken = window.authManager.getToken();
+    } else {
+        currentToken = localStorage.getItem('token');
+    }
+
     // If no token and not a login request, redirect to login
     if (!currentToken && !endpoint.includes('/auth/')) {
         window.location.href = 'admin-login.html';
         throw new Error('Not authenticated');
     }
-    
+
     const defaultOptions = {
         headers: {}
     };
@@ -77,7 +122,7 @@ async function apiRequest(endpoint, options = {}) {
     if (!(options.body instanceof FormData)) {
         defaultOptions.headers['Content-Type'] = 'application/json';
     }
-    
+
     // Only add Authorization header if token exists
     if (currentToken) {
         defaultOptions.headers['Authorization'] = `Bearer ${currentToken}`;
@@ -88,6 +133,20 @@ async function apiRequest(endpoint, options = {}) {
     try {
         const response = await fetch(url, finalOptions);
         const data = await response.json();
+
+        // Handle 401 errors (session expired)
+        if (response.status === 401) {
+            console.error('Authentication failed - clearing session');
+            if (window.authManager) {
+                window.authManager.clearSession();
+            } else {
+                localStorage.removeItem('token');
+                localStorage.removeItem('user');
+                localStorage.removeItem('permissions');
+            }
+            window.location.href = 'admin-login.html';
+            throw new Error('Session expired');
+        }
 
         if (!response.ok) {
             throw new Error(data.error || 'Request failed');
@@ -353,7 +412,14 @@ async function loadStudents() {
         console.log(`[STUDENTS] API Endpoint: GET ${endpoint}`);
         const students = await apiRequest(endpoint);
         console.log('[STUDENTS] Response received');
+        console.log('[STUDENTS] Total students from API:', students.length);
         console.log('[STUDENTS] Data:', JSON.stringify(students, null, 2));
+
+        // Update student count display if it exists
+        const studentCountDisplay = document.getElementById('studentCount');
+        if (studentCountDisplay) {
+            studentCountDisplay.textContent = students.length;
+        }
 
         if (!students || students.length === 0) {
             tbody.innerHTML = '<tr><td colspan="10" class="text-center">No students found</td></tr>';
@@ -2892,16 +2958,8 @@ if (changePasswordBtn) {
     });
 }
 
-// Logout handler
-const logoutBtn = document.getElementById('logoutBtn');
-if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('permissions');
-        window.location.href = 'admin-login.html';
-    });
-}
+// Logout handler - using handleLogout function now
+// This is handled in the DOMContentLoaded event listener
 
 // Template management functions
 async function loadTemplateInfo() {
@@ -4185,23 +4243,34 @@ function setupApprovalFilters() {
 
 // Initialize on page load
 window.addEventListener('DOMContentLoaded', async () => {
-    // Check authentication before loading dashboard
-    const token = localStorage.getItem('token');
-    const user = JSON.parse(localStorage.getItem('user') || '{}');
+    // Use auth manager for authentication check
+    let authenticated = false;
+    let currentUser = null;
 
-    if (!token) {
+    if (window.authManager) {
+        authenticated = window.authManager.isLoggedIn();
+        currentUser = window.authManager.getUser();
+    } else {
+        // Fallback to localStorage if auth manager not available
+        const token = localStorage.getItem('token');
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        authenticated = !!token;
+        currentUser = user;
+    }
+
+    if (!authenticated) {
         window.location.href = 'admin-login.html';
         return;
     }
 
     // Check if user has any admin role
-    const isAdmin = user.role === 'admin' ||
-                   user.role === 'super_admin' ||
-                   user.role === 'SUPER_ADMIN' ||
-                   user.role === 'ACADEMIC_ADMIN' ||
-                   user.role === 'FINANCE_ADMIN' ||
-                   user.role === 'ADMISSIONS_ADMIN' ||
-                   user.role === 'LECTURER_ADMIN';
+    const isAdmin = currentUser.role === 'admin' ||
+                   currentUser.role === 'super_admin' ||
+                   currentUser.role === 'SUPER_ADMIN' ||
+                   currentUser.role === 'ACADEMIC_ADMIN' ||
+                   currentUser.role === 'FINANCE_ADMIN' ||
+                   currentUser.role === 'ADMISSIONS_ADMIN' ||
+                   currentUser.role === 'LECTURER_ADMIN';
 
     if (!isAdmin) {
         window.location.href = 'admin-login.html';
@@ -4213,9 +4282,13 @@ window.addEventListener('DOMContentLoaded', async () => {
         await apiRequest('/auth/profile');
     } catch (error) {
         console.error('Token validation failed:', error);
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-        localStorage.removeItem('permissions');
+        if (window.authManager) {
+            window.authManager.clearSession();
+        } else {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            localStorage.removeItem('permissions');
+        }
         window.location.href = 'admin-login.html';
         return;
     }
@@ -4357,10 +4430,15 @@ async function handleLogout() {
         console.log('Logout API call failed, proceeding with client-side logout');
     }
 
-    // Clear authentication data
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    localStorage.removeItem('permissions');
+    // Clear authentication data using auth manager
+    if (window.authManager) {
+        window.authManager.clearSession();
+    } else {
+        // Fallback to localStorage
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('permissions');
+    }
 
     // Redirect to login page
     window.location.href = 'admin-login.html';

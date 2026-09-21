@@ -214,6 +214,23 @@
   position: sticky;
   top: 0;
   z-index: var(--z-sticky);
+  transition: box-shadow var(--transition-base);
+}
+
+.app-header.scrolled {
+  box-shadow: var(--shadow-md);
+}
+
+/* Scroll Progress Bar */
+.scroll-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary-600), var(--accent-600));
+  width: 0%;
+  z-index: var(--z-fixed);
+  transition: width var(--transition-base);
 }
 
 .header-left {
