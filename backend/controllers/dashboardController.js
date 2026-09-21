@@ -27,7 +27,7 @@ const getDashboardStatistics = async (req, res) => {
         male_count: userStats ? userStats.male_count || 0 : 0,
         female_count: userStats ? userStats.female_count || 0 : 0,
         active: userStats ? userStats.active_count || 0 : 0,
-        suspended: userStats ? userStats.suspended_count || 0
+        suspended: userStats ? userStats.suspended_count || 0 : 0
       },
       courses: {
         total: totalCourses,
