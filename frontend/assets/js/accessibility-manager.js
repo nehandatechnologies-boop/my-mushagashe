@@ -146,7 +146,7 @@ const accessibilityStyles = `
     top: -40px;
     left: 0;
     background: var(--primary-600);
-    color: white;
+    color: var(--text-inverse);
     padding: 8px 16px;
     z-index: 10000;
     text-decoration: none;

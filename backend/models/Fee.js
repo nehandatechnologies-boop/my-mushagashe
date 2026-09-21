@@ -4,12 +4,12 @@ const PaymentHistory = require('./PaymentHistory');
 class Fee {
   static async create(feeData) {
     const {
-      user_id, fee_category, amount, amount_paid, balance,
+      user_id, fee_category, amount, amount_paid, balance, prepayment_credit,
       payment_reference, payment_method, receipt_number, payment_date, due_date, status
     } = feeData;
 
     const insertData = {
-      user_id, fee_category, amount, amount_paid, balance,
+      user_id, fee_category, amount, amount_paid, balance, prepayment_credit,
       payment_reference, payment_method, receipt_number, payment_date, due_date, status
     };
 
@@ -132,12 +132,12 @@ class Fee {
 
   static async update(id, feeData) {
     const {
-      amount, amount_paid, balance, payment_reference, payment_method,
+      amount, amount_paid, balance, prepayment_credit, payment_reference, payment_method,
       receipt_number, payment_date, due_date, status
     } = feeData;
 
     const updateData = {
-      amount, amount_paid, balance, payment_reference, payment_method,
+      amount, amount_paid, balance, prepayment_credit, payment_reference, payment_method,
       receipt_number, payment_date, due_date, status
     };
 
@@ -174,20 +174,37 @@ class Fee {
       throw new Error('Invalid payment amount');
     }
 
-    // Prevent overpayment
-    const newAmountPaid = (fee.amount_paid || 0) + paymentAmount;
-    if (newAmountPaid > fee.amount) {
-      throw new Error('Payment amount would exceed the fee amount. Maximum allowed: ' + (fee.amount - (fee.amount_paid || 0)));
+    // Calculate new payment totals
+    const currentAmountPaid = fee.amount_paid || 0;
+    const currentPrepayment = fee.prepayment_credit || 0;
+    const newAmountPaid = currentAmountPaid + paymentAmount;
+
+    // Calculate how much applies to the fee vs prepayment
+    const amountAppliedToFee = Math.min(newAmountPaid, fee.amount);
+    const newPrepaymentCredit = Math.max(newAmountPaid - fee.amount, 0);
+
+    // Balance should never be negative - capped at 0
+    const newBalance = Math.max(fee.amount - amountAppliedToFee, 0);
+
+    // Status determination
+    let newStatus;
+    if (newBalance === 0 && newPrepaymentCredit > 0) {
+      newStatus = 'paid'; // Fully paid with prepayment
+    } else if (newBalance === 0) {
+      newStatus = 'paid'; // Exactly paid
+    } else if (amountAppliedToFee > 0) {
+      newStatus = 'partial'; // Partial payment
+    } else {
+      newStatus = 'unpaid'; // No payment applied to fee
     }
 
-    const newBalance = fee.amount - newAmountPaid;
-    const newStatus = newBalance <= 0 ? 'paid' : 'partial';
-
-    // Create payment history record
+    // Create payment history record with actual payment amount
     await PaymentHistory.create({
       fee_id: id,
       user_id: fee.user_id,
       amount_paid: paymentAmount,
+      amount_applied_to_fee: Math.min(paymentAmount, fee.amount - currentAmountPaid),
+      prepayment_amount: Math.max(paymentAmount - (fee.amount - currentAmountPaid), 0),
       payment_reference,
       payment_method,
       receipt_number,
@@ -198,8 +215,9 @@ class Fee {
     // Update the fee record
     const updatedFee = await this.update(id, {
       amount: fee.amount,
-      amount_paid: newAmountPaid,
+      amount_paid: amountAppliedToFee,
       balance: newBalance,
+      prepayment_credit: newPrepaymentCredit,
       payment_reference,
       payment_method,
       receipt_number,
@@ -223,7 +241,7 @@ class Fee {
   static async getStatistics() {
     const { data, error } = await supabase
       .from('fees')
-      .select('amount, amount_paid, balance, status');
+      .select('amount, amount_paid, balance, prepayment_credit, status');
 
     if (error) throw error;
 
@@ -234,10 +252,25 @@ class Fee {
       paid_count: data.filter(f => f.status === 'paid').length,
       total_amount: data.reduce((sum, f) => sum + (f.amount || 0), 0),
       total_collected: data.reduce((sum, f) => sum + (f.amount_paid || 0), 0),
-      total_outstanding: data.reduce((sum, f) => sum + (f.balance || 0), 0)
+      total_outstanding: data.reduce((sum, f) => sum + (f.balance || 0), 0),
+      total_prepayment_credit: data.reduce((sum, f) => sum + (f.prepayment_credit || 0), 0)
     };
 
     return stats;
+  }
+
+  static async getStudentsStartedPaying() {
+    // Get unique students who have made at least one payment (amount_paid > 0)
+    const { data, error } = await supabase
+      .from('fees')
+      .select('user_id')
+      .gt('amount_paid', 0);
+
+    if (error) throw error;
+
+    // Count unique user_ids
+    const uniqueStudents = new Set(data.map(f => f.user_id));
+    return uniqueStudents.size;
   }
 
   static async getOutstandingByUser(userId) {

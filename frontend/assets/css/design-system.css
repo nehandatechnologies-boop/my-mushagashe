@@ -185,6 +185,18 @@
   --border: #374151;
   --border-light: #4b5563;
   --border-dark: #6b7280;
+
+  /* Gray scale for dark mode */
+  --gray-50: #1f2937;
+  --gray-100: #374151;
+  --gray-200: #4b5563;
+  --gray-300: #6b7280;
+  --gray-400: #9ca3af;
+  --gray-500: #d1d5db;
+  --gray-600: #e5e7eb;
+  --gray-700: #f3f4f6;
+  --gray-800: #f9fafb;
+  --gray-900: #ffffff;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -200,6 +212,18 @@
     --border: #374151;
     --border-light: #4b5563;
     --border-dark: #6b7280;
+
+    /* Gray scale for dark mode */
+    --gray-50: #1f2937;
+    --gray-100: #374151;
+    --gray-200: #4b5563;
+    --gray-300: #6b7280;
+    --gray-400: #9ca3af;
+    --gray-500: #d1d5db;
+    --gray-600: #e5e7eb;
+    --gray-700: #f3f4f6;
+    --gray-800: #f9fafb;
+    --gray-900: #ffffff;
   }
 }
 

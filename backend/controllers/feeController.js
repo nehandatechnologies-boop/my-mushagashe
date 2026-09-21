@@ -25,9 +25,7 @@ const createFee = async (req, res) => {
       if (isNaN(numAmountPaid) || numAmountPaid < 0) {
         return res.status(400).json({ error: 'Amount paid must be a non-negative number' });
       }
-      if (numAmountPaid > numAmount) {
-        return res.status(400).json({ error: 'Amount paid cannot exceed the fee amount' });
-      }
+      // Note: Overpayments are now allowed - excess will be tracked as prepayment credit
     }
 
     // Calculate balance if not provided
@@ -133,10 +131,7 @@ const updateFee = async (req, res) => {
       if (isNaN(numAmountPaid) || numAmountPaid < 0) {
         return res.status(400).json({ error: 'Amount paid must be a non-negative number' });
       }
-      const feeAmount = amount !== undefined ? parseFloat(amount) : currentFee.amount;
-      if (numAmountPaid > feeAmount) {
-        return res.status(400).json({ error: 'Amount paid cannot exceed the fee amount' });
-      }
+      // Note: Overpayments are now allowed - excess will be tracked as prepayment credit
     }
 
     // Recalculate balance if amount or amount_paid changed

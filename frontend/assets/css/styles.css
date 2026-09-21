@@ -853,35 +853,43 @@ body {
 .announcement-item {
     padding: 1rem;
     border-left: 3px solid var(--primary-purple);
-    background: var(--light-gray);
+    background: var(--surface);
     border-radius: var(--radius-sm);
 }
 
 .announcement-item.urgent {
     border-left-color: var(--danger);
-    background: #FEE2E2;
+    background: var(--danger-bg);
 }
 
 .announcement-item.important {
     border-left-color: var(--warning);
-    background: #FEF3C7;
+    background: var(--warning-bg);
+}
+
+[data-theme="dark"] .announcement-item.urgent {
+    background: rgba(220, 38, 38, 0.2);
+}
+
+[data-theme="dark"] .announcement-item.important {
+    background: rgba(217, 119, 6, 0.2);
 }
 
 .announcement-title {
     font-weight: 600;
-    color: var(--dark-gray);
+    color: var(--text-primary);
     margin-bottom: 0.5rem;
 }
 
 .announcement-message {
-    color: var(--gray);
+    color: var(--text-secondary);
     font-size: 0.9rem;
     margin-bottom: 0.5rem;
 }
 
 .announcement-meta {
     font-size: 0.8rem;
-    color: var(--gray);
+    color: var(--text-tertiary);
 }
 
 /* Results List */

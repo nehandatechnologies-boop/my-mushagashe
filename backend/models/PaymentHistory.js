@@ -3,13 +3,13 @@ const supabase = require('../config/supabase');
 class PaymentHistory {
   static async create(paymentData) {
     const {
-      fee_id, user_id, amount_paid, payment_reference, payment_method,
-      receipt_number, payment_date, recorded_by, notes
+      fee_id, user_id, amount_paid, amount_applied_to_fee, prepayment_amount,
+      payment_reference, payment_method, receipt_number, payment_date, recorded_by, notes
     } = paymentData;
 
     const insertData = {
-      fee_id, user_id, amount_paid, payment_reference, payment_method,
-      receipt_number, payment_date, recorded_by, notes
+      fee_id, user_id, amount_paid, amount_applied_to_fee, prepayment_amount,
+      payment_reference, payment_method, receipt_number, payment_date, recorded_by, notes
     };
 
     // Remove undefined values and convert empty strings to null

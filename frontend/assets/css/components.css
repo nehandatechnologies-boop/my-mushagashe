@@ -271,7 +271,7 @@
   top: 0.125rem;
   width: 0.375rem;
   height: 0.625rem;
-  border: solid white;
+  border: solid var(--text-inverse);
   border-width: 0 0.125rem 0.125rem 0;
   transform: rotate(45deg);
 }
@@ -315,7 +315,7 @@
   transform: translate(-50%, -50%);
   width: 0.5em;
   height: 0.5em;
-  background: white;
+  background: var(--text-inverse);
   border-radius: var(--radius-full);
 }
 
@@ -357,6 +357,10 @@
   padding: var(--space-6);
   border-top: 1px solid var(--border);
   background: var(--gray-50);
+}
+
+[data-theme="dark"] .card-footer {
+  background: var(--gray-200);
 }
 
 /* Stat Card */
@@ -482,6 +486,10 @@
   background: var(--gray-50);
 }
 
+[data-theme="dark"] .table thead {
+  background: var(--gray-200);
+}
+
 .table th {
   padding: var(--space-4);
   text-align: left;
@@ -505,6 +513,10 @@
 
 .table tbody tr:hover {
   background: var(--gray-50);
+}
+
+[data-theme="dark"] .table tbody tr:hover {
+  background: var(--gray-200);
 }
 
 /* Modals */
@@ -572,6 +584,10 @@
   color: var(--text-primary);
 }
 
+[data-theme="dark"] .modal-close:hover {
+  background: var(--gray-200);
+}
+
 .modal-body {
   padding: var(--space-6);
   overflow-y: auto;
@@ -612,7 +628,7 @@
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-4);
-  background: var(--surface);
+  background: var(--surface-elevated);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);

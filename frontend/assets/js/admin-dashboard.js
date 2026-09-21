@@ -134,6 +134,11 @@ async function apiRequest(endpoint, options = {}) {
         const response = await fetch(url, finalOptions);
         const data = await response.json();
 
+        // Handle aborted requests
+        if (finalOptions.signal && finalOptions.signal.aborted) {
+            throw new Error('Request aborted');
+        }
+
         // Handle 401 errors (session expired)
         if (response.status === 401) {
             console.error('Authentication failed - clearing session');
@@ -289,7 +294,9 @@ async function loadDashboardStatistics() {
         document.getElementById('totalCourses').textContent = stats.courses.total || 0;
         document.getElementById('revenueCollected').textContent = `$${(stats.fees.total_collected || 0).toFixed(2)}`;
         document.getElementById('pendingFees').textContent = stats.fees.unpaid || 0;
-        
+        document.getElementById('studentsStartedPaying').textContent = stats.fees.students_started_paying || 0;
+        document.getElementById('totalPrepaymentCredit').textContent = `$${(stats.fees.total_prepayment_credit || 0).toFixed(2)}`;
+
         document.getElementById('activeStudents').textContent = stats.students.active || 0;
         document.getElementById('suspendedStudents').textContent = stats.students.suspended || 0;
         document.getElementById('maleStudents').textContent = stats.students.male_count || 0;
@@ -305,6 +312,8 @@ async function loadDashboardStatistics() {
         document.getElementById('totalCourses').textContent = '0';
         document.getElementById('revenueCollected').textContent = '$0.00';
         document.getElementById('pendingFees').textContent = '0';
+        document.getElementById('studentsStartedPaying').textContent = '0';
+        document.getElementById('totalPrepaymentCredit').textContent = '$0.00';
         document.getElementById('activeStudents').textContent = '0';
         document.getElementById('suspendedStudents').textContent = '0';
         document.getElementById('maleStudents').textContent = '0';
@@ -379,11 +388,35 @@ function loadIntakeFilter() {
     intakeFilter.innerHTML = intakeOptions;
     
     // Add event listener for filter change
-    intakeFilter.addEventListener('change', loadStudents);
+    intakeFilter.addEventListener('change', debouncedLoadStudents);
+}
+
+// Debounced search with AbortController to prevent stale results
+let searchAbortController = null;
+let searchTimeout = null;
+
+function debouncedLoadStudents() {
+    // Cancel any pending request
+    if (searchAbortController) {
+        searchAbortController.abort();
+    }
+
+    // Clear any pending timeout
+    if (searchTimeout) {
+        clearTimeout(searchTimeout);
+    }
+
+    // Create new AbortController for this request
+    searchAbortController = new AbortController();
+
+    // Debounce for 300ms
+    searchTimeout = setTimeout(() => {
+        loadStudents(searchAbortController.signal);
+    }, 300);
 }
 
 // Load students
-async function loadStudents() {
+async function loadStudents(abortSignal = null) {
     console.log('[STUDENTS] Request started');
     const tbody = document.getElementById('studentsTableBody');
     if (!tbody) {
@@ -391,14 +424,29 @@ async function loadStudents() {
         return;
     }
 
-    // Set loading state
-    tbody.innerHTML = '<tr><td colspan="10" class="text-center">Loading students...</td></tr>';
+    // Check if request was aborted
+    if (abortSignal && abortSignal.aborted) {
+        console.log('[STUDENTS] Request aborted');
+        return;
+    }
+
+    // Add loading indicator if table is not empty (don't clear existing results)
+    const hasExistingRows = tbody.querySelectorAll('tr').length > 0;
+    if (!hasExistingRows) {
+        tbody.innerHTML = '<tr><td colspan="10" class="text-center">Loading students...</td></tr>';
+    } else {
+        // Add small loading indicator at top of table
+        const loadingRow = document.createElement('tr');
+        loadingRow.id = 'searchLoadingRow';
+        loadingRow.innerHTML = '<td colspan="10" class="text-center" style="font-size: 0.875rem; color: var(--text-secondary);">Searching...</td>';
+        tbody.insertBefore(loadingRow, tbody.firstChild);
+    }
 
     try {
         const studentSearch = document.getElementById('studentSearch');
         const studentFilter = document.getElementById('studentFilter');
         const intakeFilter = document.getElementById('intakeFilter');
-        const search = studentSearch ? studentSearch.value : '';
+        const search = studentSearch ? studentSearch.value.trim() : '';
         const filter = studentFilter ? studentFilter.value : '';
         const intake = intakeFilter ? intakeFilter.value : '';
 
@@ -410,10 +458,23 @@ async function loadStudents() {
         if (params.length) endpoint += '?' + params.join('&');
 
         console.log(`[STUDENTS] API Endpoint: GET ${endpoint}`);
-        const students = await apiRequest(endpoint);
+
+        // Make request with abort signal
+        const students = await apiRequest(endpoint, { signal: abortSignal });
+
+        // Check if request was aborted during fetch
+        if (abortSignal && abortSignal.aborted) {
+            console.log('[STUDENTS] Request aborted after fetch');
+            return;
+        }
+
         console.log('[STUDENTS] Response received');
         console.log('[STUDENTS] Total students from API:', students.length);
         console.log('[STUDENTS] Data:', JSON.stringify(students, null, 2));
+
+        // Remove loading indicator
+        const loadingRow = document.getElementById('searchLoadingRow');
+        if (loadingRow) loadingRow.remove();
 
         // Update student count display if it exists
         const studentCountDisplay = document.getElementById('studentCount');
@@ -429,8 +490,14 @@ async function loadStudents() {
 
         // Load fee summaries for all students
         const feeSummaries = await Promise.all(
-            students.map(student => apiRequest(`/fees/student/${student.id}/summary`).catch(() => ({ has_fees: false, status: 'no_fees', outstanding_balance: 0 })))
+            students.map(student => apiRequest(`/fees/student/${student.id}/summary`, { signal: abortSignal }).catch(() => ({ has_fees: false, status: 'no_fees', outstanding_balance: 0 })))
         );
+
+        // Check if request was aborted during fee summary fetch
+        if (abortSignal && abortSignal.aborted) {
+            console.log('[STUDENTS] Request aborted during fee summary fetch');
+            return;
+        }
 
         tbody.innerHTML = students.map((student, index) => {
             const feeSummary = feeSummaries[index] || { has_fees: false, status: 'no_fees', outstanding_balance: 0 };
@@ -468,8 +535,19 @@ async function loadStudents() {
         }).join('');
         console.log('[STUDENTS] Success: Data rendered');
     } catch (error) {
+        // Ignore aborted requests (normal during debouncing)
+        if (error.message === 'Request aborted') {
+            console.log('[STUDENTS] Request aborted (normal during debouncing)');
+            return;
+        }
+
         console.error('[STUDENTS] Error:', error);
         console.error('[STUDENTS] Error message:', error.message);
+
+        // Remove loading indicator if present
+        const loadingRow = document.getElementById('searchLoadingRow');
+        if (loadingRow) loadingRow.remove();
+
         tbody.innerHTML = '<tr><td colspan="10" class="text-center">Failed to load students. Please try again.</td></tr>';
         showToast('Failed to load students', 'error');
     }
@@ -2811,7 +2889,7 @@ const auditDateFilter = document.getElementById('auditDateFilter');
 const intakeSearch = document.getElementById('intakeSearch');
 const intakeStatusFilter = document.getElementById('intakeStatusFilter');
 
-if (studentSearch) studentSearch.addEventListener('input', loadStudents);
+if (studentSearch) studentSearch.addEventListener('input', debouncedLoadStudents);
 if (studentFilter) studentFilter.addEventListener('change', loadStudents);
 if (courseSearch) courseSearch.addEventListener('input', loadCourses);
 if (feeSearch) feeSearch.addEventListener('input', loadFees);

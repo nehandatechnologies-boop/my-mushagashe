@@ -270,7 +270,7 @@ window.showStudentResults = async (studentName, studentNumber) => {
                         </div>
                         <div style="display: flex; gap: 0.5rem;">
                             <button class="btn btn-sm lecturer-edit-btn" onclick="window.editResult(${result.id}); event.stopPropagation();">Edit</button>
-                            <button class="btn btn-sm btn-danger" onclick="window.deleteResult(${result.id}); event.stopPropagation();" style="background: #dc2626; color: white; border: none; padding: 0.5rem 1rem; border-radius: 0.375rem; cursor: pointer;">Delete</button>
+                            <button class="btn btn-sm btn-danger" onclick="window.deleteResult(${result.id}); event.stopPropagation();">Delete</button>
                         </div>
                     </div>
                 </div>

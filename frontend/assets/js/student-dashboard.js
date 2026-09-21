@@ -69,7 +69,7 @@ function showToast(message, type = 'success') {
     toast.textContent = message;
     toast.style.display = 'block';
     toast.style.background = type === 'error' ? '#EF4444' : '#10B981';
-    toast.style.color = 'white';
+    toast.style.color = 'var(--text-inverse)';
     toast.style.padding = '16px';
     toast.style.borderRadius = '8px';
     toast.style.position = 'fixed';

@@ -10,6 +10,7 @@ const getDashboardStatistics = async (req, res) => {
     // Get statistics from all models
     const userStats = await User.getStatistics();
     const feeStats = await Fee.getStatistics();
+    const studentsStartedPaying = await Fee.getStudentsStartedPaying();
     const resultStats = await Result.getStatistics();
     const announcementStats = await Announcement.getStatistics();
     const courses = await Course.getAllWithStudentCount();
@@ -26,7 +27,7 @@ const getDashboardStatistics = async (req, res) => {
         male_count: userStats ? userStats.male_count || 0 : 0,
         female_count: userStats ? userStats.female_count || 0 : 0,
         active: userStats ? userStats.active_count || 0 : 0,
-        suspended: userStats ? userStats.suspended_count || 0 : 0
+        suspended: userStats ? userStats.suspended_count || 0
       },
       courses: {
         total: totalCourses,
@@ -37,9 +38,11 @@ const getDashboardStatistics = async (req, res) => {
         unpaid: feeStats ? feeStats.unpaid_count || 0 : 0,
         partial: feeStats ? feeStats.partial_count || 0 : 0,
         paid: feeStats ? feeStats.paid_count || 0 : 0,
+        students_started_paying: studentsStartedPaying || 0,
         total_amount: feeStats ? feeStats.total_amount || 0 : 0,
         total_collected: feeStats ? feeStats.total_collected || 0 : 0,
-        total_outstanding: feeStats ? feeStats.total_outstanding || 0 : 0
+        total_outstanding: feeStats ? feeStats.total_outstanding || 0 : 0,
+        total_prepayment_credit: feeStats ? feeStats.total_prepayment_credit || 0 : 0
       },
       results: {
         total: totalResults,
