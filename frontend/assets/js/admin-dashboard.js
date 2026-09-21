@@ -3487,22 +3487,23 @@ async function openStudentFees(studentId, fullName, studentNumber, courseName, i
                 <button onclick="hideModal()" class="close-btn">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="student-info-panel" style="background: #f5f5f5; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
-                    <h3 style="margin: 0 0 0.5rem 0;">${fullName}</h3>
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; font-size: 14px;">
-                        <div><strong>Student Number:</strong> ${studentNumber || 'N/A'}</div>
-                        <div><strong>Course:</strong> ${courseName || 'N/A'}</div>
-                        <div><strong>Intake:</strong> ${intakeName || 'N/A'}</div>
+                <div class="student-info-panel" style="background: var(--surface-elevated); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid var(--border);">
+                    <h3 style="margin: 0 0 0.5rem 0; color: var(--text-primary);">${fullName}</h3>
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.5rem; font-size: 14px; color: var(--text-secondary);">
+                        <div><strong style="color: var(--text-primary);">Student Number:</strong> ${studentNumber || 'N/A'}</div>
+                        <div><strong style="color: var(--text-primary);">Course:</strong> ${courseName || 'N/A'}</div>
+                        <div><strong style="color: var(--text-primary);">Intake:</strong> ${intakeName || 'N/A'}</div>
                     </div>
                 </div>
 
-                <div class="fee-summary-panel" style="background: #e3f2fd; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem;">
-                    <h4 style="margin: 0 0 0.75rem 0;">Fee Summary</h4>
-                    <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; font-size: 14px;">
-                        <div><strong>Total Charged:</strong> $${summary.total_charged.toFixed(2)}</div>
-                        <div><strong>Total Paid:</strong> $${summary.total_paid.toFixed(2)}</div>
-                        <div><strong>Outstanding:</strong> $${summary.outstanding_balance.toFixed(2)}</div>
-                        <div><strong>Status:</strong> <span class="status-badge status-${summary.status === 'paid' ? 'success' : summary.status === 'partial' ? 'warning' : summary.status === 'unpaid' ? 'danger' : 'secondary'}">${summary.status.charAt(0).toUpperCase() + summary.status.slice(1)}</span></div>
+                <div class="fee-summary-panel" style="background: var(--surface-elevated); padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; border: 1px solid var(--border);">
+                    <h4 style="margin: 0 0 0.75rem 0; color: var(--text-primary);">Fee Summary</h4>
+                    <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; font-size: 14px; color: var(--text-secondary);">
+                        <div><strong style="color: var(--text-primary);">Total Charged:</strong> $${summary.total_charged.toFixed(2)}</div>
+                        <div><strong style="color: var(--text-primary);">Total Paid:</strong> $${summary.total_paid.toFixed(2)}</div>
+                        <div><strong style="color: var(--text-primary);">Outstanding:</strong> $${summary.outstanding_balance.toFixed(2)}</div>
+                        <div><strong style="color: var(--text-primary);">Available Credit:</strong> $${(summary.available_credit || 0).toFixed(2)}</div>
+                        <div><strong style="color: var(--text-primary);">Status:</strong> <span class="status-badge status-${summary.status === 'paid' ? 'success' : summary.status === 'partial' ? 'warning' : summary.status === 'unpaid' ? 'danger' : 'secondary'}">${summary.status.charAt(0).toUpperCase() + summary.status.slice(1)}</span></div>
                     </div>
                 </div>
 
@@ -3512,25 +3513,25 @@ async function openStudentFees(studentId, fullName, studentNumber, courseName, i
 
                 <div class="fee-history">
                     <h4 style="margin: 0 0 1rem 0;">Fee History</h4>
-                    ${fees.length === 0 ? '<p style="color: #666;">No fee records found.</p>' : `
+                    ${fees.length === 0 ? '<p style="color: var(--text-secondary);">No fee records found.</p>' : `
                         <table style="width: 100%; border-collapse: collapse;">
                             <thead>
-                                <tr style="background: #f5f5f5;">
-                                    <th style="padding: 0.5rem; text-align: left;">Category</th>
-                                    <th style="padding: 0.5rem; text-align: right;">Amount</th>
-                                    <th style="padding: 0.5rem; text-align: right;">Paid</th>
-                                    <th style="padding: 0.5rem; text-align: right;">Balance</th>
-                                    <th style="padding: 0.5rem; text-align: left;">Status</th>
-                                    <th style="padding: 0.5rem; text-align: center;">Actions</th>
+                                <tr style="background: var(--gray-50);">
+                                    <th style="padding: 0.5rem; text-align: left; color: var(--text-primary);">Category</th>
+                                    <th style="padding: 0.5rem; text-align: right; color: var(--text-primary);">Amount</th>
+                                    <th style="padding: 0.5rem; text-align: right; color: var(--text-primary);">Paid</th>
+                                    <th style="padding: 0.5rem; text-align: right; color: var(--text-primary);">Balance</th>
+                                    <th style="padding: 0.5rem; text-align: left; color: var(--text-primary);">Status</th>
+                                    <th style="padding: 0.5rem; text-align: center; color: var(--text-primary);">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 ${fees.map(fee => `
-                                    <tr style="border-bottom: 1px solid #ddd;">
-                                        <td style="padding: 0.5rem;">${fee.fee_category}</td>
-                                        <td style="padding: 0.5rem; text-align: right;">$${fee.amount.toFixed(2)}</td>
-                                        <td style="padding: 0.5rem; text-align: right;">$${fee.amount_paid.toFixed(2)}</td>
-                                        <td style="padding: 0.5rem; text-align: right;">$${fee.balance.toFixed(2)}</td>
+                                    <tr style="border-bottom: 1px solid var(--border);">
+                                        <td style="padding: 0.5rem; color: var(--text-secondary);">${fee.fee_category}</td>
+                                        <td style="padding: 0.5rem; text-align: right; color: var(--text-secondary);">$${fee.amount.toFixed(2)}</td>
+                                        <td style="padding: 0.5rem; text-align: right; color: var(--text-secondary);">$${fee.amount_paid.toFixed(2)}</td>
+                                        <td style="padding: 0.5rem; text-align: right; color: var(--text-secondary);">$${fee.balance.toFixed(2)}</td>
                                         <td style="padding: 0.5rem;"><span class="status-badge status-${fee.status}">${fee.status}</span></td>
                                         <td style="padding: 0.5rem; text-align: center;">
                                             <button onclick="showRecordPaymentModal(${fee.id})" class="action-btn" style="font-size: 12px; padding: 4px 8px;">Pay</button>

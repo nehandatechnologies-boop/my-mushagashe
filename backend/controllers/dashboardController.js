@@ -3,6 +3,7 @@ const Course = require('../models/Course');
 const Fee = require('../models/Fee');
 const Result = require('../models/Result');
 const Announcement = require('../models/Announcement');
+const StudentCredit = require('../models/StudentCredit');
 
 // Get comprehensive dashboard statistics
 const getDashboardStatistics = async (req, res) => {
@@ -11,6 +12,7 @@ const getDashboardStatistics = async (req, res) => {
     const userStats = await User.getStatistics();
     const feeStats = await Fee.getStatistics();
     const studentsStartedPaying = await Fee.getStudentsStartedPaying();
+    const totalPrepaymentCredit = await StudentCredit.getTotalAvailableCredit();
     const resultStats = await Result.getStatistics();
     const announcementStats = await Announcement.getStatistics();
     const courses = await Course.getAllWithStudentCount();
@@ -42,7 +44,7 @@ const getDashboardStatistics = async (req, res) => {
         total_amount: feeStats ? feeStats.total_amount || 0 : 0,
         total_collected: feeStats ? feeStats.total_collected || 0 : 0,
         total_outstanding: feeStats ? feeStats.total_outstanding || 0 : 0,
-        total_prepayment_credit: feeStats ? feeStats.total_prepayment_credit || 0 : 0
+        total_prepayment_credit: totalPrepaymentCredit || 0
       },
       results: {
         total: totalResults,

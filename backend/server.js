@@ -28,6 +28,7 @@ const templateRoutes = require('./routes/templateRoutes');
 const subjectRoutes = require('./routes/subjectRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const intakeRoutes = require('./routes/intakeRoutes');
+const studentCreditRoutes = require('./routes/studentCreditRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -130,6 +131,7 @@ app.use('/api/templates', templateRoutes);
 app.use('/api/subjects', subjectRoutes);
 app.use('/api/admins', adminRoutes);
 app.use('/api/intakes', intakeRoutes);
+app.use('/api/student-credit', studentCreditRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

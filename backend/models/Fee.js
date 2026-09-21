@@ -1,5 +1,6 @@
 const supabase = require('../config/supabase');
 const PaymentHistory = require('./PaymentHistory');
+const StudentCredit = require('./StudentCredit');
 
 class Fee {
   static async create(feeData) {
@@ -176,30 +177,27 @@ class Fee {
 
     // Calculate new payment totals
     const currentAmountPaid = fee.amount_paid || 0;
-    const currentPrepayment = fee.prepayment_credit || 0;
     const newAmountPaid = currentAmountPaid + paymentAmount;
 
-    // Calculate how much applies to the fee vs prepayment
+    // Calculate how much applies to the fee vs becomes student credit
     const amountAppliedToFee = Math.min(newAmountPaid, fee.amount);
-    const newPrepaymentCredit = Math.max(newAmountPaid - fee.amount, 0);
+    const excessPayment = Math.max(newAmountPaid - fee.amount, 0);
 
     // Balance should never be negative - capped at 0
     const newBalance = Math.max(fee.amount - amountAppliedToFee, 0);
 
     // Status determination
     let newStatus;
-    if (newBalance === 0 && newPrepaymentCredit > 0) {
-      newStatus = 'paid'; // Fully paid with prepayment
-    } else if (newBalance === 0) {
-      newStatus = 'paid'; // Exactly paid
+    if (newBalance === 0) {
+      newStatus = 'paid';
     } else if (amountAppliedToFee > 0) {
-      newStatus = 'partial'; // Partial payment
+      newStatus = 'partial';
     } else {
-      newStatus = 'unpaid'; // No payment applied to fee
+      newStatus = 'unpaid';
     }
 
     // Create payment history record with actual payment amount
-    await PaymentHistory.create({
+    const paymentRecord = await PaymentHistory.create({
       fee_id: id,
       user_id: fee.user_id,
       amount_paid: paymentAmount,
@@ -212,12 +210,22 @@ class Fee {
       recorded_by
     });
 
-    // Update the fee record
+    // If there's excess payment, create student credit
+    if (excessPayment > 0) {
+      await StudentCredit.create({
+        user_id: fee.user_id,
+        amount: excessPayment,
+        original_payment_id: paymentRecord.id,
+        status: 'available',
+        notes: `Credit from overpayment on fee ${id}`
+      });
+    }
+
+    // Update the fee record (remove fee-level prepayment, use student-level credit instead)
     const updatedFee = await this.update(id, {
       amount: fee.amount,
       amount_paid: amountAppliedToFee,
       balance: newBalance,
-      prepayment_credit: newPrepaymentCredit,
       payment_reference,
       payment_method,
       receipt_number,
@@ -241,7 +249,7 @@ class Fee {
   static async getStatistics() {
     const { data, error } = await supabase
       .from('fees')
-      .select('amount, amount_paid, balance, prepayment_credit, status');
+      .select('amount, amount_paid, balance, status');
 
     if (error) throw error;
 
@@ -252,8 +260,7 @@ class Fee {
       paid_count: data.filter(f => f.status === 'paid').length,
       total_amount: data.reduce((sum, f) => sum + (f.amount || 0), 0),
       total_collected: data.reduce((sum, f) => sum + (f.amount_paid || 0), 0),
-      total_outstanding: data.reduce((sum, f) => sum + (f.balance || 0), 0),
-      total_prepayment_credit: data.reduce((sum, f) => sum + (f.prepayment_credit || 0), 0)
+      total_outstanding: data.reduce((sum, f) => sum + (f.balance || 0), 0)
     };
 
     return stats;
@@ -335,13 +342,17 @@ class Fee {
         total_charged: 0,
         total_paid: 0,
         outstanding_balance: 0,
-        status: 'no_fees'
+        status: 'no_fees',
+        available_credit: 0
       };
     }
 
     const totalCharged = fees.reduce((sum, f) => sum + (f.amount || 0), 0);
     const totalPaid = fees.reduce((sum, f) => sum + (f.amount_paid || 0), 0);
     const outstandingBalance = fees.reduce((sum, f) => sum + (f.balance || 0), 0);
+
+    // Get available student credit
+    const availableCredit = await StudentCredit.getAvailableCredit(userId);
 
     // Determine overall status
     let status = 'paid';
@@ -358,6 +369,7 @@ class Fee {
       total_charged: totalCharged,
       total_paid: totalPaid,
       outstanding_balance: outstandingBalance,
+      available_credit: availableCredit,
       status: status
     };
   }
