@@ -1,8 +1,7 @@
-const StudentCredit = require('../models/StudentCredit');
-
 // Get student's available credit
 const getStudentCredit = async (req, res) => {
   try {
+    const StudentCredit = require('../models/StudentCredit');
     const userId = req.user.id;
     const availableCredit = await StudentCredit.getAvailableCredit(userId);
     const creditDetails = await StudentCredit.findByUserId(userId);
@@ -13,13 +12,14 @@ const getStudentCredit = async (req, res) => {
     });
   } catch (error) {
     console.error('Get student credit error:', error);
-    res.status(500).json({ error: 'Failed to fetch student credit' });
+    res.status(500).json({ error: error.message || 'Failed to fetch student credit' });
   }
 };
 
 // Allocate credit to a fee
 const allocateCredit = async (req, res) => {
   try {
+    const StudentCredit = require('../models/StudentCredit');
     const { credit_id, fee_id, amount } = req.body;
 
     if (!credit_id || !fee_id || !amount) {
@@ -31,7 +31,7 @@ const allocateCredit = async (req, res) => {
       return res.status(400).json({ error: 'Amount must be a positive number' });
     }
 
-    const result = await StudentCredit.allocateCredit(credit_id, fee_id, numAmount);
+    const result = await StudentCredit.allocateCredit(credit_id, feeId, numAmount);
 
     res.json({
       message: 'Credit allocated successfully',

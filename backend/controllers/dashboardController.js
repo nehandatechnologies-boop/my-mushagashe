@@ -12,7 +12,20 @@ const getDashboardStatistics = async (req, res) => {
     const userStats = await User.getStatistics();
     const feeStats = await Fee.getStatistics();
     const studentsStartedPaying = await Fee.getStudentsStartedPaying();
-    const totalPrepaymentCredit = await StudentCredit.getTotalAvailableCredit();
+
+    // Get total prepayment credit (handle case where table doesn't exist yet)
+    let totalPrepaymentCredit = 0;
+    try {
+      totalPrepaymentCredit = await StudentCredit.getTotalAvailableCredit();
+    } catch (error) {
+      // If student_credits table doesn't exist yet, credit is 0
+      if (error.code === '42P01' || error.message.includes('does not exist')) {
+        totalPrepaymentCredit = 0;
+      } else {
+        throw error;
+      }
+    }
+
     const resultStats = await Result.getStatistics();
     const announcementStats = await Announcement.getStatistics();
     const courses = await Course.getAllWithStudentCount();

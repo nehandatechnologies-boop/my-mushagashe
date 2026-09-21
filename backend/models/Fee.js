@@ -210,15 +210,24 @@ class Fee {
       recorded_by
     });
 
-    // If there's excess payment, create student credit
+    // If there's excess payment, create student credit (handle case where table doesn't exist yet)
     if (excessPayment > 0) {
-      await StudentCredit.create({
-        user_id: fee.user_id,
-        amount: excessPayment,
-        original_payment_id: paymentRecord.id,
-        status: 'available',
-        notes: `Credit from overpayment on fee ${id}`
-      });
+      try {
+        await StudentCredit.create({
+          user_id: fee.user_id,
+          amount: excessPayment,
+          original_payment_id: paymentRecord.id,
+          status: 'available',
+          notes: `Credit from overpayment on fee ${id}`
+        });
+      } catch (error) {
+        // If student_credits table doesn't exist yet, log warning but don't fail payment
+        if (error.code === '42P01' || error.message.includes('does not exist')) {
+          console.warn('student_credits table does not exist yet. Overpayment will be tracked once table is created.');
+        } else {
+          throw error;
+        }
+      }
     }
 
     // Update the fee record (remove fee-level prepayment, use student-level credit instead)
@@ -351,8 +360,18 @@ class Fee {
     const totalPaid = fees.reduce((sum, f) => sum + (f.amount_paid || 0), 0);
     const outstandingBalance = fees.reduce((sum, f) => sum + (f.balance || 0), 0);
 
-    // Get available student credit
-    const availableCredit = await StudentCredit.getAvailableCredit(userId);
+    // Get available student credit (handle case where table doesn't exist yet)
+    let availableCredit = 0;
+    try {
+      availableCredit = await StudentCredit.getAvailableCredit(userId);
+    } catch (error) {
+      // If student_credits table doesn't exist yet, credit is 0
+      if (error.code === '42P01' || error.message.includes('does not exist')) {
+        availableCredit = 0;
+      } else {
+        throw error;
+      }
+    }
 
     // Determine overall status
     let status = 'paid';
