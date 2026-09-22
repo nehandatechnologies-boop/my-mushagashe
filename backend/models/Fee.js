@@ -177,27 +177,30 @@ class Fee {
 
     // Calculate new payment totals
     const currentAmountPaid = fee.amount_paid || 0;
+    const currentPrepayment = fee.prepayment_credit || 0;
     const newAmountPaid = currentAmountPaid + paymentAmount;
 
-    // Calculate how much applies to the fee vs becomes student credit
+    // Calculate how much applies to the fee vs becomes prepayment
     const amountAppliedToFee = Math.min(newAmountPaid, fee.amount);
-    const excessPayment = Math.max(newAmountPaid - fee.amount, 0);
+    const newPrepaymentCredit = Math.max(newAmountPaid - fee.amount, 0);
 
     // Balance should never be negative - capped at 0
     const newBalance = Math.max(fee.amount - amountAppliedToFee, 0);
 
     // Status determination
     let newStatus;
-    if (newBalance === 0) {
-      newStatus = 'paid';
+    if (newBalance === 0 && newPrepaymentCredit > 0) {
+      newStatus = 'paid'; // Fully paid with prepayment
+    } else if (newBalance === 0) {
+      newStatus = 'paid'; // Exactly paid
     } else if (amountAppliedToFee > 0) {
-      newStatus = 'partial';
+      newStatus = 'partial'; // Partial payment
     } else {
-      newStatus = 'unpaid';
+      newStatus = 'unpaid'; // No payment applied to fee
     }
 
     // Create payment history record with actual payment amount
-    const paymentRecord = await PaymentHistory.create({
+    await PaymentHistory.create({
       fee_id: id,
       user_id: fee.user_id,
       amount_paid: paymentAmount,
@@ -210,37 +213,57 @@ class Fee {
       recorded_by
     });
 
-    // If there's excess payment, create student credit (handle case where table doesn't exist yet)
-    if (excessPayment > 0) {
-      try {
-        await StudentCredit.create({
-          user_id: fee.user_id,
-          amount: excessPayment,
-          original_payment_id: paymentRecord.id,
-          status: 'available',
-          notes: `Credit from overpayment on fee ${id}`
-        });
-      } catch (error) {
-        // If student_credits table doesn't exist yet, log warning but don't fail payment
-        if (error.code === '42P01' || error.message.includes('does not exist')) {
-          console.warn('student_credits table does not exist yet. Overpayment will be tracked once table is created.');
-        } else {
-          throw error;
-        }
-      }
-    }
-
-    // Update the fee record (remove fee-level prepayment, use student-level credit instead)
+    // Update the fee record with both fee-level prepayment and track in student_credits table
     const updatedFee = await this.update(id, {
       amount: fee.amount,
       amount_paid: amountAppliedToFee,
       balance: newBalance,
+      prepayment_credit: newPrepaymentCredit,
       payment_reference,
       payment_method,
       receipt_number,
       payment_date,
       status: newStatus
     });
+
+    // Also create/update student_credits record for transferable credit
+    if (newPrepaymentCredit > 0) {
+      try {
+        const StudentCredit = require('./StudentCredit');
+        // Check if student already has a credit record
+        const existingCredits = await StudentCredit.findByUserId(fee.user_id);
+        const availableCredit = await StudentCredit.getAvailableCredit(fee.user_id);
+
+        // Add the new prepayment to student's available credit
+        if (existingCredits.length > 0) {
+          // Update existing credit record
+          const totalCredit = availableCredit + newPrepaymentCredit;
+          await StudentCredit.create({
+            user_id: fee.user_id,
+            amount: newPrepaymentCredit,
+            original_payment_id: null, // Fee-level tracking is primary
+            status: 'available',
+            notes: `Prepayment from fee ${id}`
+          });
+        } else {
+          // Create new credit record
+          await StudentCredit.create({
+            user_id: fee.user_id,
+            amount: newPrepaymentCredit,
+            original_payment_id: null,
+            status: 'available',
+            notes: `Prepayment from fee ${id}`
+          });
+        }
+      } catch (error) {
+        // If student_credits table doesn't exist yet, log warning but don't fail payment
+        if (error.code === '42P01' || error.message.includes('does not exist')) {
+          console.warn('student_credits table does not exist yet. Prepayment tracked in fee.prepayment_credit.');
+        } else {
+          console.error('Error creating student credit:', error);
+        }
+      }
+    }
 
     return updatedFee;
   }
@@ -258,7 +281,7 @@ class Fee {
   static async getStatistics() {
     const { data, error } = await supabase
       .from('fees')
-      .select('amount, amount_paid, balance, status');
+      .select('amount, amount_paid, balance, status, prepayment_credit');
 
     if (error) throw error;
 
@@ -269,7 +292,8 @@ class Fee {
       paid_count: data.filter(f => f.status === 'paid').length,
       total_amount: data.reduce((sum, f) => sum + (f.amount || 0), 0),
       total_collected: data.reduce((sum, f) => sum + (f.amount_paid || 0), 0),
-      total_outstanding: data.reduce((sum, f) => sum + (f.balance || 0), 0)
+      total_outstanding: data.reduce((sum, f) => sum + (f.balance || 0), 0),
+      total_prepayment_credit: data.reduce((sum, f) => sum + (f.prepayment_credit || 0), 0)
     };
 
     return stats;
@@ -360,18 +384,23 @@ class Fee {
     const totalPaid = fees.reduce((sum, f) => sum + (f.amount_paid || 0), 0);
     const outstandingBalance = fees.reduce((sum, f) => sum + (f.balance || 0), 0);
 
-    // Get available student credit (handle case where table doesn't exist yet)
-    let availableCredit = 0;
+    // Calculate available credit from fee-level prepayment_credit
+    const feeLevelCredit = fees.reduce((sum, f) => sum + (f.prepayment_credit || 0), 0);
+
+    // Also check student_credits table for transferable credit
+    let studentCredits = 0;
     try {
-      availableCredit = await StudentCredit.getAvailableCredit(userId);
+      const StudentCredit = require('./StudentCredit');
+      studentCredits = await StudentCredit.getAvailableCredit(userId);
     } catch (error) {
-      // If student_credits table doesn't exist yet, credit is 0
-      if (error.code === '42P01' || error.message.includes('does not exist')) {
-        availableCredit = 0;
-      } else {
-        throw error;
+      // If student_credits table doesn't exist, use fee-level credit only
+      if (error.code !== '42P01' && !error.message.includes('does not exist')) {
+        console.error('Error getting student credits:', error);
       }
     }
+
+    // Total available credit is the sum of fee-level and student-level credit
+    const availableCredit = feeLevelCredit + studentCredits;
 
     // Determine overall status
     let status = 'paid';

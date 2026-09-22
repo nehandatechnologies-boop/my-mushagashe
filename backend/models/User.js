@@ -127,7 +127,7 @@ class User {
       .select(`
         *,
         courses (course_name, course_code)
-      `);
+      `, { count: 'exact' });
 
     if (filters.role) {
       query = query.eq('role', filters.role);
@@ -159,7 +159,7 @@ class User {
       query = query.range(filters.offset, filters.offset + (filters.limit || 10) - 1);
     }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
 
     if (error) throw error;
 
@@ -195,7 +195,10 @@ class User {
       }
     }
 
-    return results;
+    return {
+      data: results,
+      total: count || 0
+    };
   }
 
   static async update(id, userData) {

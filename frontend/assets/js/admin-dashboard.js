@@ -460,7 +460,7 @@ async function loadStudents(abortSignal = null) {
         console.log(`[STUDENTS] API Endpoint: GET ${endpoint}`);
 
         // Make request with abort signal
-        const students = await apiRequest(endpoint, { signal: abortSignal });
+        const response = await apiRequest(endpoint, { signal: abortSignal });
 
         // Check if request was aborted during fetch
         if (abortSignal && abortSignal.aborted) {
@@ -468,8 +468,13 @@ async function loadStudents(abortSignal = null) {
             return;
         }
 
+        // Handle both old array format and new object format with data/total
+        const students = Array.isArray(response) ? response : (response.data || []);
+        const totalStudents = response.total || students.length;
+
         console.log('[STUDENTS] Response received');
-        console.log('[STUDENTS] Total students from API:', students.length);
+        console.log('[STUDENTS] Total students from API:', totalStudents);
+        console.log('[STUDENTS] Students in current page:', students.length);
         console.log('[STUDENTS] Data:', JSON.stringify(students, null, 2));
 
         // Remove loading indicator
@@ -479,7 +484,7 @@ async function loadStudents(abortSignal = null) {
         // Update student count display if it exists
         const studentCountDisplay = document.getElementById('studentCount');
         if (studentCountDisplay) {
-            studentCountDisplay.textContent = students.length;
+            studentCountDisplay.textContent = totalStudents;
         }
 
         if (!students || students.length === 0) {

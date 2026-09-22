@@ -143,23 +143,28 @@ const getAllStudents = async (req, res) => {
       filters.course_id = req.user.course_id;
     }
 
-    const students = await User.findAll(filters);
+    const result = await User.findAll(filters);
 
     // Remove sensitive fields from response
-    const safeStudents = students.map(student => {
-      const { 
-        password, 
-        mfa_secret, 
-        password_history, 
-        last_login_ip, 
-        failed_login_attempts, 
+    const safeStudents = result.data.map(student => {
+      const {
+        password,
+        mfa_secret,
+        password_history,
+        last_login_ip,
+        failed_login_attempts,
         account_locked_until,
-        ...safeStudent 
+        ...safeStudent
       } = student;
       return safeStudent;
     });
 
-    res.json(safeStudents);
+    res.json({
+      data: safeStudents,
+      total: result.total,
+      limit: parseInt(limit),
+      offset: parseInt(offset)
+    });
   } catch (error) {
     console.error('Get students error:', error);
     res.status(500).json({ error: 'Failed to fetch students' });

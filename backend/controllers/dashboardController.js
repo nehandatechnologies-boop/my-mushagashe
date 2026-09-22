@@ -3,7 +3,6 @@ const Course = require('../models/Course');
 const Fee = require('../models/Fee');
 const Result = require('../models/Result');
 const Announcement = require('../models/Announcement');
-const StudentCredit = require('../models/StudentCredit');
 
 // Get comprehensive dashboard statistics
 const getDashboardStatistics = async (req, res) => {
@@ -12,20 +11,6 @@ const getDashboardStatistics = async (req, res) => {
     const userStats = await User.getStatistics();
     const feeStats = await Fee.getStatistics();
     const studentsStartedPaying = await Fee.getStudentsStartedPaying();
-
-    // Get total prepayment credit (handle case where table doesn't exist yet)
-    let totalPrepaymentCredit = 0;
-    try {
-      totalPrepaymentCredit = await StudentCredit.getTotalAvailableCredit();
-    } catch (error) {
-      // If student_credits table doesn't exist yet, credit is 0
-      if (error.code === '42P01' || error.message.includes('does not exist')) {
-        totalPrepaymentCredit = 0;
-      } else {
-        throw error;
-      }
-    }
-
     const resultStats = await Result.getStatistics();
     const announcementStats = await Announcement.getStatistics();
     const courses = await Course.getAllWithStudentCount();
@@ -57,7 +42,7 @@ const getDashboardStatistics = async (req, res) => {
         total_amount: feeStats ? feeStats.total_amount || 0 : 0,
         total_collected: feeStats ? feeStats.total_collected || 0 : 0,
         total_outstanding: feeStats ? feeStats.total_outstanding || 0 : 0,
-        total_prepayment_credit: totalPrepaymentCredit || 0
+        total_prepayment_credit: feeStats ? feeStats.total_prepayment_credit || 0 : 0
       },
       results: {
         total: totalResults,
