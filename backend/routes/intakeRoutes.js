@@ -17,14 +17,14 @@ router.use(authenticate);
 // Get all intakes - requires intakes.view permission
 router.get('/', requirePermission('intakes.view'), intakeController.getAllIntakes);
 
-// Get intake by ID - requires intakes.view permission
-router.get('/:id', requirePermission('intakes.view'), intakeController.getIntakeById);
-
-// Get active intake - requires intakes.view permission
+// Get active intake - requires intakes.view permission (MUST come before /:id)
 router.get('/active/current', requirePermission('intakes.view'), intakeController.getActiveIntake);
 
-// Get intake years - requires intakes.view permission
+// Get intake years - requires intakes.view permission (MUST come before /:id)
 router.get('/years/list', requirePermission('intakes.view'), intakeController.getIntakeYears);
+
+// Get intake by ID - requires intakes.view permission
+router.get('/:id', requirePermission('intakes.view'), intakeController.getIntakeById);
 
 // Create new intake - requires intakes.create permission
 router.post('/', requirePermission('intakes.create'), validateIntake, intakeController.createIntake);

@@ -359,67 +359,75 @@ class Fee {
   }
 
   static async getStudentSummary(userId) {
-    // Get all fees for the student
-    const { data: fees, error } = await supabase
-      .from('fees')
-      .select('*')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-
-    if (!fees || fees.length === 0) {
-      return {
-        has_fees: false,
-        total_fees: 0,
-        total_charged: 0,
-        total_paid: 0,
-        outstanding_balance: 0,
-        status: 'no_fees',
-        available_credit: 0
-      };
-    }
-
-    const totalCharged = fees.reduce((sum, f) => sum + (f.amount || 0), 0);
-    const totalPaid = fees.reduce((sum, f) => sum + (f.amount_paid || 0), 0);
-    const outstandingBalance = fees.reduce((sum, f) => sum + (f.balance || 0), 0);
-
-    // Calculate available credit from fee-level prepayment_credit
-    const feeLevelCredit = fees.reduce((sum, f) => sum + (f.prepayment_credit || 0), 0);
-
-    // Also check student_credits table for transferable credit
-    let studentCredits = 0;
     try {
-      const StudentCredit = require('./StudentCredit');
-      studentCredits = await StudentCredit.getAvailableCredit(userId);
-    } catch (error) {
-      // If student_credits table doesn't exist, use fee-level credit only
-      if (error.code !== '42P01' && !error.message.includes('does not exist')) {
-        console.error('Error getting student credits:', error);
+      // Get all fees for the student
+      const { data: fees, error } = await supabase
+        .from('fees')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('[FEE.SUMMARY] Supabase error:', error);
+        throw error;
       }
-    }
 
-    // Total available credit is the sum of fee-level and student-level credit
-    const availableCredit = feeLevelCredit + studentCredits;
+      if (!fees || fees.length === 0) {
+        return {
+          has_fees: false,
+          total_fees: 0,
+          total_charged: 0,
+          total_paid: 0,
+          outstanding_balance: 0,
+          status: 'no_fees',
+          available_credit: 0
+        };
+      }
 
-    // Determine overall status
-    let status = 'paid';
-    if (outstandingBalance > 0) {
-      status = 'partial';
-    }
-    if (fees.some(f => f.status === 'unpaid')) {
-      status = 'unpaid';
-    }
+      const totalCharged = fees.reduce((sum, f) => sum + (f.amount || 0), 0);
+      const totalPaid = fees.reduce((sum, f) => sum + (f.amount_paid || 0), 0);
+      const outstandingBalance = fees.reduce((sum, f) => sum + (f.balance || 0), 0);
 
-    return {
-      has_fees: true,
-      total_fees: fees.length,
-      total_charged: totalCharged,
-      total_paid: totalPaid,
-      outstanding_balance: outstandingBalance,
-      available_credit: availableCredit,
-      status: status
-    };
+      // Calculate available credit from fee-level prepayment_credit
+      const feeLevelCredit = fees.reduce((sum, f) => sum + (f.prepayment_credit || 0), 0);
+
+      // Also check student_credits table for transferable credit
+      let studentCredits = 0;
+      try {
+        const StudentCredit = require('./StudentCredit');
+        studentCredits = await StudentCredit.getAvailableCredit(userId);
+      } catch (error) {
+        // If student_credits table doesn't exist, use fee-level credit only
+        if (error.code !== '42P01' && !error.message.includes('does not exist')) {
+          console.error('[FEE.SUMMARY] Error getting student credits:', error);
+        }
+      }
+
+      // Total available credit is the sum of fee-level and student-level credit
+      const availableCredit = feeLevelCredit + studentCredits;
+
+      // Determine overall status
+      let status = 'paid';
+      if (outstandingBalance > 0) {
+        status = 'partial';
+      }
+      if (fees.some(f => f.status === 'unpaid')) {
+        status = 'unpaid';
+      }
+
+      return {
+        has_fees: true,
+        total_fees: fees.length,
+        total_charged: totalCharged,
+        total_paid: totalPaid,
+        outstanding_balance: outstandingBalance,
+        available_credit: availableCredit,
+        status: status
+      };
+    } catch (error) {
+      console.error('[FEE.SUMMARY] GetStudentSummary error:', error);
+      throw error;
+    }
   }
 }
 

@@ -791,6 +791,7 @@ const importStudentsFromExcel = async (req, res) => {
     const allIntakes = await Intake.findAll({});
 
     console.log(`[IMPORT] Loaded ${allCourses.length} courses and ${allIntakes.length} intakes for matching`);
+    console.log('[IMPORT] Available course codes:', allCourses.map(c => c.course_code).join(', '));
     console.log('[IMPORT] Sample courses:', allCourses.slice(0, 3).map(c => `${c.course_code} (id=${c.id})`));
     console.log('[IMPORT] Sample intakes:', allIntakes.map(i => `${i.name} (id=${i.id})`));
 
@@ -843,7 +844,7 @@ const importStudentsFromExcel = async (req, res) => {
         };
 
         // Find course by code (from Excel Course Code column) or by name
-        const findCourseId = (courseCodeFromExcel, courseNameFromExcel) => {
+        const findCourseId = async (courseCodeFromExcel, courseNameFromExcel) => {
           console.log(`[IMPORT] Course lookup - Code: "${courseCodeFromExcel}", Name: "${courseNameFromExcel}"`);
 
           // PRIORITY 1: Try exact match on course code (normalized)
@@ -905,10 +906,26 @@ const importStudentsFromExcel = async (req, res) => {
             }
           }
 
+          // PRIORITY 5: Try direct database lookup by course_code
+          if (courseCodeFromExcel) {
+            console.log(`[IMPORT]   Trying direct database lookup for course code...`);
+            try {
+              const Course = require('../models/Course');
+              const directMatch = await Course.findByCode(courseCodeFromExcel.toString().trim().toUpperCase());
+              if (directMatch) {
+                console.log(`[IMPORT]   ✓ Direct database match found: ${directMatch.course_code} (id=${directMatch.id})`);
+                return { id: directMatch.id, name: directMatch.course_name, code: directMatch.course_code, matchedBy: 'direct_db_lookup' };
+              }
+              console.log(`[IMPORT]   ✗ Direct database lookup found no match`);
+            } catch (directError) {
+              console.log(`[IMPORT]   Direct database lookup failed:`, directError.message);
+            }
+          }
+
           console.log(`[IMPORT]   ✗ NO MATCH found for course`);
           console.log(`[IMPORT]   Input - Code: "${courseCodeFromExcel}", Name: "${courseNameFromExcel}"`);
-          console.log(`[IMPORT]   Available course codes:`, allCourses.map(c => c.course_code).filter(c => c).join(', '));
-          console.log(`[IMPORT]   Available course names:`, allCourses.map(c => c.course_name).join(', '));
+          console.log(`[IMPORT]   Available course codes:`, allCourses.map(c => c.course_code).join(', '));
+          console.log(`[IMPORT]   Available course IDs:`, allCourses.map(c => c.id).join(', '));
           return null;
         };
 
@@ -945,7 +962,7 @@ const importStudentsFromExcel = async (req, res) => {
 
         const rawCourseCode = normalizeHeader(row, 'COURSE CODE')?.toString().trim();
         const rawCourseName = normalizeHeader(row, 'COURSE CODE')?.toString().trim(); // Same as code for now
-        const courseMatch = findCourseId(rawCourseCode, rawCourseName);
+        const courseMatch = await findCourseId(rawCourseCode, rawCourseName);
 
         const rawGender = normalizeHeader(row, 'GENDER')?.toString().trim();
         const normalizedGender = normalizeGender(rawGender);

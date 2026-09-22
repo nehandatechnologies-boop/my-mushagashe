@@ -274,9 +274,17 @@ const getStudentFeeSummary = async (req, res) => {
       message: error.message,
       code: error.code,
       details: error.details,
-      hint: error.hint
+      hint: error.hint,
+      stack: error.stack
     });
-    res.status(500).json({ error: 'Failed to fetch student fee summary', details: error.message });
+
+    // Return JSON error instead of HTML
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch student fee summary',
+      details: error.message,
+      code: error.code
+    });
   }
 };
 

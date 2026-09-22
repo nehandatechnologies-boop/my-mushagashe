@@ -118,27 +118,40 @@ const requireRole = (...allowedRoles) => {
  */
 const requirePermission = (permissionName) => {
   return async (req, res, next) => {
-    if (!req.user) {
-      return res.status(401).json({ error: 'Authentication required' });
-    }
-    
-    const userRole = req.user.role?.toUpperCase();
-    
-    // SUPER_ADMIN has all permissions
-    if (userRole === 'SUPER_ADMIN') {
-      return next();
-    }
-    
-    const hasPerm = await hasPermission(userRole, permissionName);
-    
-    if (!hasPerm) {
-      return res.status(403).json({ 
-        error: 'Insufficient permissions',
-        required: permissionName
+    try {
+      if (!req.user) {
+        return res.status(401).json({ error: 'Authentication required' });
+      }
+
+      const userRole = req.user.role?.toUpperCase();
+
+      // SUPER_ADMIN has all permissions
+      if (userRole === 'SUPER_ADMIN') {
+        return next();
+      }
+
+      const hasPerm = await hasPermission(userRole, permissionName);
+
+      if (!hasPerm) {
+        return res.status(403).json({
+          error: 'Insufficient permissions',
+          required: permissionName
+        });
+      }
+
+      next();
+    } catch (error) {
+      console.error('[RBAC] Permission check error:', error);
+      console.error('[RBAC] Error details:', {
+        message: error.message,
+        code: error.code,
+        stack: error.stack
+      });
+      return res.status(500).json({
+        error: 'Permission check failed',
+        details: error.message
       });
     }
-    
-    next();
   };
 };
 
