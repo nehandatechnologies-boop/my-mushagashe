@@ -413,19 +413,31 @@ const changePassword = async (req, res) => {
     console.log('[CHANGE-PASSWORD] Verifying current password...');
     const isPasswordValid = bcrypt.compareSync(current_password, user.password);
     console.log('[CHANGE-PASSWORD] Password valid:', isPasswordValid);
-    
+
     if (!isPasswordValid) {
       return res.status(401).json({ error: 'Current password is incorrect' });
     }
 
-    // Hash new password
-    console.log('[CHANGE-PASSWORD] Hashing new password...');
-    const hashedPassword = bcrypt.hashSync(new_password, 10);
-
     // Update password and clear must_change_password flag
+    // NOTE: User.update() will hash the password, so we pass plaintext
     console.log('[CHANGE-PASSWORD] Updating password in database...');
-    await User.update(userId, { password: hashedPassword, must_change_password: 0 });
+    await User.update(userId, { password: new_password, must_change_password: 0 });
     console.log('[CHANGE-PASSWORD] Password updated successfully');
+
+    // If user uses Supabase Auth, also update Supabase password
+    if (user.auth_type === 'supabase' && user.email && supabaseConfigured) {
+      try {
+        console.log('[CHANGE-PASSWORD] Updating Supabase Auth password...');
+        await supabase.auth.admin.updateUserById(user.supabase_auth_id, {
+          password: new_password
+        });
+        console.log('[CHANGE-PASSWORD] Supabase Auth password updated successfully');
+      } catch (supabaseError) {
+        console.error('[CHANGE-PASSWORD] Failed to update Supabase Auth password:', supabaseError);
+        // Don't fail the entire operation if Supabase update fails
+        // This allows the local password to still work as a fallback
+      }
+    }
 
     res.json({ message: 'Password changed successfully' });
   } catch (error) {

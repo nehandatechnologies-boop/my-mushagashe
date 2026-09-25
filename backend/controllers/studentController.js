@@ -378,9 +378,9 @@ const resetPassword = async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    const hashedPassword = bcrypt.hashSync(passwordToSet, 10);
-
-    await User.updatePassword(id, hashedPassword);
+    // Update password using User.update which will hash it
+    // This ensures consistency with the password change flow
+    await User.update(id, { password: passwordToSet, must_change_password: 1 });
 
     // If we generated a temporary password, return it
     if (!new_password) {
@@ -410,13 +410,13 @@ const resetLecturerPassword = async (req, res) => {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
     }
 
-    const hashedPassword = bcrypt.hashSync(passwordToSet, 10);
-
-    await User.updatePassword(id, hashedPassword);
+    // Update password using User.update which will hash it
+    // This ensures consistency with the password change flow
+    await User.update(id, { password: passwordToSet, must_change_password: 1 });
 
     // If we generated a temporary password, return it
     if (!new_password) {
-      res.json({ 
+      res.json({
         message: 'Password reset successfully',
         temporary_password: passwordToSet
       });

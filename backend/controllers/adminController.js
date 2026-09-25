@@ -376,7 +376,6 @@ const resetAdminPassword = async (req, res) => {
       return res.status(404).json({ error: 'Administrator not found' });
     }
 
-    let hashedPassword;
     let temporaryPassword;
 
     // If new_password is provided, validate and use it
@@ -384,19 +383,18 @@ const resetAdminPassword = async (req, res) => {
       if (new_password.length < 6) {
         return res.status(400).json({ error: 'New password must be at least 6 characters' });
       }
-      hashedPassword = bcrypt.hashSync(new_password, 10);
       temporaryPassword = new_password;
     } else {
       // Generate a random temporary password
       const crypto = require('crypto');
       temporaryPassword = crypto.randomBytes(16).toString('base64').substring(0, 12);
-      hashedPassword = bcrypt.hashSync(temporaryPassword, 10);
       console.log('[ADMIN.RESET_PASSWORD] Generated temporary password for:', existingAdmin.full_name);
     }
 
-    // Update password and set must_change_password
+    // Update password using User.update which will hash it
+    // This ensures consistency with the password change flow
     await User.update(id, {
-      password: hashedPassword,
+      password: temporaryPassword,
       must_change_password: true
     });
 

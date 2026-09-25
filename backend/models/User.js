@@ -234,10 +234,16 @@ class User {
       intake_year: updateData.intake_year
     }));
 
-    // Handle password: hash if provided
+    // Handle password: hash if provided (but don't double-hash)
     if (updateData.password) {
       const bcrypt = require('bcryptjs');
-      updateData.password = bcrypt.hashSync(updateData.password, 10);
+      // Only hash if it doesn't look like a bcrypt hash (starts with $2a$ or $2b$)
+      // This prevents double-hashing if the password is already hashed
+      if (!updateData.password.startsWith('$2')) {
+        updateData.password = bcrypt.hashSync(updateData.password, 10);
+      } else {
+        console.log('[USER.UPDATE] Password appears to be already hashed, skipping hash operation');
+      }
     }
 
     // Convert must_change_password to boolean for Supabase
