@@ -844,7 +844,7 @@ const importStudentsFromExcel = async (req, res) => {
         };
 
         // Find course by code (from Excel Course Code column) or by name
-        const findCourseId = async (courseCodeFromExcel, courseNameFromExcel) => {
+        const findCourseId = (courseCodeFromExcel, courseNameFromExcel) => {
           console.log(`[IMPORT] Course lookup - Code: "${courseCodeFromExcel}", Name: "${courseNameFromExcel}"`);
 
           // PRIORITY 1: Try exact match on course code (normalized)
@@ -906,22 +906,6 @@ const importStudentsFromExcel = async (req, res) => {
             }
           }
 
-          // PRIORITY 5: Try direct database lookup by course_code
-          if (courseCodeFromExcel) {
-            console.log(`[IMPORT]   Trying direct database lookup for course code...`);
-            try {
-              const Course = require('../models/Course');
-              const directMatch = await Course.findByCode(courseCodeFromExcel.toString().trim().toUpperCase());
-              if (directMatch) {
-                console.log(`[IMPORT]   ✓ Direct database match found: ${directMatch.course_code} (id=${directMatch.id})`);
-                return { id: directMatch.id, name: directMatch.course_name, code: directMatch.course_code, matchedBy: 'direct_db_lookup' };
-              }
-              console.log(`[IMPORT]   ✗ Direct database lookup found no match`);
-            } catch (directError) {
-              console.log(`[IMPORT]   Direct database lookup failed:`, directError.message);
-            }
-          }
-
           console.log(`[IMPORT]   ✗ NO MATCH found for course`);
           console.log(`[IMPORT]   Input - Code: "${courseCodeFromExcel}", Name: "${courseNameFromExcel}"`);
           console.log(`[IMPORT]   Available course codes:`, allCourses.map(c => c.course_code).join(', '));
@@ -962,7 +946,7 @@ const importStudentsFromExcel = async (req, res) => {
 
         const rawCourseCode = normalizeHeader(row, 'COURSE CODE')?.toString().trim();
         const rawCourseName = normalizeHeader(row, 'COURSE CODE')?.toString().trim(); // Same as code for now
-        const courseMatch = await findCourseId(rawCourseCode, rawCourseName);
+        const courseMatch = findCourseId(rawCourseCode, rawCourseName);
 
         const rawGender = normalizeHeader(row, 'GENDER')?.toString().trim();
         const normalizedGender = normalizeGender(rawGender);
@@ -1052,6 +1036,14 @@ const importStudentsFromExcel = async (req, res) => {
           status: 'active'
         };
 
+        // Track which fields are actually provided in Excel (not null/empty)
+        const providedFields = Object.keys(studentData).filter(key => {
+          const value = studentData[key];
+          return value !== null && value !== undefined && value !== '';
+        });
+
+        console.log(`[IMPORT] ROW ${rowNum} - Provided fields:`, providedFields.join(', '));
+
         console.log(`[IMPORT] ROW ${rowNum} - Student data object:`, JSON.stringify({
           student_number: studentData.student_number,
           full_name: studentData.full_name,
@@ -1109,6 +1101,50 @@ const importStudentsFromExcel = async (req, res) => {
         // Check if student exists
         const existingStudent = await User.findByStudentNumber(studentData.student_number);
 
+        // Track field changes for existing students
+        let fieldChanges = null;
+        if (existingStudent) {
+          fieldChanges = {};
+          if (studentData.course_id && studentData.course_id !== existingStudent.course_id) {
+            fieldChanges.course = {
+              before: existingStudent.course_id,
+              after: studentData.course_id,
+              before_name: existingStudent.course_name,
+              after_name: studentData.course_name
+            };
+          }
+          if (studentData.intake && studentData.intake !== existingStudent.intake) {
+            fieldChanges.intake = {
+              before: existingStudent.intake,
+              after: studentData.intake
+            };
+          }
+          if (studentData.intake_year && studentData.intake_year !== existingStudent.intake_year) {
+            fieldChanges.intake_year = {
+              before: existingStudent.intake_year,
+              after: studentData.intake_year
+            };
+          }
+          if (studentData.gender && studentData.gender !== existingStudent.gender) {
+            fieldChanges.gender = {
+              before: existingStudent.gender,
+              after: studentData.gender
+            };
+          }
+          if (studentData.email && studentData.email !== existingStudent.email) {
+            fieldChanges.email = {
+              before: existingStudent.email,
+              after: studentData.email
+            };
+          }
+          if (studentData.phone && studentData.phone !== existingStudent.phone) {
+            fieldChanges.phone = {
+              before: existingStudent.phone,
+              after: studentData.phone
+            };
+          }
+        }
+
         processed.push({
           row: rowNum,
           student_number: studentData.student_number,
@@ -1126,7 +1162,9 @@ const importStudentsFromExcel = async (req, res) => {
           raw_intake: rawIntakeName,
           existing: !!existingStudent,
           course_matched: !!courseMatch,
-          intake_matched: !!intakeMatch
+          intake_matched: !!intakeMatch,
+          provided_fields: providedFields,
+          field_changes: fieldChanges
         });
       } catch (error) {
         errors.push({
@@ -1179,6 +1217,8 @@ const importStudentsFromExcel = async (req, res) => {
         valid_rows: processed.length,
         new_students: newStudents.length,
         existing_students: existingStudents.length,
+        students_to_update: existingStudents.filter(s => s.field_changes && Object.keys(s.field_changes).length > 0).length,
+        students_unchanged: existingStudents.filter(s => !s.field_changes || Object.keys(s.field_changes).length === 0).length,
         duplicate_spreadsheet_rows: errors.filter(e => e.field === 'spreadsheet_duplicate').length,
         skipped_unmatched_courses: unmatchedCourses.length,
         skipped_unmatched_intakes: unmatchedIntakes.length,
@@ -1190,6 +1230,7 @@ const importStudentsFromExcel = async (req, res) => {
         gender: genderStats,
         sample_new: newStudents.slice(0, 5),
         sample_existing: existingStudents.slice(0, 5),
+        sample_updates: existingStudents.filter(s => s.field_changes && Object.keys(s.field_changes).length > 0).slice(0, 5),
         sample_errors: errors.slice(0, 5),
         diagnostics: worksheetDiagnostics
       });
@@ -1218,6 +1259,7 @@ const importStudentsFromExcel = async (req, res) => {
 
     const created = [];
     const updated = [];
+    const unchanged = [];
     const skippedUnmatchedCourses = [];
     const skippedUnmatchedIntakes = [];
 
@@ -1352,8 +1394,16 @@ const importStudentsFromExcel = async (req, res) => {
             full_name: student.full_name,
             course_id: student.course_id
           });
-        } else {
+        } else if (result.action === 'updated') {
           updated.push({
+            id: result.id,
+            student_number: student.student_number,
+            full_name: student.full_name,
+            course_id: student.course_id,
+            field_changes: student.field_changes
+          });
+        } else if (result.action === 'unchanged') {
+          unchanged.push({
             id: result.id,
             student_number: student.student_number,
             full_name: student.full_name,
@@ -1371,7 +1421,7 @@ const importStudentsFromExcel = async (req, res) => {
       }
     }
 
-    console.log(`[IMPORT] Complete: ${created.length} created, ${updated.length} updated, ${skippedUnmatchedCourses.length} unmatched courses, ${skippedUnmatchedIntakes.length} unmatched intakes, ${errors.length} errors`);
+    console.log(`[IMPORT] Complete: ${created.length} created, ${updated.length} updated, ${unchanged.length} unchanged, ${skippedUnmatchedCourses.length} unmatched courses, ${skippedUnmatchedIntakes.length} unmatched intakes, ${errors.length} errors`);
 
     // Update batch status to completed
     if (batch) {
@@ -1387,12 +1437,12 @@ const importStudentsFromExcel = async (req, res) => {
     }
 
     res.status(201).json({
-      message: `Import complete: ${created.length} created, ${updated.length} updated`,
+      message: `Import complete: ${created.length} created, ${updated.length} updated, ${unchanged.length} unchanged`,
       batch_id: batch ? batch.id : null,
       total_rows: processed.length,
       created: created.length,
       updated: updated.length,
-      unchanged: 0,
+      unchanged: unchanged.length,
       skipped: skippedUnmatchedCourses.length + skippedUnmatchedIntakes.length,
       failed: errors.length,
       course_matched: processed.filter(p => p.course_matched).length,
@@ -1402,6 +1452,7 @@ const importStudentsFromExcel = async (req, res) => {
       duplicate_spreadsheet_rows: errors.filter(e => e.field === 'spreadsheet_duplicate').length,
       created_students: created,
       updated_students: updated,
+      unchanged_students: unchanged,
       skipped_unmatched_courses: skippedUnmatchedCourses.length,
       skipped_unmatched_intakes: skippedUnmatchedIntakes.length,
       errors: [...errors, ...skippedUnmatchedCourses, ...skippedUnmatchedIntakes]

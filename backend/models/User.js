@@ -322,17 +322,26 @@ class User {
         updateData.intake = parseInt(intake);
       }
 
-      // Handle password: hash if provided
+      // Handle password: hash if provided, otherwise preserve existing password
       if (password) {
         const bcrypt = require('bcryptjs');
         console.log('[USER.UPSERT] Hashing provided password for existing student:', student_number);
-        updateData.password = bcrypt.hashSync(password, 10);
+        updateData.password = password;  // Pass plaintext, User.update will hash it
         // When password is updated via Excel import, set must_change_password = true
         updateData.must_change_password = true;
+      } else {
+        console.log('[USER.UPSERT] No password provided, preserving existing password for:', student_number);
+        // Do NOT update password field - preserve existing password
       }
 
       console.log('[USER.UPSERT] Fields to update:', Object.keys(updateData));
       console.log('[USER.UPSERT] updateData:', JSON.stringify(updateData));
+
+      // If no fields to update, return unchanged
+      if (Object.keys(updateData).length === 0) {
+        console.log('[USER.UPSERT] No fields to update, returning unchanged');
+        return { ...existing, action: 'unchanged' };
+      }
 
       // Convert must_change_password to boolean for Supabase
       if (updateData.must_change_password !== undefined) {
