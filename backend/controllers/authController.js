@@ -207,40 +207,58 @@ const studentLogin = async (req, res) => {
 
     // Find student by student number
     const user = await User.findByStudentNumber(trimmedStudentNumber);
-    
+
+    console.log('[STUDENT.LOGIN] Lookup result:', {
+      student_number: trimmedStudentNumber,
+      user_found: !!user,
+      user_id: user?.id,
+      user_role: user?.role,
+      user_status: user?.status,
+      has_password: !!user?.password,
+      password_format: user?.password?.substring(0, 7) + '...',
+      must_change_password: user?.must_change_password
+    });
+
     if (!user) {
+      console.log('[STUDENT.LOGIN] Student not found:', trimmedStudentNumber);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     if (user.role !== 'student') {
+      console.log('[STUDENT.LOGIN] User is not a student:', user.role);
       return res.status(403).json({ error: 'Student access required' });
     }
 
     // Check account status - NEW: Admin approval system
     if (user.status === 'pending') {
-      return res.status(403).json({ 
+      console.log('[STUDENT.LOGIN] Account pending approval');
+      return res.status(403).json({
         error: 'Your account is awaiting administrator approval. Please contact Mushagashe administration if you require assistance.',
         code: 'ACCOUNT_PENDING_APPROVAL'
       });
     }
 
     if (user.status === 'rejected') {
-      return res.status(403).json({ 
+      console.log('[STUDENT.LOGIN] Account rejected');
+      return res.status(403).json({
         error: 'Your account registration has been rejected. Please contact Mushagashe administration.',
         code: 'ACCOUNT_REJECTED'
       });
     }
 
     if (user.status === 'suspended') {
+      console.log('[STUDENT.LOGIN] Account suspended');
       return res.status(403).json({ error: 'Account is suspended' });
     }
 
     if (user.status !== 'active') {
+      console.log('[STUDENT.LOGIN] Account not active:', user.status);
       return res.status(403).json({ error: 'Account is not active' });
     }
 
     // Try Supabase Auth first if user has email and auth_type is 'supabase' and Supabase is configured
     if (user.email && user.auth_type === 'supabase' && supabaseConfigured) {
+      console.log('[STUDENT.LOGIN] Trying Supabase Auth for:', user.email);
       try {
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
           email: user.email,
@@ -248,33 +266,46 @@ const studentLogin = async (req, res) => {
         });
 
         if (!authError && authData.user) {
+          console.log('[STUDENT.LOGIN] Supabase Auth successful');
           // Supabase Auth successful - email confirmation no longer required
           const { password: _, ...userWithoutPassword } = user;
-          
+
           return res.json({
             token: authData.session.access_token,
             refresh_token: authData.session.refresh_token,
             auth_type: 'supabase',
             user: userWithoutPassword
           });
+        } else {
+          console.log('[STUDENT.LOGIN] Supabase Auth failed:', authError?.message);
         }
       } catch (supabaseError) {
-        console.log('Supabase auth failed, trying custom auth:', supabaseError.message);
+        console.log('[STUDENT.LOGIN] Supabase auth error, trying custom auth:', supabaseError.message);
       }
     }
 
     // Fall back to custom JWT for users without email or if Supabase Auth failed
     // Email verification check REMOVED - no longer required
 
+    console.log('[STUDENT.LOGIN] Falling back to custom JWT authentication');
+
     // Verify password with bcrypt
     const isPasswordValid = bcrypt.compareSync(trimmedPassword, user.password);
-    
+
+    console.log('[STUDENT.LOGIN] Password verification result:', {
+      valid: isPasswordValid,
+      password_length: trimmedPassword?.length
+    });
+
     if (!isPasswordValid) {
+      console.log('[STUDENT.LOGIN] Invalid credentials for:', trimmedStudentNumber);
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
     // Check if user must change password
     const mustChangePassword = user.must_change_password === 1;
+
+    console.log('[STUDENT.LOGIN] Login successful, must_change_password:', mustChangePassword);
 
     // Generate custom JWT token
     const token = generateToken(user);
@@ -289,7 +320,8 @@ const studentLogin = async (req, res) => {
       must_change_password: mustChangePassword
     });
   } catch (error) {
-    console.error('Student login error:', error);
+    console.error('[STUDENT.LOGIN] Error:', error);
+    console.error('[STUDENT.LOGIN] Error stack:', error.stack);
     res.status(500).json({ error: 'Login failed' });
   }
 };
