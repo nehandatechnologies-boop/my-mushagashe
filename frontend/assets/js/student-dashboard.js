@@ -886,25 +886,44 @@ document.querySelectorAll('.view-all').forEach(link => {
 });
 
 // Check authentication on load
-window.addEventListener('load', () => {
-    const currentToken = localStorage.getItem('token');
-    const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
-    
-    console.log('Auth check - token:', currentToken ? 'exists' : 'missing');
-    console.log('Auth check - user role:', currentUser.role);
-    
-    if (!currentToken || currentUser.role !== 'student') {
-        console.log('Redirecting to login - not authenticated or not student');
-        window.location.href = 'student-login.html';
-        return;
+window.addEventListener('load', async () => {
+    // Wait for auth manager to initialize
+    if (window.authManager) {
+        // Give auth manager a moment to initialize
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        const isAuth = window.authManager.isLoggedIn();
+        const user = window.authManager.getUser();
+
+        console.log('Auth check - authenticated:', isAuth);
+        console.log('Auth check - user role:', user?.role);
+
+        if (!isAuth || !user || user.role !== 'student') {
+            console.log('Redirecting to login - not authenticated or not student');
+            window.location.href = 'student-login.html';
+            return;
+        }
+    } else {
+        // Fallback to synchronous check if auth manager not available
+        const currentToken = localStorage.getItem('token');
+        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+
+        console.log('Auth check (fallback) - token:', currentToken ? 'exists' : 'missing');
+        console.log('Auth check (fallback) - user role:', currentUser.role);
+
+        if (!currentToken || currentUser.role !== 'student') {
+            console.log('Redirecting to login - not authenticated or not student');
+            window.location.href = 'student-login.html';
+            return;
+        }
     }
 
     // Initialize profile picture
     initializeProfilePicture();
-    
+
     // Initialize notifications
     initializeNotifications();
-    
+
     // Initialize theme
     initializeTheme();
 
