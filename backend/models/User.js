@@ -209,7 +209,7 @@ class User {
     } = userData;
 
     const updateData = {
-      full_name, email, student_number, phone, gender,
+      full_name, email, student_number, password, phone, gender,
       national_id, date_of_birth, address, guardian_name, guardian_phone,
       intake_year, course_id, status, must_change_password
     };
@@ -231,7 +231,9 @@ class User {
     console.log('[USER.UPDATE] Update data before Supabase:', JSON.stringify({
       gender: updateData.gender,
       intake: updateData.intake,
-      intake_year: updateData.intake_year
+      intake_year: updateData.intake_year,
+      has_password: !!updateData.password,
+      must_change_password: updateData.must_change_password
     }));
 
     // Handle password: hash if provided (but don't double-hash)
@@ -241,6 +243,7 @@ class User {
       // This prevents double-hashing if the password is already hashed
       if (!updateData.password.startsWith('$2')) {
         updateData.password = bcrypt.hashSync(updateData.password, 10);
+        console.log('[USER.UPDATE] Password hashed successfully');
       } else {
         console.log('[USER.UPDATE] Password appears to be already hashed, skipping hash operation');
       }
