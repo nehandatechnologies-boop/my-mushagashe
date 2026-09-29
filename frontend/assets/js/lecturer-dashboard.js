@@ -161,21 +161,30 @@ async function loadStudents() {
         const intakeFilter = document.getElementById('intakeFilter');
         const search = studentSearch ? studentSearch.value : '';
         const intake = intakeFilter ? intakeFilter.value : '';
-        
+
         let endpoint = '/students';
         const params = [];
         if (search) params.push(`search=${encodeURIComponent(search)}`);
         if (intake) params.push(`intake=${encodeURIComponent(intake)}`);
         if (params.length) endpoint += '?' + params.join('&');
-        
-        const students = await apiRequest(endpoint);
+
+        const response = await apiRequest(endpoint);
         const tbody = document.getElementById('students-table-body');
-        
+
+        // Handle paginated response: { data: [...], total: ..., limit: ..., offset: ... }
+        const students = Array.isArray(response.data) ? response.data : response;
+
+        if (!Array.isArray(students)) {
+            console.error('API response is not an array:', response);
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center">Error loading students: Invalid API response</td></tr>';
+            return;
+        }
+
         if (students.length === 0) {
             tbody.innerHTML = '<tr><td colspan="5" class="text-center">No students found</td></tr>';
             return;
         }
-        
+
         tbody.innerHTML = students.map(student => `
             <tr>
                 <td>${student.student_number}</td>
@@ -194,9 +203,18 @@ async function loadStudents() {
 // Load results for lecturer's course
 async function loadResults() {
     try {
-        const results = await apiRequest('/results');
+        const response = await apiRequest('/results');
         const tbody = document.getElementById('results-table-body');
-        
+
+        // Handle paginated response: { data: [...], total: ..., limit: ..., offset: ... }
+        const results = Array.isArray(response.data) ? response.data : response;
+
+        if (!Array.isArray(results)) {
+            console.error('API response is not an array:', response);
+            tbody.innerHTML = '<tr><td colspan="9" class="text-center">Error loading results: Invalid API response</td></tr>';
+            return;
+        }
+
         if (results.length === 0) {
             tbody.innerHTML = '<tr><td colspan="9" class="text-center">No results found</td></tr>';
             return;
@@ -238,9 +256,19 @@ async function loadResults() {
 // Show detailed results for a specific student
 window.showStudentResults = async (studentName, studentNumber) => {
     try {
-        const results = await apiRequest('/results');
+        const response = await apiRequest('/results');
+
+        // Handle paginated response: { data: [...], total: ..., limit: ..., offset: ... }
+        const results = Array.isArray(response.data) ? response.data : response;
+
+        if (!Array.isArray(results)) {
+            console.error('API response is not an array:', response);
+            showToast('Error loading results: Invalid API response', 'error');
+            return;
+        }
+
         const studentResults = results.filter(r => r.full_name === studentName && r.student_number === studentNumber);
-        
+
         if (studentResults.length === 0) {
             showToast('No results found for this student', 'error');
             return;
@@ -254,7 +282,7 @@ window.showStudentResults = async (studentName, studentNumber) => {
                     `).join('')}
                    </div>`
                 : '';
-            
+
             return `
                 <div style="background: #f9fafb; padding: 1rem; margin-bottom: 0.5rem; border-radius: 0.5rem;">
                     <div style="display: flex; justify-content: space-between; align-items: start;">
@@ -303,8 +331,17 @@ function getGradeBadgeClass(grade) {
 document.getElementById('addResultBtn').addEventListener('click', async () => {
     try {
         const user = JSON.parse(localStorage.getItem('user'));
-        const students = await apiRequest('/students');
-        
+        const response = await apiRequest('/students');
+
+        // Handle paginated response: { data: [...], total: ..., limit: ..., offset: ... }
+        const students = Array.isArray(response.data) ? response.data : response;
+
+        if (!Array.isArray(students)) {
+            console.error('API response is not an array:', response);
+            showToast('Error loading students: Invalid API response', 'error');
+            return;
+        }
+
         showModal(`
             <div class="modal-header">
                 <h3>Add New Result</h3>
@@ -439,8 +476,17 @@ window.editResult = async (id) => {
     try {
         const user = JSON.parse(localStorage.getItem('user'));
         const result = await apiRequest(`/results/${id}`);
-        const students = await apiRequest('/students');
-        
+        const response = await apiRequest('/students');
+
+        // Handle paginated response: { data: [...], total: ..., limit: ..., offset: ... }
+        const students = Array.isArray(response.data) ? response.data : response;
+
+        if (!Array.isArray(students)) {
+            console.error('API response is not an array:', response);
+            showToast('Error loading students: Invalid API response', 'error');
+            return;
+        }
+
         showModal(`
             <div class="modal-header">
                 <h3>Edit Result</h3>
